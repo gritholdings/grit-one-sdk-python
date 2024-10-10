@@ -1,0 +1,62 @@
+# Exclude Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Exclude virtual environments
+venv/
+env/
+.venv/
+
+# Exclude git repository and related files
+.git/
+.gitignore
+
+# Exclude Dockerfile and docker-compose files if not needed inside the image
+Dockerfile
+docker-compose.yml
+
+# Exclude README and documentation files
+README.md
+README.txt
+
+# Exclude local environment and configuration files
+*.env
+.env
+.env.local
+
+# Exclude credential files
+# credentials.json
+
+# Exclude logs
+logs/
+*.log
+
+# Exclude tests and test configurations
+tests/
+*.test.py
+*.spec.py
+
+# Exclude IDE and editor configuration files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Exclude temporary and backup files
+*.bak
+*.swp
+*.tmp
+*.old
+
+# Exclude node_modules if you're using Node.js somewhere
+node_modules/
+
+# Exclude coverage reports
+coverage/
+.coverage
+
+# Exclude build artifacts
+build/
+dist/
+*.egg-info/
