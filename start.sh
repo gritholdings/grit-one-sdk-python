@@ -27,4 +27,4 @@ else
 fi
 
 # Start the Gunicorn server
-exec gunicorn --bind 0.0.0.0:8000 chatbot.wsgi:application
+exec gunicorn --bind 0.0.0.0:8000 core.wsgi:application

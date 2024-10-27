@@ -32,16 +32,16 @@ Before running the application, make sure to install the necessary dependencies.
    ```
 
 ## Deployment
-### Preparation
+### Step 1: Preparation
 Build docker. To run locally:
 ```
 docker buildx build --platform=linux/amd64 -t chatbot .
 docker run --platform=linux/amd64 -p 8000:8000 chatbot:latest
 ```
 
-### Deployment to AWS App Runner
+### Step 2: Deployment to AWS App Runner
 ```
-docker buildx build --platform=linux/amd64 -t chatbot .
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 907965464542.dkr.ecr.us-east-1.amazonaws.com
 docker tag chatbot:latest 907965464542.dkr.ecr.us-east-1.amazonaws.com/django-apprunner-chatbot/chatbot:latest
 docker push 907965464542.dkr.ecr.us-east-1.amazonaws.com/django-apprunner-chatbot/chatbot:latest
 ```
