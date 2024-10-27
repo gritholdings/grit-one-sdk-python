@@ -23,6 +23,7 @@ router = routers.DefaultRouter()
 router.register(r'prompts', views.PromptView, 'prompt')
 
 urlpatterns = [
+    path('', views.index, name='index'),
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
     path('chat/', views.chat, name='chat'),

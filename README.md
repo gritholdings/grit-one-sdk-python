@@ -2,7 +2,7 @@
 
 Django, AWS Apprunner, Docker, Amazon ECR
 
-## Getting Started
+## Installation
 Before running the application, make sure to install the necessary dependencies. Follow these steps:
 
 1. Open a terminal or command prompt.
@@ -20,16 +20,28 @@ Before running the application, make sure to install the necessary dependencies.
    ```
    This command will install all the Python packages listed in the `requirements.txt` file.
 
-5. Build docker
-   To run locally:
+## Local Development
+1. Activate environment
    ```
-   docker run --platform=linux/amd64 -p 8000:8000 chatbot:latest
-   ```
-
-   To push to AWS App Runner:
-   ```
-   docker buildx build --platform=linux/amd64 -t chatbot .
-   docker tag chatbot:latest 907965464542.dkr.ecr.us-east-1.amazonaws.com/django-apprunner-chatbot/chatbot:latest
-   docker push 907965464542.dkr.ecr.us-east-1.amazonaws.com/django-apprunner-chatbot/chatbot:latest
+   . env/bin/activate
    ```
 
+2. Run server locally
+   ```
+   python manage.py runserver
+   ```
+
+## Deployment
+### Preparation
+Build docker. To run locally:
+```
+docker buildx build --platform=linux/amd64 -t chatbot .
+docker run --platform=linux/amd64 -p 8000:8000 chatbot:latest
+```
+
+### Deployment to AWS App Runner
+```
+docker buildx build --platform=linux/amd64 -t chatbot .
+docker tag chatbot:latest 907965464542.dkr.ecr.us-east-1.amazonaws.com/django-apprunner-chatbot/chatbot:latest
+docker push 907965464542.dkr.ecr.us-east-1.amazonaws.com/django-apprunner-chatbot/chatbot:latest
+```
