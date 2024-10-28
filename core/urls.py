@@ -16,16 +16,17 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from chatbot_app import views
+from chatbot_app import views as chatbot_app_views
+from home import views as home_views
 from rest_framework import routers
 
 router = routers.DefaultRouter()
-router.register(r'prompts', views.PromptView, 'prompt')
+router.register(r'prompts', chatbot_app_views.PromptView, 'prompt')
 
 urlpatterns = [
-    path('', views.index, name='index'),
+    path('', home_views.index, name='index'),
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
-    path('chat/', views.chat, name='chat'),
-    path('chat_models/', views.chat_models, name='chat_models')
+    path('chat/', chatbot_app_views.chat, name='chat'),
+    path('chat_models/', chatbot_app_views.chat_models, name='chat_models')
 ]

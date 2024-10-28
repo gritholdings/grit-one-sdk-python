@@ -1,6 +1,15 @@
 # django-apprunner-chatbot
 
-Django, AWS Apprunner, Docker, Amazon ECR
+Two types of apps:
+
+App 1 - Static Page
+
+AWS Apprunner -> Amazon ECR -> Docker -> Django - HTML + Tailwind CSS
+
+App 2 - Single Page Application
+
+Django REST API - AWS Amplify Gen 2 (Not installed in this repo) - React (Not installed in this repo)
+
 
 ## Installation
 Before running the application, make sure to install the necessary dependencies. Follow these steps:
@@ -19,6 +28,12 @@ Before running the application, make sure to install the necessary dependencies.
    pip install -r requirements.txt
    ```
    This command will install all the Python packages listed in the `requirements.txt` file.
+
+5. Perform necessary installation. This is to install Tailwind CSS.
+   ```
+   chmod +x ./scripts/install.sh
+   ./scripts/install.sh
+   ```
 
 ## Local Development
 1. Activate environment

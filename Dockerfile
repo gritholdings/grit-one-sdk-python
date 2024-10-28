@@ -11,7 +11,7 @@ COPY . /app/
 EXPOSE 8000
 
 # Ensure the start.sh script is executable
-RUN chmod +x /app/start.sh
+RUN chmod +x /app/scripts/start.sh
 
 # The entrypoint script will run before the application starts
-CMD ["/app/start.sh"]
+CMD ["/app/scripts/start.sh"]
