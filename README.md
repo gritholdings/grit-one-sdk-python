@@ -1,5 +1,7 @@
 # django-apprunner-chatbot
 
+
+
 Two types of apps:
 
 App 1 - Static Page
@@ -10,6 +12,8 @@ App 2 - Single Page Application
 
 Django REST API - AWS Amplify Gen 2 (Not installed in this repo) - React (Not installed in this repo)
 
+## Requirements
+Django 5.0
 
 ## Installation
 Before running the application, make sure to install the necessary dependencies. Follow these steps:
@@ -46,7 +50,7 @@ Before running the application, make sure to install the necessary dependencies.
    python manage.py runserver
    ```
 
-## Deployment
+## Deployment To Production
 ### Step 1: Preparation
 Build docker. To run locally:
 ```
