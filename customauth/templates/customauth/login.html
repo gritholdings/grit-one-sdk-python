@@ -1,0 +1,16 @@
+{% extends "base_generic.html" %}
+{% block content %}
+    <form method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <div>
+        <label for="id_email">Email:</label>
+        {{ form.email }}
+    </div>
+    <div>
+        <label for="id_password">Password:</label>
+        {{ form.password }}
+    </div>
+    <button type="submit">Login</button>
+    </form>
+{% endblock %}

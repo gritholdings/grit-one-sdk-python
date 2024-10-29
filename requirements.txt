@@ -1,4 +1,4 @@
-Django>=5.0,<5.1
+Django>=5.0,<6.0
 djangorestframework
 django-cors-headers
 gunicorn

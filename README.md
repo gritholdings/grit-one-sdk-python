@@ -1,7 +1,5 @@
 # django-apprunner-chatbot
 
-
-
 Two types of apps:
 
 App 1 - Static Page
@@ -11,6 +9,12 @@ AWS Apprunner -> Amazon ECR -> Docker -> Django - HTML + Tailwind CSS
 App 2 - Single Page Application
 
 Django REST API - AWS Amplify Gen 2 (Not installed in this repo) - React (Not installed in this repo)
+
+## Features
+
+* Authentication
+  * Sign In, Sign Out
+  * Uses email instead of username
 
 ## Requirements
 Django 5.0
@@ -50,6 +54,21 @@ Before running the application, make sure to install the necessary dependencies.
    python manage.py runserver
    ```
 
+## Local Database Migration
+1. Perform schema check
+   ```
+   python manage.py check
+   ```
+
+2. Perform make migrations
+   ```
+   python manage.py makemigrations
+   ```
+
+3. Apply migrations
+   ```
+   python manage.py migrate
+   ```
 ## Deployment To Production
 ### Step 1: Preparation
 Build docker. To run locally:

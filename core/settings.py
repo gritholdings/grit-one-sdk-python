@@ -42,7 +42,8 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'chatbot_app',
-    'home'
+    'home',
+    'customauth'
 ]
 
 MIDDLEWARE = [
@@ -88,6 +89,16 @@ DATABASES = {
     }
 }
 
+# Authentication
+AUTH_USER_MODEL = 'customauth.CustomUser'
+
+AUTHENTICATION_BACKENDS = [
+    'customauth.backends.EmailBackend',
+    'django.contrib.auth.backends.ModelBackend'
+]
+
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/'
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators

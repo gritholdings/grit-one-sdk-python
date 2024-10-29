@@ -1,0 +1,31 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'home/global.css' %}">
+</head>
+<body>
+  <header>
+    <h1><a href="{% url 'index' %}">Your Company, Inc</a></h1>
+    <nav>
+      <!-- Navigation links -->
+      {% if user.is_authenticated %}
+        <p>Welcome, {{ user.email }} <a href="{% url 'logout' %}">Logout</a></p>
+      {% else %}
+        <a href="{% url 'login' %}">Login</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer>
+    <p>&copy; 2024 Your Company, Inc</p>
+  </footer>
+</body>
+</html>
