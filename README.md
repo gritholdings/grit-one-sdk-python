@@ -83,6 +83,9 @@ Before running the application, make sure to install the necessary dependencies.
 Build docker. To run locally:
 ```
 docker buildx build --platform=linux/amd64 -t chatbot .
+```
+Run the docker locally.
+```
 docker run --platform=linux/amd64 -p 8000:8000 chatbot:latest
 ```
 

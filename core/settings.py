@@ -79,15 +79,22 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core.wsgi.application'
 
 
-# Database
-# https://docs.djangoproject.com/en/5.0/ref/settings/#databases
+# Database is AWS RDS Aurora PostgreSQL
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+with open(os.getcwd() + '/credentials.json') as f:
+    credentials = json.load(f)
+    DATABASE_PASSWORD = credentials['DATABASE_PASSWORD']
+
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME':'postgres',
+            'USER':'postgres',
+            'PASSWORD': DATABASE_PASSWORD,
+            'HOST':'database-1-instance-1.cpwpdhxjx3in.us-east-1.rds.amazonaws.com',
+            'PORT':'5432'
+        }
     }
-}
 
 # Authentication
 AUTH_USER_MODEL = 'customauth.CustomUser'
