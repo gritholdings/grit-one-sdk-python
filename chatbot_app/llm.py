@@ -1,5 +1,7 @@
 from openai import OpenAI
 from enum import Enum
+import json
+import os
 
 
 class OpenaiModel(Enum):
@@ -15,7 +17,10 @@ class OpenaiAdapter:
     """Openai Adapter"""
     def __init__(self):
         # it will access the API key from os.environ
-        self.client = OpenAI()
+        with open(os.getcwd() + '/credentials.json') as f:
+            credentials = json.load(f)
+            OPENAI_API_KEY = credentials['OPENAI_API_KEY']
+            self.client = OpenAI(api_key=OPENAI_API_KEY)
 
     def chat(self, model: OpenaiModel = OpenaiModel.GPT_3_5, messages: list = []):
         formatted_messages = [

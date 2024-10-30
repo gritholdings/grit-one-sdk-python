@@ -27,9 +27,10 @@ Before running the application, make sure to install the necessary dependencies.
 
 3. Assuming that you have a supported version of Python installed, you can first set up your environment with:
    ```
-   python3 -m venv env
+   python3.11 -m venv env
    . env/bin/activate
    ```
+   Note: If `command not found: python3.11`, use `brew install python@3.11`
 
 4. Install the backend dependencies using pip:
    ```
@@ -41,6 +42,14 @@ Before running the application, make sure to install the necessary dependencies.
    ```
    chmod +x ./scripts/install.sh
    ./scripts/install.sh
+   ```
+
+6. For local development, add this in `BASE_DIR/credentials.json`:
+   ```
+   {
+      "SECRET_KEY": "django-xxxx",
+      ...
+   }
    ```
 
 ## Local Development
@@ -82,4 +91,11 @@ docker run --platform=linux/amd64 -p 8000:8000 chatbot:latest
 aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 907965464542.dkr.ecr.us-east-1.amazonaws.com
 docker tag chatbot:latest 907965464542.dkr.ecr.us-east-1.amazonaws.com/django-apprunner-chatbot/chatbot:latest
 docker push 907965464542.dkr.ecr.us-east-1.amazonaws.com/django-apprunner-chatbot/chatbot:latest
+```
+
+## Troubleshooting
+### CSS classes not being applied from Tailwind CSS
+This error is due to Tailwind not finding any classes to scan in what it 'thinks' is your HTML code directories. To fix, run:
+```
+./scripts/install.sh
 ```
