@@ -34,6 +34,7 @@ if DJANGO_ENV == 'PROD':
     DEBUG = False
 else:
     DEBUG = True
+DEBUG = True
 
 ALLOWED_HOSTS = [".awsapprunner.com", "127.0.0.1"]
 
