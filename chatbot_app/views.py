@@ -12,10 +12,6 @@ class PromptView(viewsets.ModelViewSet):
     queryset = Prompt.objects.all()
     serializer_class = PromptSerializer
 
-def index(request):
-    output = "<div>Homepage</div>"
-    return HttpResponse(output)
-
 @api_view(['GET'])
 def chat_models(request):
     return Response({

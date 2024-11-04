@@ -10,6 +10,9 @@ COPY . /app/
 
 EXPOSE 8000
 
+# Set to production environment for settings.py
+ENV DJANGO_ENV=PROD
+
 # Ensure the start.sh script is executable
 RUN chmod +x /app/scripts/start.sh
 

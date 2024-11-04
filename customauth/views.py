@@ -12,6 +12,6 @@ def custom_logout_view(request):
 def is_authenticated(request):
     # check if user is authenticated
     if request.user.is_authenticated:
-        return Response({'authenticated': True, 'email': request.user.email})
+        return Response({'is_authenticated': True, 'email': request.user.email})
     else:
-        return Response({'authenticated': False})
+        return Response({'is_authenticated': False})

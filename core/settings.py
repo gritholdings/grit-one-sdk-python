@@ -14,18 +14,26 @@ import json
 import os
 from pathlib import Path
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# Basics
+
+## Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load the credentials.json file
+## Load the credentials.json file
 with open(os.path.join(BASE_DIR, 'credentials.json')) as f:
     credentials = json.load(f)
 
-# Assign the secret key from the JSON file
+## Set a default value of 'DEV' if the environment variable is not found
+DJANGO_ENV = os.getenv('DJANGO_ENV', 'DEV')
+
+## Assign the secret key from the JSON file
 SECRET_KEY = credentials['SECRET_KEY']
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+## Debug mode
+if DJANGO_ENV == 'PROD':
+    DEBUG = False
+else:
+    DEBUG = True
 
 ALLOWED_HOSTS = [".awsapprunner.com", "127.0.0.1"]
 
@@ -97,6 +105,8 @@ with open(os.getcwd() + '/credentials.json') as f:
     }
 
 # Authentication
+
+## User Authentication
 AUTH_USER_MODEL = 'customauth.CustomUser'
 
 AUTHENTICATION_BACKENDS = [
@@ -109,9 +119,8 @@ LOGOUT_REDIRECT_URL = '/'
 
 CSRF_TRUSTED_ORIGINS = ["https://*.awsapprunner.com"]
 
-# Password validation
-# https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
-
+## Password validation
+## https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -127,7 +136,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# REST Framework
+## REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
@@ -135,7 +144,18 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+    ],
 }
+
+## CORS
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOWED_ORIGINS = [
+    'http://127.0.0.1:3000',
+    "https://*.awsapprunner.com"
+]
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
@@ -168,7 +188,3 @@ STORAGES = {
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-CORS_ORIGIN_WHITELIST = [
-    'http://localhost:3000'
-]
