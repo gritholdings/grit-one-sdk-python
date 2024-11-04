@@ -27,7 +27,7 @@ SECRET_KEY = credentials['SECRET_KEY']
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = [".awsapprunner.com", "localhost"]
+ALLOWED_HOSTS = [".awsapprunner.com", "127.0.0.1"]
 
 
 # Application definition
@@ -127,6 +127,15 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# REST Framework
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/

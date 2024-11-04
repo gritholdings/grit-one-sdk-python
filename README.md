@@ -48,9 +48,37 @@ Before running the application, make sure to install the necessary dependencies.
    ```
    {
       "SECRET_KEY": "django-xxxx",
-      ...
+      "DATABASE_PASSWORD": ""
    }
    ```
+   To get secret key for the first time, do the following:
+   ```
+   python manage.py shell
+   >> from django.core.management.utils import get_random_secret_key
+   >> get_random_secret_key()
+   "YOUR_SECRET_KEY"
+   ```
+
+7. Go to aws.amazon.com -> RDS -> DB Instances -> database instance. Copy this endpoint.
+   Update 'HOST' in `DATABASES` in settings.py to use this value.
+   ```
+   DATABASES = {
+      'default': {
+         ...
+         'HOST': 'database-1-instance-1.xxxx.us-east-1.rds.amazonaws.com'
+      }
+   }
+   ```
+
+8. Edit security group for the RDS.
+* In aws.amazon.com, RDS, click on database-1-instance-1 -> connectivity & security -> EC2 Security Group - inbound -> Edit inbound rules.
+* Remove the default rule, then add `Type: PostgreSQL, Source: Anywhere-IPv4`, then save rules.
+
+Note that this is for development only. Change this setting in production.
+
+9. Run `python manage.py migrate` to apply database migrations for the first time.
+
+10. Create a new super admin. Run `python manage.py createsuperuser`, input email and password.
 
 ## Local Development
 1. Activate environment
@@ -62,6 +90,12 @@ Before running the application, make sure to install the necessary dependencies.
    ```
    python manage.py runserver
    ```
+
+## Authentication
+To test authentication run the following:
+```
+curl -X POST -d "username=your_username&password=your_password" http://localhost:8000/auth/login/ -c cookies.txt
+```
 
 ## Local Database Migration
 1. Perform schema check
