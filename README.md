@@ -118,7 +118,7 @@ Build docker. To run locally:
 ```
 docker buildx build --platform=linux/amd64 -t chatbot .
 ```
-Run the docker locally.
+(Optional) Run the docker locally to check.
 ```
 docker run --platform=linux/amd64 -p 8000:8000 chatbot:latest
 ```

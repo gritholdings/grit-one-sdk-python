@@ -36,7 +36,7 @@ else:
     DEBUG = True
 DEBUG = True
 
-ALLOWED_HOSTS = [".awsapprunner.com", "127.0.0.1"]
+ALLOWED_HOSTS = [".awsapprunner.com", ".meetgrit.com", "127.0.0.1"]
 
 
 # Application definition
@@ -118,7 +118,7 @@ AUTHENTICATION_BACKENDS = [
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
-CSRF_TRUSTED_ORIGINS = ["https://*.awsapprunner.com"]
+CSRF_TRUSTED_ORIGINS = ["https://*.awsapprunner.com", "https://*.meetgrit.com"]
 
 ## Password validation
 ## https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
@@ -155,7 +155,8 @@ CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:3000',
-    "https://*.awsapprunner.com"
+    "https://*.awsapprunner.com",
+    "https://*.meetgrit.com"
 ]
 
 # Internationalization
