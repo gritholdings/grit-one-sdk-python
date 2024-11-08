@@ -9,14 +9,8 @@
 </head>
 <body>
   <header>
-    <h1><a href="{% url 'index' %}">Your Company, Inc</a></h1>
     <nav>
-      <!-- Navigation links -->
-      {% if user.is_authenticated %}
-        <p>Welcome, {{ user.email }} <a href="{{platform_url}}">Dashboard</a> <a href="{% url 'logout' %}">Logout</a></p>
-      {% else %}
-        <a href="{% url 'login' %}">Login</a>
-      {% endif %}
+      {% block nav %}{% endblock %}
     </nav>
   </header>
 
