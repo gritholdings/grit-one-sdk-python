@@ -4,7 +4,7 @@ Two types of apps:
 
 App 1 - Static Page
 
-AWS Apprunner -> Amazon ECR -> Docker -> Django - HTML + Tailwind CSS
+AWS Apprunner -> Amazon ECR -> Docker -> Django - HTML + Tailwind CSS + Preline UI
 
 App 2 - Single Page Application
 
