@@ -25,6 +25,7 @@ router.register(r'prompts', chatbot_app_views.PromptView, 'prompt')
 
 urlpatterns = [
     path('', home_views.index, name='index'),
+    path('pricing/', home_views.pricing, name='pricing'),
     path('auth/', include('customauth.urls')),
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),

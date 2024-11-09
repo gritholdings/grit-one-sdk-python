@@ -1,0 +1,439 @@
+{% extends "base_generic.html" %}
+{% block nav %}
+{% include "base_header.html" %}
+{% endblock %}
+{% block content %}
+
+  <main class="w-full bg-white text-gray-900">
+    <header class="flex justify-end items-center py-6 px-8">
+      <nav class="flex items-center gap-8">
+        <a href="#" class="text-gray-600 hover:text-gray-900">Landing</a>
+        <a href="#" class="text-gray-600 hover:text-gray-900">Company</a>
+        <a href="#" class="text-gray-600 hover:text-gray-900">Resources</a>
+        <a href="#" class="text-gray-600 hover:text-gray-900">Login</a>
+        <a href="#" class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700">Request demo</a>
+      </nav>
+    </header>
+  
+    <div class="max-w-6xl mx-auto px-4 py-20 text-center">
+      <h1 class="text-5xl font-bold bg-gradient-to-r from-purple-500 to-purple-400 text-transparent bg-clip-text mb-4">Simple, transparent pricing</h1>
+      <p class="text-gray-400 text-lg mb-12">Whatever your status, our offers evolve according to your needs.</p>
+  
+      <div class="flex justify-center items-center gap-4 mb-16">
+        <span class="text-gray-400">Monthly</span>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" class="sr-only peer">
+          <div class="w-11 h-6 bg-purple-600 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+        </label>
+        <span class="text-gray-400">Annually</span>
+      </div>
+  
+      <!-- Pricing Cards Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <!-- Free Plan -->
+        <div class="bg-white p-8 rounded-xl border border-gray-200">
+          <h3 class="text-lg font-semibold mb-4">Free</h3>
+          <div class="text-4xl font-bold mb-6">Free</div>
+          <p class="text-gray-400 mb-6">Get started with basic features</p>
+          <ul class="text-left space-y-4 mb-8">
+            <li class="flex items-center gap-2 text-gray-300">
+              <svg class="w-5 h-5 text-purple-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+              1 user
+            </li>
+            <li class="flex items-center gap-2 text-gray-300">
+              <svg class="w-5 h-5 text-purple-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+              Plan features
+            </li>
+            <li class="flex items-center gap-2 text-gray-300">
+              <svg class="w-5 h-5 text-purple-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+              Product support
+            </li>
+          </ul>
+          <button class="w-full py-2 border border-purple-500 text-purple-500 rounded-lg hover:bg-purple-900/50">Get started</button>
+        </div>
+  
+        <!-- Startup Plan -->
+        <div class="bg-white p-8 rounded-xl border-2 border-purple-500 relative">
+          <div class="absolute -top-3 left-1/2 transform -translate-x-1/2">
+            <span class="bg-purple-900 text-purple-400 text-xs font-semibold px-3 py-1 rounded-full">MOST POPULAR</span>
+          </div>
+          <h3 class="text-lg font-semibold mb-4">Startup</h3>
+          <div class="text-4xl font-bold mb-6">$39</div>
+          <p class="text-gray-400 mb-6">All the basics for starting a new business</p>
+          <ul class="text-left space-y-4 mb-8">
+            <li class="flex items-center gap-2 text-gray-300">
+              <svg class="w-5 h-5 text-purple-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+              2 users
+            </li>
+            <li class="flex items-center gap-2 text-gray-300">
+              <svg class="w-5 h-5 text-purple-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+              Plan features
+            </li>
+            <li class="flex items-center gap-2 text-gray-300">
+              <svg class="w-5 h-5 text-purple-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+              Product support
+            </li>
+          </ul>
+          <button class="w-full py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">Get started</button>
+        </div>
+  
+        <!-- Team Plan -->
+        <div class="bg-white p-8 rounded-xl border border-gray-200">
+          <h3 class="text-lg font-semibold mb-4">Team</h3>
+          <div class="text-4xl font-bold mb-6">$89</div>
+          <p class="text-gray-400 mb-6">Everything you need for a growing business</p>
+          <ul class="text-left space-y-4 mb-8">
+            <li class="flex items-center gap-2 text-gray-300">
+              <svg class="w-5 h-5 text-purple-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+              5 users
+            </li>
+            <li class="flex items-center gap-2 text-gray-300">
+              <svg class="w-5 h-5 text-purple-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+              Plan features
+            </li>
+            <li class="flex items-center gap-2 text-gray-300">
+              <svg class="w-5 h-5 text-purple-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+              Product support
+            </li>
+          </ul>
+          <button class="w-full py-2 border border-purple-500 text-purple-500 rounded-lg hover:bg-purple-900/50">Get started</button>
+        </div>
+  
+        <!-- Enterprise Plan -->
+        <div class="bg-white p-8 rounded-xl border border-gray-200">
+          <h3 class="text-lg font-semibold mb-4">Enterprise</h3>
+          <div class="text-4xl font-bold mb-6">$149</div>
+          <p class="text-gray-400 mb-6">Advanced features for scaling your business</p>
+          <ul class="text-left space-y-4 mb-8">
+            <li class="flex items-center gap-2 text-gray-300">
+              <svg class="w-5 h-5 text-purple-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+              10 users
+            </li>
+            <li class="flex items-center gap-2 text-gray-300">
+              <svg class="w-5 h-5 text-purple-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+              Plan features
+            </li>
+            <li class="flex items-center gap-2 text-gray-300">
+              <svg class="w-5 h-5 text-purple-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+              Product support
+            </li>
+          </ul>
+          <button class="w-full py-2 border border-purple-500 text-purple-500 rounded-lg hover:bg-purple-900/50">Get started</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+<!-- Comparison Table -->
+<div class="max-w-[85rem] mx-auto px-4 py-10">
+  <h2 class="text-2xl font-bold text-center mb-12">Compare plans</h2>
+  
+  <table class="w-full">
+    <thead>
+      <tr class="border-b border-gray-200">
+        <th class="w-1/5 text-left py-4">
+          <div class="font-bold">Features</div>
+        </th>
+        <th class="w-1/5 text-left py-4">
+          <div class="font-bold">Free</div>
+          <div class="text-sm text-gray-500 font-normal">Free forever</div>
+        </th>
+        <th class="w-1/5 text-left py-4">
+          <div class="font-bold">Startup</div>
+          <div class="text-sm text-gray-500 font-normal">$39 per month billed annually</div>
+        </th>
+        <th class="w-1/5 text-left py-4">
+          <div class="font-bold">Team</div>
+          <div class="text-sm text-gray-500 font-normal">$89 per month billed annually</div>
+        </th>
+        <th class="w-1/5 text-left py-4">
+          <div class="font-bold">Enterprise</div>
+          <div class="text-sm text-gray-500 font-normal">$149 per month billed annually</div>
+        </th>
+      </tr>
+    </thead>
+
+    <tbody>
+      <!-- General Section -->
+      <tr>
+        <td colspan="5" class="pt-8 pb-4">
+          <div class="font-bold">General</div>
+        </td>
+      </tr>
+
+      <tr class="border-b border-gray-200">
+        <td class="py-4">Number of seats</td>
+        <td class="py-4">1</td>
+        <td class="py-4">Up to 3</td>
+        <td class="py-4">Up to 10</td>
+        <td class="py-4">Unlimited</td>
+      </tr>
+
+      <tr class="border-b border-gray-200">
+        <td class="py-4">Storage</td>
+        <td class="py-4">15 GB</td>
+        <td class="py-4">1 TB</td>
+        <td class="py-4">15 TB</td>
+        <td class="py-4">Unlimited</td>
+      </tr>
+
+      <tr class="border-b border-gray-200">
+        <td class="py-4">Email sharing</td>
+        <td class="py-4 text-violet-600">✓</td>
+        <td class="py-4 text-violet-600">✓</td>
+        <td class="py-4 text-violet-600">✓</td>
+        <td class="py-4 text-violet-600">✓</td>
+      </tr>
+
+      <tr class="border-b border-gray-200">
+        <td class="py-4">Any time, anywhere access</td>
+        <td class="py-4 text-gray-400">—</td>
+        <td class="py-4 text-violet-600">✓</td>
+        <td class="py-4 text-violet-600">✓</td>
+        <td class="py-4 text-violet-600">✓</td>
+      </tr>
+
+      <!-- Financial data Section -->
+      <tr>
+        <td colspan="5" class="pt-8 pb-4">
+          <div class="font-bold">Financial data</div>
+        </td>
+      </tr>
+
+      <tr class="border-b border-gray-200">
+        <td class="py-4">Open/High/Low/Close</td>
+        <td class="py-4 text-gray-400">—</td>
+        <td class="py-4 text-gray-400">—</td>
+        <td class="py-4 text-violet-600">✓</td>
+        <td class="py-4 text-violet-600">✓</td>
+      </tr>
+
+      <tr class="border-b border-gray-200">
+        <td class="py-4">Price-volume difference indicator</td>
+        <td class="py-4 text-gray-400">—</td>
+        <td class="py-4 text-violet-600">✓</td>
+        <td class="py-4 text-violet-600">✓</td>
+        <td class="py-4 text-violet-600">✓</td>
+      </tr>
+
+      <!-- On-chain data Section -->
+      <tr>
+        <td colspan="5" class="pt-8 pb-4">
+          <div class="font-bold">On-chain data</div>
+        </td>
+      </tr>
+
+      <tr class="border-b border-gray-200">
+        <td class="py-4">Network growth</td>
+        <td class="py-4 text-gray-400">—</td>
+        <td class="py-4 text-gray-400">—</td>
+        <td class="py-4 text-violet-600">✓</td>
+        <td class="py-4 text-violet-600">✓</td>
+      </tr>
+
+      <tr class="border-b border-gray-200">
+        <td class="py-4">Average token age consumed</td>
+        <td class="py-4 text-gray-400">—</td>
+        <td class="py-4 text-violet-600">✓</td>
+        <td class="py-4 text-violet-600">✓</td>
+        <td class="py-4 text-violet-600">✓</td>
+      </tr>
+
+      <tr class="border-b border-gray-200">
+        <td class="py-4">Exchange flow</td>
+        <td class="py-4 text-gray-400">—</td>
+        <td class="py-4 text-gray-400">—</td>
+        <td class="py-4 text-gray-400">—</td>
+        <td class="py-4 text-violet-600">✓</td>
+      </tr>
+
+      <tr class="border-b border-gray-200">
+        <td class="py-4">Total ERC20 exchange funds flow</td>
+        <td class="py-4 text-gray-400">—</td>
+        <td class="py-4 text-violet-600">✓</td>
+        <td class="py-4 text-violet-600">✓</td>
+        <td class="py-4 text-violet-600">✓</td>
+      </tr>
+
+      <tr class="border-b border-gray-200">
+        <td class="py-4">Transaction volume</td>
+        <td class="py-4 text-gray-400">—</td>
+        <td class="py-4 text-gray-400">—</td>
+        <td class="py-4 text-violet-600">✓</td>
+        <td class="py-4 text-violet-600">✓</td>
+      </tr>
+
+      <tr class="border-b border-gray-200">
+        <td class="py-4">Total circulation (beta)</td>
+        <td class="py-4 text-gray-400">—</td>
+        <td class="py-4 text-violet-600">✓</td>
+        <td class="py-4 text-gray-400">—</td>
+        <td class="py-4 text-violet-600">✓</td>
+      </tr>
+
+      <tr class="border-b border-gray-200">
+        <td class="py-4">Velocity of tokens (beta)</td>
+        <td class="py-4 text-gray-400">—</td>
+        <td class="py-4 text-gray-400">—</td>
+        <td class="py-4 text-gray-400">—</td>
+        <td class="py-4 text-violet-600">✓</td>
+      </tr>
+
+      <tr class="border-b border-gray-200">
+        <td class="py-4">ETH gas used</td>
+        <td class="py-4 text-gray-400">—</td>
+        <td class="py-4 text-violet-600">✓</td>
+        <td class="py-4 text-violet-600">✓</td>
+        <td class="py-4 text-violet-600">✓</td>
+      </tr>
+    </tbody>
+  </table>
+
+<!-- Get Started Buttons -->
+<div class="w-full grid grid-cols-5 gap-4">
+  <div class="col-start-2">
+    <button class="w-full px-4 py-2 text-sm font-medium border border-gray-200 rounded-lg hover:bg-gray-50">
+      Get started
+    </button>
+  </div>
+  <div>
+    <button class="w-full px-4 py-2 text-sm font-medium bg-violet-600 text-white rounded-lg hover:bg-violet-700">
+      Get started
+    </button>
+  </div>
+  <div>
+    <button class="w-full px-4 py-2 text-sm font-medium border border-gray-200 rounded-lg hover:bg-gray-50">
+      Get started
+    </button>
+  </div>
+  <div>
+    <button class="w-full px-4 py-2 text-sm font-medium border border-gray-200 rounded-lg hover:bg-gray-50">
+      Get started
+    </button>
+  </div>
+</div>
+</div>
+
+<!-- Custom Plan CTA -->
+<div class="mt-12 text-center">
+  <span class="text-gray-400 mr-4">Need a custom plan?</span>
+  <button class="inline-flex px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50">
+    Contact us
+  </button>
+</div>
+              
+<!-- FAQ -->
+<div class="max-w-[85rem] px-4 py-10 sm:px-6 lg:px-8 lg:py-14 mx-auto">
+  <!-- Grid -->
+  <div class="grid md:grid-cols-5 gap-10">
+    <div class="md:col-span-2">
+      <div class="max-w-xs">
+        <h2 class="text-2xl font-bold md:text-4xl md:leading-tight dark:text-white">Frequently<br>asked questions</h2>
+        <p class="mt-1 hidden md:block text-gray-600 dark:text-neutral-400">Answers to the most frequently asked questions.</p>
+      </div>
+    </div>
+
+    <div class="md:col-span-3">
+      <!-- Accordion -->
+      <div class="hs-accordion-group divide-y divide-gray-200 dark:divide-neutral-700">
+        <div class="hs-accordion pb-3 active" id="hs-basic-with-title-and-arrow-stretched-heading-one">
+          <button class="hs-accordion-toggle group pb-3 inline-flex items-center justify-between gap-x-3 w-full md:text-lg font-semibold text-start text-gray-800 rounded-lg transition hover:text-gray-500 dark:text-neutral-200" aria-expanded="true">
+            Can I cancel at anytime?
+            <svg class="hs-accordion-active:hidden block shrink-0 size-5 text-gray-600 group-hover:text-gray-500 dark:text-neutral-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            <svg class="hs-accordion-active:block hidden shrink-0 size-5 text-gray-600 group-hover:text-gray-500 dark:text-neutral-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+          </button>
+          <div id="hs-basic-with-title-and-arrow-stretched-collapse-one" class="hs-accordion-content w-full overflow-hidden transition-[height] duration-300">
+            <p class="text-gray-600 dark:text-neutral-400">
+              Yes, you can cancel your subscription at any time. We value your feedback and would appreciate hearing about your experience if you choose to cancel.
+            </p>
+          </div>
+        </div>
+
+        <div class="hs-accordion pt-6 pb-3">
+          <button class="hs-accordion-toggle group pb-3 inline-flex items-center justify-between gap-x-3 w-full md:text-lg font-semibold text-start text-gray-800 rounded-lg transition hover:text-gray-500 dark:text-neutral-200">
+            How does your pricing work?
+            <svg class="hs-accordion-active:hidden block shrink-0 size-5 text-gray-600 group-hover:text-gray-500 dark:text-neutral-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            <svg class="hs-accordion-active:block hidden shrink-0 size-5 text-gray-600 group-hover:text-gray-500 dark:text-neutral-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+          </button>
+          <div class="hs-accordion-content hidden w-full overflow-hidden transition-[height] duration-300">
+            <p class="text-gray-600 dark:text-neutral-400">
+              We offer tiered subscription plans to suit different needs and team sizes. Each tier includes specific features and capabilities designed to provide the best value for your requirements.
+            </p>
+          </div>
+        </div>
+
+        <div class="hs-accordion pt-6 pb-3">
+          <button class="hs-accordion-toggle group pb-3 inline-flex items-center justify-between gap-x-3 w-full md:text-lg font-semibold text-start text-gray-800 rounded-lg transition hover:text-gray-500 dark:text-neutral-200">
+            How secure is Your Company, Inc.?
+            <svg class="hs-accordion-active:hidden block shrink-0 size-5 text-gray-600 group-hover:text-gray-500 dark:text-neutral-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            <svg class="hs-accordion-active:block hidden shrink-0 size-5 text-gray-600 group-hover:text-gray-500 dark:text-neutral-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+          </button>
+          <div class="hs-accordion-content hidden w-full overflow-hidden transition-[height] duration-300">
+            <p class="text-gray-600 dark:text-neutral-400">
+              Security is our top priority. We employ industry-leading security measures to protect your data and maintain compliance with global security standards. All data is encrypted and regularly backed up.
+            </p>
+          </div>
+        </div>
+
+        <div class="hs-accordion pt-6 pb-3">
+          <button class="hs-accordion-toggle group pb-3 inline-flex items-center justify-between gap-x-3 w-full md:text-lg font-semibold text-start text-gray-800 rounded-lg transition hover:text-gray-500 dark:text-neutral-200">
+            How do I access my account?
+            <svg class="hs-accordion-active:hidden block shrink-0 size-5 text-gray-600 group-hover:text-gray-500 dark:text-neutral-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            <svg class="hs-accordion-active:block hidden shrink-0 size-5 text-gray-600 group-hover:text-gray-500 dark:text-neutral-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+          </button>
+          <div class="hs-accordion-content hidden w-full overflow-hidden transition-[height] duration-300">
+            <p class="text-gray-600 dark:text-neutral-400">
+              You can access your account by logging in to our platform with your registered email address. If you've forgotten your password, you can easily reset it through our secure password recovery process.
+            </p>
+          </div>
+        </div>
+
+        <div class="hs-accordion pt-6 pb-3">
+          <button class="hs-accordion-toggle group pb-3 inline-flex items-center justify-between gap-x-3 w-full md:text-lg font-semibold text-start text-gray-800 rounded-lg transition hover:text-gray-500 dark:text-neutral-200">
+            What's included in my subscription?
+            <svg class="hs-accordion-active:hidden block shrink-0 size-5 text-gray-600 group-hover:text-gray-500 dark:text-neutral-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            <svg class="hs-accordion-active:block hidden shrink-0 size-5 text-gray-600 group-hover:text-gray-500 dark:text-neutral-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+          </button>
+          <div class="hs-accordion-content hidden w-full overflow-hidden transition-[height] duration-300">
+            <p class="text-gray-600 dark:text-neutral-400">
+              Each subscription tier includes different features and capabilities. You can view the detailed breakdown of what's included in each plan in our pricing section. All subscriptions include basic support and regular platform updates.
+            </p>
+          </div>
+        </div>
+      </div>
+      <!-- End Accordion -->
+    </div>
+  </div>
+</div>
+
+<!-- Footer -->
+<footer class="max-w-[85rem] mx-auto px-4 py-8 mt-12">
+  <div class="text-sm text-gray-400">© 2024 Your Company, Inc</div>
+</footer>
+
+{% endblock %}
+
