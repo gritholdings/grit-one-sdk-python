@@ -29,6 +29,6 @@ urlpatterns = [
     path('auth/', include('customauth.urls')),
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
-    path('chat/', chatbot_app_views.chat, name='chat'),
+    path('api/threads/runs', chatbot_app_views.threads_runs, name='threads_runs'),
     path('chat_models/', chatbot_app_views.chat_models, name='chat_models')
 ]

@@ -1,11 +1,11 @@
 from rest_framework import viewsets
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from .models import Prompt
 from .serializers import PromptSerializer
 from .llm import openai_instance, OpenaiModel
-from django.http import HttpResponse
 
 
 class PromptView(viewsets.ModelViewSet):
@@ -25,3 +25,10 @@ def chat(request):
         model_str = request.data.get('model')
         response = openai_instance.chat(model=OpenaiModel(model_str), messages=messages)
         return Response(response, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def threads_runs(request):
+    messages = request.data.get('messages')
+    response = openai_instance.chat(messages=messages)
+    return Response(response, status=status.HTTP_200_OK)

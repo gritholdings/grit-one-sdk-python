@@ -22,7 +22,7 @@ class OpenaiAdapter:
             OPENAI_API_KEY = credentials['OPENAI_API_KEY']
             self.client = OpenAI(api_key=OPENAI_API_KEY)
 
-    def chat(self, model: OpenaiModel = OpenaiModel.GPT_3_5, messages: list = []):
+    def chat(self, model: OpenaiModel = OpenaiModel.GPT_4, messages: list = []):
         formatted_messages = [
             {"role": "system", "content": "You are a helpful assistant."}
         ]
