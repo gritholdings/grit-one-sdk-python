@@ -1,24 +1,25 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'home/global.css' %}">
 </head>
-<body>
+<body class="h-full">
   <header>
     <nav>
       {% block nav %}{% endblock %}
     </nav>
   </header>
 
-  <main>
+  <main class="h-full">
     {% block content %}{% endblock %}
   </main>
-
-  {% include "base_footer.html" %}
+  {% block footer %}
+    {% include "base_footer.html" %}
+  {% endblock %}
    <script type="module">
       import preline from 'https://cdn.jsdelivr.net/npm/preline@2.5.1/+esm';
    </script>
