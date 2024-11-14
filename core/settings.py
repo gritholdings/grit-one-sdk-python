@@ -121,7 +121,7 @@ AUTHENTICATION_BACKENDS = [
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
-CSRF_TRUSTED_ORIGINS = ["http://127.0.0.1:3000", "https://*.awsapprunner.com", f"https://*.{DOMAIN_NAME}"]
+CSRF_TRUSTED_ORIGINS = ["http://127.0.0.1:3000", "https://*.awsapprunner.com", f"https://platform.{DOMAIN_NAME}"]
 
 ## Password validation
 ## https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
