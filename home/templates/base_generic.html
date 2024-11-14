@@ -13,10 +13,7 @@
       {% block nav %}{% endblock %}
     </nav>
   </header>
-
-  <main class="h-full">
-    {% block content %}{% endblock %}
-  </main>
+  {% block content %}{% endblock %}
   {% block footer %}
     {% include "base_footer.html" %}
   {% endblock %}
