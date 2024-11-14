@@ -14,6 +14,9 @@ import json
 import os
 from pathlib import Path
 
+# e.g. "example.com"
+DOMAIN_NAME = "meetgrit.com"
+
 # Basics
 
 ## Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -36,7 +39,7 @@ else:
     DEBUG = True
 DEBUG = True
 
-ALLOWED_HOSTS = [".awsapprunner.com", ".meetgrit.com", "127.0.0.1"]
+ALLOWED_HOSTS = [".awsapprunner.com", f".{DOMAIN_NAME}", "127.0.0.1"]
 
 
 # Application definition
@@ -118,7 +121,7 @@ AUTHENTICATION_BACKENDS = [
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
-CSRF_TRUSTED_ORIGINS = ["https://*.awsapprunner.com", "https://*.meetgrit.com"]
+CSRF_TRUSTED_ORIGINS = ["http://127.0.0.1:3000", "https://*.awsapprunner.com", f"https://*.{DOMAIN_NAME}"]
 
 ## Password validation
 ## https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
@@ -156,7 +159,7 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:3000',
     "https://*.awsapprunner.com",
-    "https://platform.meetgrit.com"
+    f"https://platform.{DOMAIN_NAME}"
 ]
 
 # Internationalization
