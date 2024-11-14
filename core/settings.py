@@ -39,7 +39,7 @@ else:
     DEBUG = True
 DEBUG = True
 
-ALLOWED_HOSTS = [".awsapprunner.com", f".{DOMAIN_NAME}", "127.0.0.1"]
+ALLOWED_HOSTS = [".awsapprunner.com", "." + DOMAIN_NAME, "127.0.0.1"]
 
 
 # Application definition
@@ -121,7 +121,6 @@ AUTHENTICATION_BACKENDS = [
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
-CSRF_TRUSTED_ORIGINS = ["http://127.0.0.1:3000", "https://*.awsapprunner.com", f"https://platform.{DOMAIN_NAME}"]
 
 ## Password validation
 ## https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
@@ -159,8 +158,24 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:3000',
     "https://*.awsapprunner.com",
-    f"https://platform.{DOMAIN_NAME}"
+    "https://platform." + DOMAIN_NAME
 ]
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://127.0.0.1:3000",
+    "https://*.awsapprunner.com",
+    "https://*." + DOMAIN_NAME
+]
+
+### Add CORS_EXPOSE_HEADERS to ensure CSRF token is exposed
+CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
+
+### Configure CSRF settings
+CSRF_COOKIE_SECURE = True  # For HTTPS
+CSRF_COOKIE_SAMESITE = 'Lax'  # Or 'None' if you need cross-site requests
+CSRF_COOKIE_DOMAIN = "." + DOMAIN_NAME  # Include subdomain
+CSRF_USE_SESSIONS = False  # Store CSRF token in cookie instead of session
+CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access to CSRF token
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
