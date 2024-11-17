@@ -14,8 +14,13 @@ import json
 import os
 from pathlib import Path
 
-# e.g. "example.com"
+# Customizable settings
+
+## Domain name. e.g. "example.com"
 DOMAIN_NAME = "meetgrit.com"
+
+## AWS RDS endpoint. e.g. "database-1-instance-1.xxxxxxxxxxx.us-east-1.rds.amazonaws.com"
+AWS_RDS_ENDPOINT = "database-1-instance-1.cpwpdhxjx3in.us-east-1.rds.amazonaws.com"
 
 # Basics
 
@@ -103,7 +108,7 @@ with open(os.getcwd() + '/credentials.json') as f:
             'NAME':'postgres',
             'USER':'postgres',
             'PASSWORD': DATABASE_PASSWORD,
-            'HOST':'database-1-instance-1.cpwpdhxjx3in.us-east-1.rds.amazonaws.com',
+            'HOST':AWS_RDS_ENDPOINT,
             'PORT':'5432'
         }
     }
