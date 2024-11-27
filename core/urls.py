@@ -30,5 +30,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
     path('api/threads/runs', chatbot_app_views.threads_runs, name='threads_runs'),
-    path('chat_models/', chatbot_app_views.chat_models, name='chat_models')
+    path('onboarding/<int:step>/', home_views.onboarding, name='onboarding'),
+    path('onboarding/save/', home_views.save_onboarding_progress, name='save_onboarding_progress'),
 ]
