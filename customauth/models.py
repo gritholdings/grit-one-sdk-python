@@ -21,9 +21,9 @@ class CustomUserManager(BaseUserManager):
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(verbose_name='email address', unique=True)
-    # Add additional fields if needed
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+    metadata = models.JSONField(default=dict, blank=True, null=True)
 
     objects = CustomUserManager()
 
@@ -32,3 +32,9 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
+
+    def save(self, *args, **kwargs):
+        # Initialize metadata as an empty dict if it's None
+        if self.metadata is None:
+            self.metadata = {}
+        super().save(*args, **kwargs)
