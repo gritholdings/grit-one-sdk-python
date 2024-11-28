@@ -3,6 +3,33 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from .models import CustomUser
 
+class SignUpForm(UserCreationForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Remove colons from labels
+        self.label_suffix = ''
+        # Add label class to all fields
+        for field in self.fields.values():
+            field.label_attrs = {'class': 'block text-sm font-medium text-gray-700 mb-1'}
+
+    email = forms.EmailField(
+        max_length=254,
+        required=True,
+        widget=forms.EmailInput(attrs={'class': 'form-control w-full mt-1 px-3 py-2 border rounded-lg'})
+    )
+    password1 = forms.CharField(
+        widget=forms.PasswordInput(attrs={'class': 'form-control w-full mt-1 px-3 py-2 border rounded-lg'}),
+        label="Password"
+    )
+    password2 = forms.CharField(
+        widget=forms.PasswordInput(attrs={'class': 'form-control w-full mt-1 px-3 py-2 border rounded-lg'}),
+        label="Confirm Password"
+    )
+
+    class Meta:
+        model = CustomUser
+        fields = ('email', 'password1', 'password2')
+
 class CustomUserCreationForm(UserCreationForm):
     """Form for creating new users."""
     class Meta:

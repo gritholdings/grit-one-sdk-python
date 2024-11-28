@@ -13,6 +13,7 @@ Django REST API - AWS Amplify Gen 2 (Not installed in this repo) - React (Not in
 ## Features
 
 * Authentication
+  * Sign Up
   * Sign In, Sign Out
   * Uses email instead of username
 
