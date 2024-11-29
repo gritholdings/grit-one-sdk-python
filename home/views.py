@@ -2,6 +2,7 @@ import os
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from customauth.models import CustomUser
 
 def index(request):
     django_env = os.getenv('DJANGO_ENV', 'DEV')
@@ -89,7 +90,7 @@ def onboarding(request, step):
             return redirect('index')
 
     # Get previously saved data for this step
-    saved_data = request.session.get(f'onboarding_step_{step}', {})
+    saved_data = CustomUser.objects.get(id=request.user.id).metadata
     
     context = {
         'step': step,

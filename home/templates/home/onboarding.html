@@ -96,12 +96,14 @@
             </button>
             
             {% if is_last_step %}
-                <button type="submit" name="next" 
+                <button type="submit" name="next"
+                        formaction="{% url 'save_onboarding_progress' %}"
                         class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors">
                     Complete Setup
                 </button>
             {% else %}
-                <button type="submit" name="next" 
+                <button type="submit" name="next"
+                        formaction="{% url 'save_onboarding_progress' %}" 
                         class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors">
                     Next
                 </button>
