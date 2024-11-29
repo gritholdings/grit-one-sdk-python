@@ -4,111 +4,111 @@
 {% endblock %}
 {% block content %}
 <div class="max-w-2xl mx-auto my-8 p-8 bg-white shadow-md rounded-lg">
-    <h1 class="text-2xl font-bold mb-4">Step {{ step }} of {{ total_steps }}</h1>
+  <h1 class="text-2xl font-bold mb-4">Step {{ step }} of {{ total_steps }}</h1>
+  
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="step" value="{{ step }}">
     
-    <form method="post">
-        {% csrf_token %}
-        <input type="hidden" name="step" value="{{ step }}">
-        
-        {% if step == 1 %}
-            <h2 class="text-xl font-semibold mb-2">Welcome to Your Company, Inc</h2>
-            <p class="text-gray-600 mb-6">Let's get you started with your account setup.</p>
-            
-            <div class="mb-6">
-                <label for="company_name" class="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
-                <input type="text" id="company_name" name="company_name" 
-                       value="{{ saved_data.company_name }}" 
-                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                       >
-            </div>
-            
-            <div class="mb-6">
-                <label for="business_description" class="block text-sm font-medium text-gray-700 mb-1">Tell us about your business</label>
-                <textarea id="business_description" name="business_description" 
-                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px]" 
-                          >{{ saved_data.business_description }}</textarea>
-            </div>
+    {% if step == 1 %}
+    <h2 class="text-xl font-semibold mb-2">Welcome to Your Company, Inc</h2>
+    <p class="text-gray-600 mb-6">Let's get you started with your account setup.</p>
+    
+    <div class="mb-6">
+      <label for="company_name" class="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+      <input type="text" id="company_name" name="company_name"
+        value="{{ saved_data.company_name }}"
+        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+      >
+    </div>
+    
+    <div class="mb-6">
+      <label for="business_description" class="block text-sm font-medium text-gray-700 mb-1">Tell us about your business</label>
+      <textarea id="business_description" name="business_description" 
+        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px]"
+      >{{ saved_data.business_description }}</textarea>
+    </div>
 
-        {% elif step == 2 %}
-            <h2 class="text-xl font-semibold mb-2">Business Details</h2>
-            <p class="text-gray-600 mb-6">Help us understand your needs better.</p>
-            
-            <div class="mb-6">
-                <label for="industry" class="block text-sm font-medium text-gray-700 mb-1">Select your industry</label>
-                <select id="industry" name="industry" 
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                        >
-                    <option value="">Select an option...</option>
-                    <option value="tech" {% if saved_data.industry == 'tech' %}selected{% endif %}>Technology</option>
-                    <option value="finance" {% if saved_data.industry == 'finance' %}selected{% endif %}>Finance</option>
-                    <option value="healthcare" {% if saved_data.industry == 'healthcare' %}selected{% endif %}>Healthcare</option>
-                    <option value="retail" {% if saved_data.industry == 'retail' %}selected{% endif %}>Retail</option>
-                    <option value="other" {% if saved_data.industry == 'other' %}selected{% endif %}>Other</option>
-                </select>
-            </div>
-            
-            <div class="mb-6">
-                <label class="inline-flex items-center">
-                    <input type="checkbox" name="newsletter" value="1" 
-                           {% if saved_data.newsletter %}checked{% endif %}
-                           class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                    <span class="ml-2 text-sm text-gray-700">Keep me updated with new features and improvements</span>
-                </label>
-            </div>
+    {% elif step == 2 %}
+    <h2 class="text-xl font-semibold mb-2">Business Details</h2>
+    <p class="text-gray-600 mb-6">Help us understand your needs better.</p>
+    
+    <div class="mb-6">
+      <label for="industry" class="block text-sm font-medium text-gray-700 mb-1">Select your industry</label>
+      <select id="industry" name="industry" 
+        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+      >
+      <option value="">Select an option...</option>
+      <option value="tech" {% if saved_data.industry == 'tech' %}selected{% endif %}>Technology</option>
+      <option value="finance" {% if saved_data.industry == 'finance' %}selected{% endif %}>Finance</option>
+      <option value="healthcare" {% if saved_data.industry == 'healthcare' %}selected{% endif %}>Healthcare</option>
+      <option value="retail" {% if saved_data.industry == 'retail' %}selected{% endif %}>Retail</option>
+      <option value="other" {% if saved_data.industry == 'other' %}selected{% endif %}>Other</option>
+      </select>
+    </div>
+    
+    <div class="mb-6">
+      <label class="inline-flex items-center">
+      <input type="checkbox" name="newsletter" value="1" 
+        {% if saved_data.newsletter %}checked{% endif %}
+        class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+      <span class="ml-2 text-sm text-gray-700">Keep me updated with new features and improvements</span>
+      </label>
+    </div>
 
-        {% elif step == 3 %}
-            <h2 class="text-xl font-semibold mb-2">Final Setup</h2>
-            <p class="text-gray-600 mb-6">Almost done! Let's configure your preferences.</p>
-            
-            <div class="mb-6">
-                <label for="goals" class="block text-sm font-medium text-gray-700 mb-1">What are your main goals with Your Company, Inc?</label>
-                <textarea id="goals" name="goals" 
-                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px]" 
-                          >{{ saved_data.goals }}</textarea>
-            </div>
-            
-            <div class="mb-6">
-                <label for="team_size" class="block text-sm font-medium text-gray-700 mb-1">Team Size</label>
-                <select id="team_size" name="team_size" 
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                        >
-                    <option value="">Select team size...</option>
-                    <option value="1-10" {% if saved_data.team_size == '1-10' %}selected{% endif %}>1-10 employees</option>
-                    <option value="11-50" {% if saved_data.team_size == '11-50' %}selected{% endif %}>11-50 employees</option>
-                    <option value="51-200" {% if saved_data.team_size == '51-200' %}selected{% endif %}>51-200 employees</option>
-                    <option value="201+" {% if saved_data.team_size == '201+' %}selected{% endif %}>201+ employees</option>
-                </select>
-            </div>
-        {% endif %}
-        
-        <div class="flex justify-between items-center gap-4 mt-8">
-            {% if show_previous %}
-                <button type="submit" name="previous" 
-                        class="px-4 py-2 border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white font-medium rounded-md transition-colors">
-                    Previous
-                </button>
-            {% endif %}
-            
-            <button type="submit" name="save" 
-                    formaction="{% url 'save_onboarding_progress' %}"
-                    class="px-4 py-2 border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white font-medium rounded-md transition-colors">
-                Save and finish later
-            </button>
-            
-            {% if is_last_step %}
-                <button type="submit" name="next"
-                        formaction="{% url 'save_onboarding_progress' %}"
-                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors">
-                    Complete Setup
-                </button>
-            {% else %}
-                <button type="submit" name="next"
-                        formaction="{% url 'save_onboarding_progress' %}" 
-                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors">
-                    Next
-                </button>
-            {% endif %}
-        </div>
-    </form>
+    {% elif step == 3 %}
+    <h2 class="text-xl font-semibold mb-2">Final Setup</h2>
+    <p class="text-gray-600 mb-6">Almost done! Let's configure your preferences.</p>
+    
+    <div class="mb-6">
+      <label for="goals" class="block text-sm font-medium text-gray-700 mb-1">What are your main goals with Your Company, Inc?</label>
+      <textarea id="goals" name="goals" 
+        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px]" 
+      >{{ saved_data.goals }}</textarea>
+    </div>
+    
+    <div class="mb-6">
+      <label for="team_size" class="block text-sm font-medium text-gray-700 mb-1">Team Size</label>
+      <select id="team_size" name="team_size" 
+        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+      >
+        <option value="">Select team size...</option>
+        <option value="1-10" {% if saved_data.team_size == '1-10' %}selected{% endif %}>1-10 employees</option>
+        <option value="11-50" {% if saved_data.team_size == '11-50' %}selected{% endif %}>11-50 employees</option>
+        <option value="51-200" {% if saved_data.team_size == '51-200' %}selected{% endif %}>51-200 employees</option>
+        <option value="201+" {% if saved_data.team_size == '201+' %}selected{% endif %}>201+ employees</option>
+      </select>
+    </div>
+    {% endif %}
+    
+    <div class="flex justify-between items-center gap-4 mt-8">
+      {% if show_previous %}
+      <button type="submit" name="previous" 
+        class="px-4 py-2 border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white font-medium rounded-md transition-colors">
+          Previous
+      </button>
+      {% endif %}
+      
+      <button type="submit" name="save" 
+        formaction="{% url 'save_onboarding_progress' %}"
+        class="px-4 py-2 border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white font-medium rounded-md transition-colors">
+          Save and finish later
+      </button>
+      
+      {% if is_last_step %}
+      <button type="submit" name="next"
+        formaction="{% url 'save_onboarding_progress' %}"
+        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors">
+          Complete Setup
+      </button>
+      {% else %}
+      <button type="submit" name="next"
+        formaction="{% url 'save_onboarding_progress' %}" 
+        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors">
+          Next
+      </button>
+      {% endif %}
+    </div>
+  </form>
 </div>
 {% endblock %}
