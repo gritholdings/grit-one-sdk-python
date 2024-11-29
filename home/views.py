@@ -24,59 +24,23 @@ TOTAL_STEPS = 3
 def update_user_metadata(user, form_data):
     """
     Helper function to update user metadata based on form fields
+    Preserves existing metadata and updates with new form data
+    Supports both flat and categorized structures dynamically
     """
-    print("Form data received in update_user_metadata:", form_data)
-    
     if user.metadata is None:
         user.metadata = {}
-
-    # Update mappings to match your form fields
-    metadata_mappings = {
-        'company_name': {
-            'category': 'company',
-            'field': 'name'
-        },
-        'business_description': {
-            'category': 'company',
-            'field': 'description'
-        },
-        'industry': {
-            'category': 'company',
-            'field': 'industry'
-        },
-        'newsletter': {
-            'category': 'preferences',
-            'field': 'newsletter'
-        },
-        'goals': {
-            'category': 'company',
-            'field': 'goals'
-        },
-        'team_size': {
-            'category': 'company',
-            'field': 'team_size'
-        }
-    }
-
-    # Process each form field
+    
+    # Handle both direct updates and categorized updates
     for field, value in form_data.items():
-        print(f"Processing field: {field} with value: {value}")
-        if field in metadata_mappings:
-            mapping = metadata_mappings[field]
-            category = mapping['category']
-            field_name = mapping['field']
-
-            # Initialize category if it doesn't exist
-            if category not in user.metadata:
-                user.metadata[category] = {}
-            
-            # Handle checkbox value for newsletter
-            if field == 'newsletter':
-                value = bool(value == '1')
-            
-            # Update the field value
-            user.metadata[category][field_name] = value.lower() if isinstance(value, str) else value
-            print(f"Updated metadata: {user.metadata}")
+        # Convert string values to lowercase
+        if isinstance(value, str):
+            value = value.lower()
+        # Handle checkbox values
+        elif field == 'newsletter':
+            value = bool(value == '1')
+        
+        # Update metadata directly (flat structure)
+        user.metadata[field] = value
 
 @login_required
 def onboarding(request, step):
