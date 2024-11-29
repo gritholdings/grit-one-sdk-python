@@ -1,0 +1,64 @@
+[MASTER]
+# Use multiple processes to speed up Pylint (use "0" for auto)
+jobs=1
+
+[MESSAGES CONTROL]
+# Disable specific warnings
+disable=C0111,  # missing-docstring
+        C0103,  # invalid-name
+        W0613,  # unused-argument
+        W0702,  # bare-except
+        R0903,  # too-few-public-methods
+        R0913,  # too-many-arguments
+        R0914,  # too-many-locals
+        W0621,  # redefined-outer-name
+        C0301,  # line-too-long
+        C0114,  # missing-module-docstring
+        C0115,  # missing-class-docstring
+        C0116,  # missing-function-docstring
+        C0304,  # missing-final-newline
+
+# Enable specific warnings
+enable=W0611,  # unused-import
+       E0001   # syntax-error
+
+[REPORTS]
+# Set the output format (text, parseable, colorized, html)
+output-format=colorized
+
+# Include a brief explanation of each error
+msg-template={path}:{line}: [{msg_id}({symbol}), {obj}] {msg}
+
+[FORMAT]
+# Maximum number of characters on a single line
+max-line-length=140
+
+[BASIC]
+# Regular expression which should only match function or class names
+function-rgx=[a-z_][a-z0-9_]{2,30}$
+class-rgx=[A-Z_][a-zA-Z0-9]+$
+
+# Good variable names which should always be accepted
+good-names=i,j,k,ex,Run,_,fd,fp
+
+[VARIABLES]
+# A regular expression matching the name of dummy variables
+dummy-variables-rgx=_$|dummy
+
+# List of additional names to consider as builtins
+additional-builtins=
+
+[SIMILARITIES]
+# Minimum lines number of a similarity
+min-similarity-lines=4
+
+# Ignore imports when computing similarities
+ignore-imports=yes
+
+[TYPECHECK]
+# List of module names for which member attributes should not be checked
+ignored-modules=numpy,tensorflow,torch,cv2
+
+[MISCELLANEOUS]
+# List of note tags to take into consideration
+notes=FIXME,TODO,XXX,HACK

@@ -2,11 +2,12 @@ import os
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.conf import settings
 from customauth.models import CustomUser
 
 def index(request):
     django_env = os.getenv('DJANGO_ENV', 'DEV')
-    platform_url = 'https://platform.meetgrit.com/' if django_env == 'PROD' else 'http://127.0.0.1:3000'
+    platform_url = f'https://platform.{settings.DOMAIN_NAME}/' if django_env == 'PROD' else 'http://127.0.0.1:3000'
     context = {
         'platform_url': platform_url
     }
@@ -14,9 +15,9 @@ def index(request):
 
 def pricing(request):
     django_env = os.getenv('DJANGO_ENV', 'DEV')
-    platform_url = 'https://platform.meetgrit.com/' if django_env == 'PROD' else 'http://127.0.0.1:3000'
+    platform_url = f'https://platform.{settings.DOMAIN_NAME}/' if django_env == 'PROD' else 'http://127.0.0.1:3000'
     context = {
-        'platform_url': platform_url
+        'platform_url': platform_url 
     }
     return render(request, "home/pricing.html", context)
 
@@ -30,7 +31,7 @@ def update_user_metadata(user, form_data):
     """
     if user.metadata is None:
         user.metadata = {}
-    
+
     # Handle both direct updates and categorized updates
     for field, value in form_data.items():
         # Convert string values to lowercase
@@ -39,7 +40,7 @@ def update_user_metadata(user, form_data):
         # Handle checkbox values
         elif field == 'newsletter':
             value = bool(value == '1')
-        
+
         # Update metadata directly (flat structure)
         user.metadata[field] = value
 
@@ -55,12 +56,12 @@ def onboarding(request, step):
 
     if step < 1 or step > TOTAL_STEPS:
         return redirect('onboarding', step=1)
-    
+
     if request.method == 'POST':
         # Convert QueryDict to regular dict and remove CSRF token
         form_data = request.POST.dict()
         form_data.pop('csrfmiddlewaretoken', None)
-        
+
         # Remove navigation buttons from form data
         for btn in ['next', 'previous', 'save']:
             form_data.pop(btn, None)
@@ -91,7 +92,7 @@ def onboarding(request, step):
 
     # Get previously saved data for this step
     saved_data = CustomUser.objects.get(id=request.user.id).metadata
-    
+
     context = {
         'step': step,
         'total_steps': TOTAL_STEPS,
@@ -109,12 +110,12 @@ def save_onboarding_progress(request):
             current_step = int(request.POST.get('step', 1))
         except ValueError:
             current_step = 1
-        
+
         # Convert QueryDict to regular dict and remove CSRF token
         form_data = request.POST.dict()
         form_data.pop('csrfmiddlewaretoken', None)
         form_data.pop('step', None)
-        
+
         # Remove navigation buttons from form data
         for btn in ['next', 'previous', 'save']:
             form_data.pop(btn, None)
@@ -132,5 +133,5 @@ def save_onboarding_progress(request):
             return redirect('onboarding', step=current_step + 1)
         elif 'previous' in request.POST and current_step > 1:
             return redirect('onboarding', step=current_step - 1)
-        
+
     return redirect('index')
