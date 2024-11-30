@@ -1,11 +1,10 @@
-from django.contrib.auth import logout, login, authenticate
+from django.contrib.auth import logout, login, authenticate, views as auth_views
 from django.contrib import messages
 from django.shortcuts import render, redirect
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from django.contrib.auth import login
-from .forms import SignUpForm
+from .forms import SignUpForm, EmailAuthenticationForm
 
 
 def custom_logout_view(request):
@@ -33,3 +32,7 @@ def signup(request):
     else:
         form = SignUpForm()
     return render(request, 'customauth/signup.html', {'form': form})
+
+class CustomLoginView(auth_views.LoginView):
+    template_name = 'customauth/login.html'
+    authentication_form = EmailAuthenticationForm

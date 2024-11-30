@@ -1,14 +1,9 @@
 from django.urls import path
-from django.contrib.auth import views as auth_views
-from .forms import EmailAuthenticationForm
-from .views import custom_logout_view, is_authenticated, signup
+from .views import custom_logout_view, is_authenticated, signup, CustomLoginView
 
 
 urlpatterns = [
-    path('login/', auth_views.LoginView.as_view(
-        template_name='customauth/login.html',
-        authentication_form=EmailAuthenticationForm
-    ), name='login'),
+    path('login/', CustomLoginView.as_view(), name='login'),
     path('logout/', custom_logout_view, name='logout'),
     path('signup/', signup, name='signup'),
     path('is-authenticated/', is_authenticated, name='is_authenticated')
