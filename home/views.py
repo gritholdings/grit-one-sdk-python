@@ -52,7 +52,7 @@ def onboarding(request, step):
         return redirect('onboarding', step=1)
 
     django_env = os.getenv('DJANGO_ENV', 'DEV')
-    platform_url = 'https://platform.meetgrit.com/' if django_env == 'PROD' else 'http://127.0.0.1:3000'
+    platform_url = f'https://platform.{settings.DOMAIN_NAME}/' if django_env == 'PROD' else 'http://127.0.0.1:3000'
 
     if step < 1 or step > TOTAL_STEPS:
         return redirect('onboarding', step=1)
