@@ -2,8 +2,19 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Run With Install",
-            "type": "python",
+            "name": "1. Run Only",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/manage.py",
+            "args": [
+                "runserver"
+            ],
+            "django": true,
+            "justMyCode": true
+        },
+        {
+            "name": "2. Run With Install",
+            "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/manage.py",
             "args": [
@@ -19,26 +30,15 @@
             }
         },
         {
-            "name": "Run Only",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/manage.py",
-            "args": [
-                "runserver"
-            ],
-            "django": true,
-            "justMyCode": true
-        },
-        {
-            "name": "Django: Run Tests",
-            "type": "python",
+            "name": "3. Run Tests",
+            "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/manage.py",
             "args": [
                 "test"
             ],
             "django": true,
-            "justMyCode": true
+            "justMyCode": false
         }
     ]
 }
