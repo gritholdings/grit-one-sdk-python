@@ -32,10 +32,24 @@ def update_user_metadata(user, form_data):
     if user.metadata is None:
         user.metadata = {}
 
-    # Handle both direct updates and categorized updates
+    # Get all checkbox fields from the form (by looking at fields with value 'true')
+    checkbox_fields = {field for field, value in form_data.items() if value == 'true'}
+
+    # Update all form fields except checkboxes
     for field, value in form_data.items():
-        # Update metadata directly (flat structure)
-        user.metadata[field] = value
+        if field not in checkbox_fields:
+            user.metadata[field] = value
+
+    # Handle all checkbox fields
+    for field in checkbox_fields:
+        user.metadata[field] = form_data[field] == 'true'
+        
+    # Set any missing checkbox fields to False
+    # This handles unchecked boxes which won't appear in form_data
+        seen_checkboxes = {field for field in user.metadata if isinstance(user.metadata[field], bool)}
+        for checkbox in seen_checkboxes:
+            if checkbox not in form_data:
+                user.metadata[checkbox] = False
 
 @login_required
 def onboarding(request, step):
