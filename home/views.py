@@ -34,13 +34,6 @@ def update_user_metadata(user, form_data):
 
     # Handle both direct updates and categorized updates
     for field, value in form_data.items():
-        # Convert string values to lowercase
-        if isinstance(value, str):
-            value = value.lower()
-        # Handle checkbox values
-        elif field == 'newsletter':
-            value = bool(value == '1')
-
         # Update metadata directly (flat structure)
         user.metadata[field] = value
 

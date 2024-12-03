@@ -18,12 +18,14 @@ class UpdateUserMetadataTestCase(TestCase):
         update_user_metadata(user, form_data_1)
         self.assertEqual(user.metadata['employment'], 'full-time')
         form_data_2 = {
+            'department': 'Engineering',
             'marital_status': 'single',
             'company': {
                 'company_name': 'Your Company 2, Inc'
             }
         }
         update_user_metadata(user, form_data_2)
+        self.assertEqual(user.metadata['department'], 'Engineering', 'E should be capitalized')
         self.assertEqual(user.metadata['marital_status'], 'single')
         self.assertEqual(user.metadata['employment'], 'full-time')
         self.assertEqual(user.metadata['company']['company_name'], 'Your Company 2, Inc')
