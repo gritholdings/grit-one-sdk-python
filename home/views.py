@@ -100,13 +100,32 @@ def onboarding(request, step):
     # Get previously saved data for this step
     saved_data = CustomUser.objects.get(id=request.user.id).metadata
 
+    industry_options = [
+        ('tech', 'Technology'),
+        ('finance', 'Finance'),
+        ('healthcare', 'Healthcare'),
+        ('retail', 'Retail'),
+        ('other', 'Other')
+    ]
+    
+    team_size_options = [
+        ('1-10', '1-10'),
+        ('11-50', '11-50'),
+        ('51-100', '51-100'),
+        ('101-500', '101-500'),
+        ('501-1000', '501-1000'),
+        ('1001+', '1001+')
+    ]
+
     context = {
         'step': step,
         'total_steps': TOTAL_STEPS,
         'saved_data': saved_data,
         'show_previous': step > 1,
         'is_last_step': step == TOTAL_STEPS,
-        'platform_url': platform_url
+        'platform_url': platform_url,
+        'industry_options': industry_options,
+        'team_size_options': team_size_options
     }
     return render(request, "home/onboarding.html", context)
 

@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'chatbot_app',
     'home',
+    'core',
     'customauth'
 ]
 
