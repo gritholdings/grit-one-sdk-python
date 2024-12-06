@@ -3,6 +3,8 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from .models import CustomUser
 
+from django.contrib.auth.forms import PasswordChangeForm
+
 class SignUpForm(UserCreationForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -69,3 +71,17 @@ class EmailAuthenticationForm(forms.Form):
 
     def get_user(self):
         return self.user_cache
+
+class CustomPasswordChangeForm(PasswordChangeForm):
+    old_password = forms.CharField(
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Current Password'}),
+        label='Current Password'
+    )
+    new_password1 = forms.CharField(
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'New Password'}),
+        label='New Password'
+    )
+    new_password2 = forms.CharField(
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Confirm New Password'}),
+        label='Confirm New Password'
+    )
