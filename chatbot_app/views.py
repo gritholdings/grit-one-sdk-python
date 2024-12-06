@@ -5,7 +5,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from .models import Prompt
 from .serializers import PromptSerializer
-from .llm import openai_instance, OpenaiModel
+from .llm import openai_instance, OpenaiModel, chatbot_app
 
 
 class PromptView(viewsets.ModelViewSet):
@@ -30,5 +30,8 @@ def chat(request):
 @permission_classes([IsAuthenticated])
 def threads_runs(request):
     messages = request.data.get('messages')
-    response = openai_instance.chat(messages=messages)
+    response = chatbot_app.process_chat(
+        session_key=request.session.session_key,
+        messages=messages
+    )
     return Response(response, status=status.HTTP_200_OK)
