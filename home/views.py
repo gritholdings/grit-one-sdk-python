@@ -161,3 +161,19 @@ def save_onboarding_progress(request):
             return redirect('onboarding', step=current_step - 1)
 
     return redirect('index')
+
+def about_us(request):
+    django_env = os.getenv('DJANGO_ENV', 'DEV')
+    platform_url = f'https://platform.{settings.DOMAIN_NAME}/' if django_env == 'PROD' else 'http://127.0.0.1:3000'
+    context = {
+        'platform_url': platform_url 
+    }
+    return render(request, "home/about-us.html", context)
+
+def terms_and_conditions(request):
+    django_env = os.getenv('DJANGO_ENV', 'DEV')
+    platform_url = f'https://platform.{settings.DOMAIN_NAME}/' if django_env == 'PROD' else 'http://127.0.0.1:3000'
+    context = {
+        'platform_url': platform_url 
+    }
+    return render(request, "home/terms-and-conditions.html", context)

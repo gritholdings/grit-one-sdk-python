@@ -32,4 +32,6 @@ urlpatterns = [
     path('api/threads/runs', chatbot_app_views.threads_runs, name='threads_runs'),
     path('onboarding/<int:step>/', home_views.onboarding, name='onboarding'),
     path('onboarding/save/', home_views.save_onboarding_progress, name='save_onboarding_progress'),
+    path('about-us/', home_views.about_us, name='about_us'),
+    path('terms-and-conditions/', home_views.terms_and_conditions, name='terms-and-conditions'),
 ]

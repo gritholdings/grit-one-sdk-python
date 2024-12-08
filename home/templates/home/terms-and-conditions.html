@@ -1,0 +1,91 @@
+{% extends 'base_generic.html' %}
+{% block nav %}
+{% include "base_header.html" %}
+{% endblock %}
+{% block content %}
+
+<!-- Terms and Conditions --> 
+<div class="max-w-[85rem] mt-10 px-4 sm:px-6 lg:px-8 mx-auto">
+  <div class="grid lg:grid-cols-3 gap-y-8 lg:gap-y-0 lg:gap-x-6 lg:gap-x-12">
+    <!-- Content -->
+    <div class="lg:col-span-2">
+      <div class="space-y-5 md:space-y-8">
+        <!-- Header -->
+        <div class="space-y-3">
+          <h1 class="text-2xl font-bold md:text-3xl">Terms and Conditions</h1>
+          <p class="text-sm text-gray-500">Last Updated: December 8, 2024</p>
+        </div>
+
+        <!-- Welcome Section -->
+        <div class="space-y-3">
+          <p class="text-lg text-gray-800">Welcome to Your Company, Inc. By using our services, you agree to these Terms and Conditions.</p>
+        </div>
+
+        <!-- Main Sections -->
+        <div class="space-y-6">
+          <!-- Service Use -->
+          <div class="space-y-3">
+            <h2 class="text-xl font-semibold">1. Service Use</h2>
+            <ul class="list-disc list-outside space-y-2 ps-5 text-gray-800">
+              <li class="ps-2">You must be at least 18 years old to use our services</li>
+              <li class="ps-2">You are responsible for maintaining your account security</li>
+              <li class="ps-2">You agree to use the service lawfully and appropriately</li>
+            </ul>
+          </div>
+
+          <!-- User Content -->
+          <div class="space-y-3">
+            <h2 class="text-xl font-semibold">2. User Content</h2>
+            <ul class="list-disc list-outside space-y-2 ps-5 text-gray-800">
+              <li class="ps-2">You retain ownership of your content</li>
+              <li class="ps-2">You grant us license to host and display your content</li>
+              <li class="ps-2">You must not upload illegal or harmful content</li>
+            </ul>
+          </div>
+
+          <!-- Privacy & Data -->
+          <div class="space-y-3">
+            <h2 class="text-xl font-semibold">3. Privacy &amp; Data</h2>
+            <ul class="list-disc list-outside space-y-2 ps-5 text-gray-800">
+              <li class="ps-2">We collect and process data as described in our Privacy Policy</li>
+              <li class="ps-2">We implement reasonable security measures</li>
+              <li class="ps-2">We may use cookies to improve user experience</li>
+            </ul>
+          </div>
+
+          <!-- Contact Information -->
+          <div class="space-y-3 mt-8 pt-8 border-t border-gray-200">
+            <h2 class="text-lg font-semibold">Contact Us</h2>
+            <p class="text-gray-800">
+              Email: legal@yourcompany.com<br>
+              Your Company, Inc.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sticky Sidebar -->
+    <div class="lg:col-span-1">
+      <div class="sticky top-4">
+        <div class="space-y-4">
+          <div class="p-4 bg-gray-100 rounded-lg">
+            <h3 class="font-semibold">Quick Links</h3>
+            <ul class="mt-2 space-y-2">
+              <li>
+                <a class="text-blue-600 hover:underline" href="#service-use">Service Use</a>
+              </li>
+              <li>
+                <a class="text-blue-600 hover:underline" href="#user-content">User Content</a>
+              </li>
+              <li>
+                <a class="text-blue-600 hover:underline" href="#privacy">Privacy &amp; Data</a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
