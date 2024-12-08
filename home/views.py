@@ -1,21 +1,28 @@
 import os
 from django.shortcuts import render, redirect
+from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.conf import settings
 from customauth.models import CustomUser
 
-def index(request):
+def _get_platform_url(request):
     django_env = os.getenv('DJANGO_ENV', 'DEV')
+    # Make sure user has completed onboarding before redirecting to platform
+    if hasattr(request.user, 'metadata') and request.user.metadata.get('has_completed_onboarding', False) is False:
+        return reverse('onboarding', kwargs={'step': 1})
     platform_url = f'https://platform.{settings.DOMAIN_NAME}/' if django_env == 'PROD' else 'http://127.0.0.1:3000'
+    return platform_url
+
+def index(request):
+    platform_url = _get_platform_url(request)
     context = {
         'platform_url': platform_url
     }
     return render(request, "home/index.html", context)
 
 def pricing(request):
-    django_env = os.getenv('DJANGO_ENV', 'DEV')
-    platform_url = f'https://platform.{settings.DOMAIN_NAME}/' if django_env == 'PROD' else 'http://127.0.0.1:3000'
+    platform_url = _get_platform_url(request)
     context = {
         'platform_url': platform_url 
     }
@@ -58,8 +65,7 @@ def onboarding(request, step):
     except (TypeError, ValueError):
         return redirect('onboarding', step=1)
 
-    django_env = os.getenv('DJANGO_ENV', 'DEV')
-    platform_url = f'https://platform.{settings.DOMAIN_NAME}/' if django_env == 'PROD' else 'http://127.0.0.1:3000'
+    platform_url = _get_platform_url(request)
 
     if step < 1 or step > TOTAL_STEPS:
         return redirect('onboarding', step=1)
@@ -107,7 +113,7 @@ def onboarding(request, step):
         ('retail', 'Retail'),
         ('other', 'Other')
     ]
-    
+
     team_size_options = [
         ('1-10', '1-10'),
         ('11-50', '11-50'),
@@ -137,6 +143,10 @@ def save_onboarding_progress(request):
         except ValueError:
             current_step = 1
 
+        # if last step, change value to True
+        if int(request.POST.get('step', 1)) == TOTAL_STEPS:
+            update_user_metadata(request.user, {'has_completed_onboarding': True})
+
         # Convert QueryDict to regular dict and remove CSRF token
         form_data = request.POST.dict()
         form_data.pop('csrfmiddlewaretoken', None)
@@ -163,16 +173,14 @@ def save_onboarding_progress(request):
     return redirect('index')
 
 def about_us(request):
-    django_env = os.getenv('DJANGO_ENV', 'DEV')
-    platform_url = f'https://platform.{settings.DOMAIN_NAME}/' if django_env == 'PROD' else 'http://127.0.0.1:3000'
+    platform_url = _get_platform_url(request)
     context = {
         'platform_url': platform_url 
     }
     return render(request, "home/about-us.html", context)
 
 def terms_and_conditions(request):
-    django_env = os.getenv('DJANGO_ENV', 'DEV')
-    platform_url = f'https://platform.{settings.DOMAIN_NAME}/' if django_env == 'PROD' else 'http://127.0.0.1:3000'
+    platform_url = _get_platform_url(request)
     context = {
         'platform_url': platform_url 
     }
