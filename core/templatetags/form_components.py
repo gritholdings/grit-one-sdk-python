@@ -25,7 +25,7 @@ def input_field(name, label=None, value=None, required=False, input_type="text",
                    id="{name}" 
                    name="{name}"
                    value="{value or ''}"
-                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                    {"required" if required else ""}
                    {' '.join(f'{k}="{v}"' for k, v in kwargs.items())}
             >
@@ -56,7 +56,7 @@ def textarea_field(name, label=None, value=None, required=False, min_height="120
             <textarea
                 id="{name}"
                 name="{name}"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 style="min-height: {min_height};"
                 {"required" if required else ""}
                 {' '.join(f'{k}="{v}"' for k, v in kwargs.items())}
@@ -102,7 +102,7 @@ def select_field(name, options, value=None, label=None, required=False, placehol
             <select
                 id="{name}"
                 name="{name}"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 {"required" if required else ""}
                 {' '.join(f'{k}="{v}"' for k, v in kwargs.items())}
             >
@@ -133,7 +133,7 @@ def checkbox_field(name, label, value=None, **kwargs):
                 type="checkbox"
                 name="{name}"
                 value="true"
-                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                 {' checked' if is_checked else ''}
                 {' '.join(f'{k}="{v}"' for k, v in kwargs.items())}
             >

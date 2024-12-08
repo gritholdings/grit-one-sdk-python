@@ -51,7 +51,7 @@
     <div class="flex justify-between items-center gap-4 mt-8">
       {% if show_previous %}
       <button type="submit" name="previous" 
-        class="px-4 py-2 border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white font-medium rounded-md transition-colors">
+        class="px-4 py-2 border border-primary-600 text-primary-600 hover:bg-primary-600 hover:text-white font-medium rounded-md transition-colors">
           Previous
       </button>
       {% endif %}
@@ -59,20 +59,20 @@
       <button type="submit" name="save" 
         formaction="{% url 'save_onboarding_progress' %}"
         formnovalidate
-        class="px-4 py-2 border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white font-medium rounded-md transition-colors">
+        class="px-4 py-2 border border-primary-600 text-primary-600 hover:bg-primary-600 hover:text-white font-medium rounded-md transition-colors">
           Save and finish later
       </button>
       
       {% if is_last_step %}
       <button type="submit" name="next"
         formaction="{% url 'save_onboarding_progress' %}"
-        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors">
+        class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-md transition-colors">
           Complete Setup
       </button>
       {% else %}
       <button type="submit" name="next"
         formaction="{% url 'save_onboarding_progress' %}" 
-        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors">
+        class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-md transition-colors">
           Next
       </button>
       {% endif %}

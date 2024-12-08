@@ -133,7 +133,9 @@ docker push 907965464542.dkr.ecr.us-east-1.amazonaws.com/django-apprunner-chatbo
 
 ## Troubleshooting
 ### CSS classes not being applied from Tailwind CSS
-This error is due to Tailwind not finding any classes to scan in what it 'thinks' is your HTML code directories. To fix, run:
+* This error is due to Tailwind not finding any classes to scan in what it 'thinks' is your HTML code directories. To fix, run:
 ```
 ./scripts/install.sh
 ```
+
+* Browser may not refresh properly. In Chrome, do `command + shift + r` for hard reload.

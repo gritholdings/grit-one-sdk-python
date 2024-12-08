@@ -49,14 +49,14 @@
               
             {% endif %}
             {% if user.is_authenticated %}
-            <a class="py-2 px-2.5 inline-flex items-center font-medium text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none" href="{{platform_url}}">
+            <a class="py-2 px-2.5 inline-flex items-center font-medium text-sm rounded-lg bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:bg-primary-700 disabled:opacity-50 disabled:pointer-events-none" href="{{platform_url}}">
               Dashboard
             </a>
             <a class="py-[7px] px-2.5 inline-flex items-center font-medium text-sm rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100" href="{% url 'logout' %}">
               Logout
             </a>
             {% else %}
-            <a class="py-2 px-2.5 inline-flex items-center font-medium text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none" href="{% url 'login' %}">Login</a>
+            <a class="py-2 px-2.5 inline-flex items-center font-medium text-sm rounded-lg bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:bg-primary-700 disabled:opacity-50 disabled:pointer-events-none" href="{% url 'login' %}">Login</a>
             {% endif %}
           </div>
           <!-- End Button Group -->
