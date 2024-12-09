@@ -1,0 +1,27 @@
+{% extends 'base_generic.html' %}
+{% load form_components %}
+{% block nav %}
+{% include "base_header.html" %}
+{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto my-8 p-8 bg-white shadow-md rounded-lg">
+    <h2 class="text-xl font-semibold mb-2">Edit Your Profile</h2>
+    <p class="text-gray-600 mb-6">Manage your profile settings</p>
+    
+    <div class="mb-6">
+      {% input_field name="name" required=False value=saved_data.name %}
+    </div>
+
+    <a class="text-primary-600 hover:underline" href="{% url 'password_reset' %}">Reset Password</a>
+    
+    <div class="flex justify-between items-center gap-4 mt-8">     
+      <button type="submit" name="save" 
+        formaction="{% url 'profile' %}"
+        formnovalidate
+        class="px-4 py-2 border border-primary-600 text-primary-600 hover:bg-primary-600 hover:text-white font-medium rounded-md transition-colors">
+          Save
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

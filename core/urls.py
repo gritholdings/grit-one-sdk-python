@@ -34,4 +34,5 @@ urlpatterns = [
     path('onboarding/save/', home_views.save_onboarding_progress, name='save_onboarding_progress'),
     path('about-us/', home_views.about_us, name='about_us'),
     path('terms-and-conditions/', home_views.terms_and_conditions, name='terms-and-conditions'),
+    path('profile/', home_views.profile, name='profile'),
 ]

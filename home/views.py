@@ -185,3 +185,10 @@ def terms_and_conditions(request):
         'platform_url': platform_url 
     }
     return render(request, "home/terms-and-conditions.html", context)
+
+def profile(request):
+    platform_url = _get_platform_url(request)
+    context = {
+        'platform_url': platform_url 
+    }
+    return render(request, "home/profile.html", context)
