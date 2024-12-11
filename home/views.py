@@ -113,6 +113,16 @@ def onboarding(request, step):
         ('retail', 'Retail'),
         ('other', 'Other')
     ]
+    # Add dependent field options
+    tech_product_type_options = [
+        ('software', 'Software'),
+        ('hardware', 'Hardware')
+    ]
+
+    finance_service_options = [
+        ('digital', 'Digital Banking'),
+        ('physical', 'Physical Services')
+    ]
 
     team_size_options = [
         ('1-10', '1-10'),
@@ -131,7 +141,9 @@ def onboarding(request, step):
         'is_last_step': step == TOTAL_STEPS,
         'platform_url': platform_url,
         'industry_options': industry_options,
-        'team_size_options': team_size_options
+        'team_size_options': team_size_options,
+        'tech_product_type_options': tech_product_type_options,
+        'finance_service_options': finance_service_options
     }
     return render(request, "home/onboarding.html", context)
 

@@ -18,7 +18,11 @@
     <div class="mb-6">
       {% input_field name="company_name" required=True value=saved_data.company_name %}
     </div>
-    
+   
+    <div class="mb-6">
+      {% select_field name="industry" label="Select your industry" options=industry_options value=saved_data.industry required=True %}
+    </div>
+
     <div class="mb-6">
       {% textarea_field name="business_description" label="Tell us about your business" value=saved_data.business_description required=False min_height="200px" placeholder="Describe your business..." %}
     </div>
@@ -26,10 +30,27 @@
     {% elif step == 2 %}
     <h2 class="text-xl font-semibold mb-2">Business Details</h2>
     <p class="text-gray-600 mb-6">Help us understand your needs better.</p>
-    
+  
+    {% if saved_data.industry == "tech" %}
     <div class="mb-6">
-      {% select_field name="industry" label="Select your industry" options=industry_options value=saved_data.industry required=True %}
+        {% select_field name="product_type" label="Select product type" options=tech_product_type_options value=saved_data.product_type required=True %}
     </div>
+    {% endif %}
+    
+    {% if saved_data.industry == "finance" %}
+    <div class="mb-6">
+        {% select_field name="service_type" label="Select service type" options=finance_service_options value=saved_data.service_type required=True %}
+    </div>
+    {% endif %}
+    
+    {% if saved_data.industry == "healthcare" %}
+    <div class="mb-6">
+        {% input_field name="patient_id" label="Patient ID" type="text" value=saved_data.patient_id required=True %}
+    </div>
+    <div class="mb-6">
+        {% input_field name="device_id" label="Device ID" type="text" value=saved_data.device_id required=True %}
+    </div>
+    {% endif %}
     
     <div class="mb-6">
       {% checkbox_field name="newsletter_subscription" label="Keep me updated with new features and improvements" value=saved_data.newsletter_subscription %}
@@ -50,10 +71,7 @@
     
     <div class="flex justify-between items-center gap-4 mt-8">
       {% if show_previous %}
-      <button type="submit" name="previous" 
-        class="px-4 py-2 border border-primary-600 text-primary-600 hover:bg-primary-600 hover:text-white font-medium rounded-md transition-colors">
-          Previous
-      </button>
+      <a href="/onboarding/{{ step|add:'-1' }}" class="px-4 py-2 border border-primary-600 text-primary-600 hover:bg-primary-600 hover:text-white font-medium rounded-md transition-colors">Previous</a>
       {% endif %}
       
       <button type="submit" name="save" 
