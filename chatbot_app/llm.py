@@ -16,7 +16,6 @@ from typing import Dict, Any, List
 from datetime import datetime
 from pathlib import Path
 import uuid
-import mimetypes
 
 
 class ThreadInfo:
@@ -34,21 +33,38 @@ class DjangoSessionMemorySaver(MemorySaver):
         self.session = SessionStore(session_key=session_key)
 
     def load(self) -> Dict[str, Any]:
-        # Get all memory data for the session
+        print(f"[DEBUG] Loading memory for thread: {self.thread_id}")
         all_memory = self.session.get('langgraph_memory', {})
-        # Return thread-specific memory or empty dict if thread doesn't exist
-        return all_memory.get(self.thread_id, {})
+        thread_memory = all_memory.get(self.thread_id, {'messages': []})
+        
+        if 'messages' not in thread_memory:
+            thread_memory['messages'] = []
+            print("[DEBUG] Initialized empty messages list for thread")
+        else:
+            print(f"[DEBUG] Loaded {len(thread_memory['messages'])} existing messages")
+
+        return thread_memory
 
     def save(self, data: Dict[str, Any]):
-        # Get existing memory data
+        print(f"[DEBUG] Saving memory for thread: {self.thread_id}")
+        print(f"[DEBUG] Data to save: {data}")
+        
         all_memory = self.session.get('langgraph_memory', {})
-        # Update memory for specific thread
+        existing_thread_data = all_memory.get(self.thread_id, {'messages': []})
+
+        if 'messages' in data:
+            if isinstance(data['messages'], list):
+                existing_messages = existing_thread_data.get('messages', [])
+                updated_messages = existing_messages + data['messages']
+                data['messages'] = updated_messages
+                print(f"[DEBUG] Combined messages count: {len(updated_messages)}")
+
         all_memory[self.thread_id] = data
-        # Save all memory back to session
         self.session['langgraph_memory'] = all_memory
         self.session.save()
+        print("[DEBUG] Memory saved successfully")
 
-        # Update thread metadata when saving
+        # Update thread metadata
         thread_metadata = self.session.get('thread_metadata', {})
         if self.thread_id not in thread_metadata:
             thread_metadata[self.thread_id] = {
@@ -57,6 +73,7 @@ class DjangoSessionMemorySaver(MemorySaver):
             }
             self.session['thread_metadata'] = thread_metadata
             self.session.save()
+            print("[DEBUG] Thread metadata updated")
 
     def _generate_thread_title(self, data: Dict[str, Any]) -> str:
         """Generate a title based on the first message in the thread"""
@@ -107,6 +124,8 @@ class ChatbotApp:
     def __init__(self):
         self.tools = [search]
         self.tool_node = ToolNode(self.tools)
+        self.vectorstore_path = os.path.join(os.getcwd(), 'vectorstores')
+        os.makedirs(self.vectorstore_path, exist_ok=True)
         with open(os.getcwd() + '/credentials.json') as f:
             credentials = json.load(f)
             ANTHROPIC_API_KEY = credentials['ANTHROPIC_API_KEY']
@@ -118,6 +137,8 @@ class ChatbotApp:
 
         # Create the workflow once
         self.workflow = self._create_workflow()
+        checkpointer = MemorySaver()
+        self.session_app = self.workflow.compile(checkpointer=checkpointer)
 
         # File upload configuration
         self.allowed_file_types = {
@@ -173,6 +194,10 @@ class ChatbotApp:
         checkpointer.save({'messages': []})
         return thread_id
 
+    def _get_thread_vectorstore_path(self, thread_id: str) -> str:
+        """Get the path for a thread's vectorstore"""
+        return os.path.join(os.path.join(os.getcwd(), '.tmp'), f'vectorstore_{thread_id}')
+
     def attach_file_to_thread(
             self,
             session_key: str,
@@ -182,15 +207,6 @@ class ChatbotApp:
         ):
         """
         Attach a file to a specific thread and process it for question answering.
-        
-        Args:
-            session_key (str): Django session key
-            thread_id (str): UUID of the thread
-            file_path (str): Path to the temporary uploaded file
-            file_name (str): Original filename
-        
-        Raises:
-            ValueError: If file type is not supported or file is too large
         """
         # Validate file type
         file_extension = Path(file_name).suffix.lower()
@@ -215,10 +231,21 @@ class ChatbotApp:
         checkpointer = DjangoSessionMemorySaver(session_key, thread_id)
         current_state = checkpointer.load()
 
-        # Initialize or get file attachments from state
+        # Initialize state if empty
+        if not current_state:
+            current_state = {
+                'messages': [],
+                'file_attachments': [],
+                'has_vectorstore': False  # Flag to track if vectorstore exists
+            }
+
+        # Ensure required keys exist in state
         if 'file_attachments' not in current_state:
             current_state['file_attachments'] = []
-            current_state['vectorstore'] = None
+        if 'has_vectorstore' not in current_state:
+            current_state['has_vectorstore'] = False
+        if 'messages' not in current_state:
+            current_state['messages'] = []
 
         # Add file metadata to thread state
         file_info = {
@@ -230,32 +257,40 @@ class ChatbotApp:
 
         # Handle PDFs for question answering
         if file_type == 'application/pdf':
-            # Initialize embedding model and vectorstore if not exists
-            if current_state['vectorstore'] is None:
+            try:
+                # Initialize embedding model
                 embedding_model = CustomEmbeddings(model_name="all-MiniLM-L6-v2")
-                current_state['vectorstore'] = Chroma(
-                    embedding_function=embedding_model
+
+                # Get or create vectorstore
+                vectorstore_path = self._get_thread_vectorstore_path(thread_id)
+                if current_state['has_vectorstore']:
+                    vectorstore = Chroma(
+                        persist_directory=vectorstore_path,
+                        embedding_function=embedding_model
+                    )
+                else:
+                    vectorstore = Chroma(
+                        persist_directory=vectorstore_path,
+                        embedding_function=embedding_model
+                    )
+                    current_state['has_vectorstore'] = True
+
+                # Initialize text splitter
+                text_splitter = RecursiveCharacterTextSplitter(
+                    chunk_size=1000,
+                    chunk_overlap=200
                 )
 
-            # Initialize text splitter
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,
-                chunk_overlap=200
-            )
-
-            try:
                 # Load and process document
                 loader = PyPDFLoader(file_path)
                 docs = loader.load()
                 splits = text_splitter.split_documents(docs)
 
-                # Add to vectorstore
-                current_state['vectorstore'].add_documents(splits)
+                # Add to vectorstore and persist
+                vectorstore.add_documents(splits)
+                vectorstore.persist()
 
                 # Add system message about the uploaded PDF
-                if 'messages' not in current_state:
-                    current_state['messages'] = []
-
                 system_message = {
                     'role': 'system',
                     'content': f'PDF document "{file_name}" has been uploaded and processed for question answering. {len(splits)} chunks were added to the knowledge base.'
@@ -272,27 +307,28 @@ class ChatbotApp:
         # Save updated state
         checkpointer.save(current_state)
 
+    # def get_app_for_session(self, session_key: str, thread_id: str):
+    #     """Get a compiled app instance for a specific session and thread"""
+    #     # checkpointer = DjangoSessionMemorySaver(session_key, thread_id)
+    #     checkpointer = MemorySaver()
 
+    #     print(f"[DEBUG] Current memory state before processing: {checkpointer}")
+    #     return self.workflow.compile(checkpointer=checkpointer)
 
-    def get_app_for_session(self, session_key: str, thread_id: str):
-        """Get a compiled app instance for a specific session and thread"""
-        checkpointer = DjangoSessionMemorySaver(session_key, thread_id)
-        return self.workflow.compile(checkpointer=checkpointer)
-
-    def process_chat(self, session_key: str, thread_id: str, messages: list, config: dict = None) -> str:
+    def process_chat(self, session_key: str, thread_id: str, new_message: str, config: dict = None) -> str:
         """Process chat messages for a specific thread and return the response"""
-        session_app = self.get_app_for_session(session_key, thread_id)
+        # Get the session app instance
+        print(f"[DEBUG] Processing message for thread: {thread_id}, session: {session_key}")
 
         if config is None:
             config = {
                 "configurable": {
-                    "session_key": session_key,
                     "thread_id": thread_id
                 }
             }
 
-        final_state = session_app.invoke(
-            {"messages": messages},
+        final_state = self.session_app.invoke(
+            {"messages": [{"role": "user", "content": new_message}]},
             config=config
         )
 

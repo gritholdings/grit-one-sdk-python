@@ -38,15 +38,15 @@ def create_thread(request: HttpRequest) -> Response:
 @permission_classes([IsAuthenticated])
 def threads_runs(request: HttpRequest) -> Response:
     """
-    Creates new threads if needed and processes chat messages.
+    Processes chat messages for a specific thread.
     """
-    messages = request.data.get('messages')
+    message = request.data.get('message')
     thread_id = request.data.get('thread_id')
 
     # Validate required parameters
-    if not messages:
+    if not message:
         return Response(
-            {'error': 'Messages are required'},
+            {'error': 'Message is required'},
             status=status.HTTP_400_BAD_REQUEST
         )
 
@@ -61,7 +61,7 @@ def threads_runs(request: HttpRequest) -> Response:
         response = chatbot_app.process_chat(
             session_key=request.session.session_key,
             thread_id=thread_id,
-            messages=messages
+            new_message=message
         )
         return Response(response, status=status.HTTP_200_OK)
     except Exception as e:
