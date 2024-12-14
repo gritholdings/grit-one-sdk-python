@@ -12,4 +12,5 @@ langchain-anthropic>=0.2,<0.3
 langchain_community
 langchain_chroma
 sentence_transformers
+pypdf
 asyncio

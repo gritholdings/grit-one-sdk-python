@@ -163,5 +163,7 @@ cython_debug/
 
 credentials.json
 
+.DS_Store
+
 # Temporary file uploads
 .tmp/*
