@@ -122,25 +122,31 @@ class CustomEmbeddings(Embeddings):
 
 class ChatWorkflow:
     def __init__(self):
+        # self.tools = [search]
+        # self.tool_node = ToolNode(self.tools)
+        self.retriever_tool, self.tools = self.build_tools()
+        self.model, self.workflow = self.build_model_and_workflow()
+
+    def build_model_and_workflow(self):
         with open(os.getcwd() + '/credentials.json') as f:
             credentials = json.load(f)
             ANTHROPIC_API_KEY = credentials['ANTHROPIC_API_KEY']
-        # self.tools = [search]
-        # self.tool_node = ToolNode(self.tools)
-        retriever = self.create_vectorstore()
-        self.retriever_tool = create_retriever_tool(
-            retriever,
-            "retrieve_documents",
-            "Search and return information.",
-        )
-        self.tools = [self.retriever_tool]
-
-        self.model = ChatAnthropic(
+        model = ChatAnthropic(
             model="claude-3-5-sonnet-20240620",
             temperature=0,
             api_key=ANTHROPIC_API_KEY
         ).bind_tools(self.tools)
-        self.workflow = self._create_workflow()
+        workflow = self._create_workflow()
+        return model, workflow
+
+    def build_tools(self):
+        retriever = self.create_vectorstore()
+        retriever_tool = create_retriever_tool(
+            retriever,
+            "retrieve_documents",
+            "Search and return information.",
+        )
+        return retriever_tool, [retriever_tool]
 
     def create_vectorstore(self):
         # Create path to .tmp directory
@@ -183,6 +189,48 @@ class ChatWorkflow:
             embedding=OpenAIEmbeddings(),
         )
         return vectorstore.as_retriever()
+
+    def refresh_vectorstore(self):
+        self.retriever_tool, self.tools = self.build_tools()
+        self.model, self.workflow = self.build_model_and_workflow()
+
+    def add_pdf_to_vectorstore(self, pdf_path: str):
+        """
+        Add a new PDF to the existing vectorstore and update it.
+        
+        Args:
+            pdf_path (str): Path to the PDF file to be added
+        """
+        try:
+            # Load the PDF
+            loader = PyPDFLoader(pdf_path)
+            new_docs = loader.load()
+            print(f"[DEBUG] Loaded PDF from: {pdf_path}")
+
+            # Split documents into chunks
+            text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+                chunk_size=100,
+                chunk_overlap=50
+            )
+            new_splits = text_splitter.split_documents(new_docs)
+            print(f"[DEBUG] Created {len(new_splits)} splits from new PDF")
+
+            # Get the existing vectorstore
+            vectorstore = Chroma(
+                collection_name="rag-chroma",
+                embedding_function=OpenAIEmbeddings()
+            )
+
+            # Add new documents to the existing vectorstore
+            vectorstore.add_documents(new_splits)
+            print(f"[DEBUG] Added {len(new_splits)} new document splits to vectorstore")
+
+            # The vectorstore is automatically persisted in Chroma
+            return True
+
+        except Exception as e:
+            print(f"Error adding PDF to vectorstore: {str(e)}")
+            return False
 
     def invoke_agent(self, state):
         """
@@ -327,8 +375,7 @@ class ChatbotApp:
         os.makedirs(self.vectorstore_path, exist_ok=True)
 
         # Create the workflow once
-        chat_workflow = ChatWorkflow()
-        self.session_app = chat_workflow.get_compiled_workflow()
+        self._initialize_workflow()
 
         # File upload configuration
         self.allowed_file_types = {
@@ -338,6 +385,10 @@ class ChatbotApp:
             'image/png': ['.png']
         }
         self.max_file_size = 20 * 1024 * 1024  # 20MB limit
+
+    def _initialize_workflow(self):
+        self.chat_workflow = ChatWorkflow()
+        self.session_app = self.chat_workflow.get_compiled_workflow()
 
     def get_thread_list(self, session_key: str) -> List[Dict[str, Any]]:
         """Get list of threads for a session"""
@@ -386,113 +437,3 @@ class ChatbotApp:
 
 # Initialize the chatbot app as a singleton
 chatbot_app = ChatbotApp()
-
-
-        # def attach_file_to_thread(
-    #         self,
-    #         session_key: str,
-    #         thread_id: str,
-    #         file_path: str,
-    #         file_name: str
-    #     ):
-    #     """
-    #     Attach a file to a specific thread and process it for question answering.
-    #     """
-    #     # Validate file type
-    #     file_extension = Path(file_name).suffix.lower()
-    #     valid_extension = False
-    #     file_type = None
-
-    #     for mime_type, extensions in self.allowed_file_types.items():
-    #         if file_extension in extensions:
-    #             valid_extension = True
-    #             file_type = mime_type
-    #             break
-
-    #     if not valid_extension:
-    #         raise ValueError(f"Unsupported file type: {file_extension}")
-
-    #     # Check file size
-    #     file_size = os.path.getsize(file_path)
-    #     if file_size > self.max_file_size:
-    #         raise ValueError(f"File too large. Maximum size is {self.max_file_size / (1024*1024)}MB")
-
-    #     # Get current thread state
-    #     # checkpointer = DjangoSessionMemorySaver(session_key, thread_id)
-    #     # current_state = checkpointer.load()
-
-    #     # Initialize state if empty
-    #     if not current_state:
-    #         current_state = {
-    #             'messages': [],
-    #             'file_attachments': [],
-    #             'has_vectorstore': False  # Flag to track if vectorstore exists
-    #         }
-
-    #     # Ensure required keys exist in state
-    #     if 'file_attachments' not in current_state:
-    #         current_state['file_attachments'] = []
-    #     if 'has_vectorstore' not in current_state:
-    #         current_state['has_vectorstore'] = False
-    #     if 'messages' not in current_state:
-    #         current_state['messages'] = []
-
-    #     # Add file metadata to thread state
-    #     file_info = {
-    #         'file_name': file_name,
-    #         'file_type': file_type,
-    #         'upload_time': datetime.now().isoformat(),
-    #     }
-    #     current_state['file_attachments'].append(file_info)
-
-    #     # Handle PDFs for question answering
-    #     if file_type == 'application/pdf':
-    #         try:
-    #             # Initialize embedding model
-    #             embedding_model = CustomEmbeddings(model_name="all-MiniLM-L6-v2")
-
-    #             # Get or create vectorstore
-    #             vectorstore_path = self._get_thread_vectorstore_path(thread_id)
-    #             if current_state['has_vectorstore']:
-    #                 vectorstore = Chroma(
-    #                     persist_directory=vectorstore_path,
-    #                     embedding_function=embedding_model
-    #                 )
-    #             else:
-    #                 vectorstore = Chroma(
-    #                     persist_directory=vectorstore_path,
-    #                     embedding_function=embedding_model
-    #                 )
-    #                 current_state['has_vectorstore'] = True
-
-    #             # Initialize text splitter
-    #             text_splitter = RecursiveCharacterTextSplitter(
-    #                 chunk_size=1000,
-    #                 chunk_overlap=200
-    #             )
-
-    #             # Load and process document
-    #             loader = PyPDFLoader(file_path)
-    #             docs = loader.load()
-    #             splits = text_splitter.split_documents(docs)
-
-    #             # Add to vectorstore and persist
-    #             vectorstore.add_documents(splits)
-    #             vectorstore.persist()
-
-    #             # Add system message about the uploaded PDF
-    #             system_message = {
-    #                 'role': 'system',
-    #                 'content': f'PDF document "{file_name}" has been uploaded and processed for question answering. {len(splits)} chunks were added to the knowledge base.'
-    #             }
-    #             current_state['messages'].append(system_message)
-
-    #         except Exception as e:
-    #             system_message = {
-    #                 'role': 'system',
-    #                 'content': f'Error processing PDF document "{file_name}": {str(e)}'
-    #             }
-    #             current_state['messages'].append(system_message)
-
-    #     # Save updated state
-    #     checkpointer.save(current_state)

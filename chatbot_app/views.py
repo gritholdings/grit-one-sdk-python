@@ -99,27 +99,17 @@ def upload_files(request: HttpRequest) -> Response:
         file = request.FILES['file']
         file_path = f'.tmp/{file.name}'
 
-        # Determine content type
-        # content_type, _ = mimetypes.guess_type(file.name)
-        # if not content_type:
-        #     content_type = 'application/octet-stream'
-
+        # Save file to disk
         with open(file_path, 'wb+') as destination:
             for chunk in file.chunks():
                 destination.write(chunk)
 
-        # Attach file to thread using chatbot application
-        file_info = chatbot_app.attach_file_to_thread(
-            session_key=request.session.session_key,
-            thread_id=thread_id,
-            file_path=file_path,
-            file_name=file.name
-        )
+        # Refresh the vector store after uploading the file
+        chatbot_app.chat_workflow.refresh_vectorstore()
 
         return Response({
             'file_path': file_path,
             'thread_id': thread_id,
-            'file_info': file_info
         }, status=status.HTTP_200_OK)
 
     except Exception as e:
