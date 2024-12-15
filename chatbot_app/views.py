@@ -109,6 +109,7 @@ def upload_files(request: HttpRequest) -> Response:
 
         return Response({
             'file_path': file_path,
+            'file_name': file.name,
             'thread_id': thread_id,
         }, status=status.HTTP_200_OK)
 
