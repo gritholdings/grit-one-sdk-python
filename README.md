@@ -114,14 +114,15 @@ curl -X POST -d "username=your_username&password=your_password" http://localhost
    python manage.py migrate
    ```
 ## Deployment To Production
+(Optional) Run the docker locally to check.
+```
+docker run --platform=linux/amd64 -p 8000:8000 chatbot:latest
+```
+
 ### Step 1: Preparation
 Build docker. To run locally:
 ```
 docker buildx build --platform=linux/amd64 -t chatbot .
-```
-(Optional) Run the docker locally to check.
-```
-docker run --platform=linux/amd64 -p 8000:8000 chatbot:latest
 ```
 
 ### Step 2: Deployment to AWS App Runner
