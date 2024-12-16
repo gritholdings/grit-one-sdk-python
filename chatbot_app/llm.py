@@ -130,11 +130,11 @@ class ChatWorkflow:
     def build_model_and_workflow(self):
         with open(os.getcwd() + '/credentials.json') as f:
             credentials = json.load(f)
-            ANTHROPIC_API_KEY = credentials['ANTHROPIC_API_KEY']
+            API_KEY = credentials['ANTHROPIC_API_KEY']
         model = ChatAnthropic(
             model="claude-3-5-sonnet-20240620",
             temperature=0,
-            api_key=ANTHROPIC_API_KEY
+            api_key=API_KEY
         ).bind_tools(self.tools)
         workflow = self._create_workflow()
         return model, workflow
@@ -216,9 +216,12 @@ class ChatWorkflow:
             print(f"[DEBUG] Created {len(new_splits)} splits from new PDF")
 
             # Get the existing vectorstore
+            with open(os.getcwd() + '/credentials.json') as f:
+                credentials = json.load(f)
+                API_KEY = credentials['OPENAI_API_KEY']
             vectorstore = Chroma(
                 collection_name="rag-chroma",
-                embedding_function=OpenAIEmbeddings()
+                embedding_function=OpenAIEmbeddings(api_key=API_KEY)
             )
 
             # Add new documents to the existing vectorstore
