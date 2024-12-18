@@ -5,6 +5,7 @@ from langchain import hub
 from langchain_anthropic import ChatAnthropic
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
+from langchain_core.messages import SystemMessage
 from langchain.embeddings.base import Embeddings
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.vectorstores.chroma import Chroma
@@ -122,7 +123,11 @@ class CustomEmbeddings(Embeddings):
         return self.model.encode([query])[0].tolist()
 
 
-class SearchAgent(BaseAgent):
+class CustomerSupportAgent(BaseAgent):
+    """
+    A simple customer support agent that can respond to user queries.
+    It has access to a Tavily search tool to retrieve relevant information.
+    """
     def create_new_thread(self, session_key: str) -> str:
         """Create a new thread and return its ID"""
         thread_id = str(uuid.uuid4())
@@ -134,6 +139,13 @@ class SearchAgent(BaseAgent):
         tavily_tool = TavilySearchResults(max_results=3)
         tools.append(tavily_tool)
         return tools
+
+    def invoke_agent(self, state):
+        messages = state["messages"]
+        SYSTEM_PROMPT = "You are an expert in customer support."
+        messages = [SystemMessage(content=SYSTEM_PROMPT)] + messages
+        response = self.model.invoke(messages)
+        return {"messages": [response]}
 
     def add_nodes_edges(self, workflow):
         workflow.add_node("tools", ToolNode(tools=self.tools))
