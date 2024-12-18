@@ -4,13 +4,13 @@ from typing import Literal
 from langchain import hub
 from langchain_anthropic import ChatAnthropic
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.tools import tool
 from langchain_core.prompts import PromptTemplate
 from langchain.embeddings.base import Embeddings
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.vectorstores.chroma import Chroma
+from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_openai import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain.tools.retriever import create_retriever_tool
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph, MessagesState
@@ -21,6 +21,8 @@ from typing import Dict, Any, List
 from datetime import datetime
 import uuid
 from pydantic import BaseModel, Field
+from core.utils import set_environ_credential
+from core_agent.agent import BaseAgent
 
 
 class ThreadInfo:
@@ -120,10 +122,35 @@ class CustomEmbeddings(Embeddings):
         return self.model.encode([query])[0].tolist()
 
 
+class SearchAgent(BaseAgent):
+    def create_new_thread(self, session_key: str) -> str:
+        """Create a new thread and return its ID"""
+        thread_id = str(uuid.uuid4())
+        return thread_id
+
+    def add_tools(self):
+        tools = []
+        set_environ_credential("TAVILY_API_KEY")
+        tavily_tool = TavilySearchResults(max_results=3)
+        tools.append(tavily_tool)
+        return tools
+
+    def add_nodes_edges(self, workflow):
+        workflow.add_node("tools", ToolNode(tools=self.tools))
+        workflow.add_conditional_edges(
+            "invoke_agent",
+            tools_condition
+        )
+        workflow.add_edge("tools", "invoke_agent")
+        return workflow
+
+    def process_chat(self, session_key: str, thread_id: str, new_message: str, config: dict = None) -> str:
+        """Process chat messages for a specific thread and return the response"""
+        response = self.run(new_message, thread_id, config)
+        return response
+
 class ChatWorkflow:
     def __init__(self):
-        # self.tools = [search]
-        # self.tool_node = ToolNode(self.tools)
         self.retriever_tool, self.tools = self.build_tools()
         self.model, self.workflow = self.build_model_and_workflow()
 
@@ -439,4 +466,4 @@ class ChatbotApp:
         return final_state["messages"][-1].content
 
 # Initialize the chatbot app as a singleton
-chatbot_app = ChatbotApp()
+chatbot_app = SearchAgent()

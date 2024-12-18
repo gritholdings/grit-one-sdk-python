@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     'chatbot_app',
     'home',
     'core',
+    'core_agent',
     'customauth'
 ]
 
