@@ -24,6 +24,7 @@ import uuid
 from pydantic import BaseModel, Field
 from core.utils import set_environ_credential
 from core_agent.agent import BaseAgent
+from prompts import get_customer_support_prompt
 
 
 class ThreadInfo:
@@ -142,7 +143,7 @@ class CustomerSupportAgent(BaseAgent):
 
     def invoke_agent(self, state):
         messages = state["messages"]
-        SYSTEM_PROMPT = "You are an expert in customer support."
+        SYSTEM_PROMPT = get_customer_support_prompt()
         messages = [SystemMessage(content=SYSTEM_PROMPT)] + messages
         response = self.model.invoke(messages)
         return {"messages": [response]}
