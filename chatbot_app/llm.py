@@ -24,7 +24,7 @@ import uuid
 from pydantic import BaseModel, Field
 from core.utils import set_environ_credential
 from core_agent.agent import BaseAgent
-from prompts import get_customer_support_prompt
+from chatbot_app.prompts import get_prompt
 
 
 class ThreadInfo:
@@ -143,7 +143,7 @@ class CustomerSupportAgent(BaseAgent):
 
     def invoke_agent(self, state):
         messages = state["messages"]
-        SYSTEM_PROMPT = get_customer_support_prompt()
+        SYSTEM_PROMPT = get_prompt("customer_support_expert")
         messages = [SystemMessage(content=SYSTEM_PROMPT)] + messages
         response = self.model.invoke(messages)
         return {"messages": [response]}
@@ -479,4 +479,4 @@ class ChatbotApp:
         return final_state["messages"][-1].content
 
 # Initialize the chatbot app as a singleton
-chatbot_app = SearchAgent()
+chatbot_app = CustomerSupportAgent()
