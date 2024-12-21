@@ -156,16 +156,12 @@ class CustomerSupportAgent(BaseAgent):
 
                     # Search for relevant context
                     user_message = messages[-1].content
-                    relevant_docs = retriever.get_relevant_documents(user_message)
+                    relevant_docs = retriever.invoke(user_message)
 
                     # Add context to messages
                     if relevant_docs:
                         context = "\n".join([doc.page_content for doc in relevant_docs])
                         messages = [SystemMessage(content=f"Here is relevant context from uploaded documents:\n\n{context}")] + messages
-
-                    # Bind retriever along with existing tools
-                    all_tools = self.tools + [retriever]
-                    self.model = self.model.bind_tools(all_tools)
             except Exception as e:
                 print(f"Error accessing vector store: {str(e)}")
         SYSTEM_PROMPT = get_prompt("customer_support_expert")
