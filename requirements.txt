@@ -14,3 +14,4 @@ langchain_chroma
 sentence_transformers
 pypdf
 asyncio
+boto3

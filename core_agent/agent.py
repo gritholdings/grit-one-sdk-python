@@ -3,6 +3,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langchain_openai import ChatOpenAI
 from core.utils import load_credential
 
+
 class BaseAgent:
     """
     Base class for an agent. This class should be inherited by the agent class.
@@ -11,6 +12,7 @@ class BaseAgent:
         self.tools = self.add_tools()
         self.workflow = self.build_workflow()
         self.model =self.get_model()
+        self.thread_id = None
         # check if there is tools to bind
         if self.tools:
             self.model = self.model.bind_tools(self.tools)
@@ -19,18 +21,10 @@ class BaseAgent:
 
     def invoke_agent(self, state):
         """
-        Invokes the agent model to generate a response based on the current state. Given
-        the question, it will decide to retrieve using the retriever tool, or simply end.
-
-        Args:
-            state (messages): The current state
-
-        Returns:
-            dict: The updated state with the agent response appended to messages
+        Invokes the agent model with the messages in the state.
         """
         messages = state["messages"]
         response = self.model.invoke(messages)
-        # We return a list, because this will get added to the existing list
         return {"messages": [response]}
 
     def add_tools(self):
@@ -59,12 +53,14 @@ class BaseAgent:
         return model
 
     def add_nodes_edges(self, workflow):
+        workflow.add_edge("invoke_agent", END)
         return workflow
 
     def run(self, new_message: str, thread_id: str, config: dict=None):
         """
         Processes the chat message and returns the response.
         """
+        self.thread_id = thread_id
         if config is None:
             config = {
                 "configurable": {

@@ -1,5 +1,8 @@
 import json
 import os
+import uuid
+from typing import Dict, Any, List
+from datetime import datetime
 from typing import Literal
 from langchain import hub
 from langchain_anthropic import ChatAnthropic
@@ -7,7 +10,6 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_core.messages import SystemMessage
 from langchain.embeddings.base import Embeddings
-from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.vectorstores.chroma import Chroma
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -18,12 +20,10 @@ from langgraph.graph import END, START, StateGraph, MessagesState
 from langgraph.prebuilt import ToolNode, tools_condition
 from django.contrib.sessions.backends.db import SessionStore
 from sentence_transformers import SentenceTransformer
-from typing import Dict, Any, List
-from datetime import datetime
-import uuid
 from pydantic import BaseModel, Field
 from core.utils import set_environ_credential
 from core_agent.agent import BaseAgent
+from core_agent.chroma import ChromaService
 from chatbot_app.prompts import get_prompt
 
 
@@ -143,12 +143,38 @@ class CustomerSupportAgent(BaseAgent):
 
     def invoke_agent(self, state):
         messages = state["messages"]
+        thread_id = self.thread_id
+
+        if thread_id:
+            # Check if thread has existing vector store
+            try:
+                chroma_service = ChromaService()
+                if chroma_service.check_thread_exists(thread_id):
+                    # Get existing vector store
+                    vector_store = chroma_service.get_or_create_vector_store(thread_id)
+                    retriever = vector_store.as_retriever()
+
+                    # Search for relevant context
+                    user_message = messages[-1].content
+                    relevant_docs = retriever.get_relevant_documents(user_message)
+
+                    # Add context to messages
+                    if relevant_docs:
+                        context = "\n".join([doc.page_content for doc in relevant_docs])
+                        messages = [SystemMessage(content=f"Here is relevant context from uploaded documents:\n\n{context}")] + messages
+
+                    # Bind retriever along with existing tools
+                    all_tools = self.tools + [retriever]
+                    self.model = self.model.bind_tools(all_tools)
+            except Exception as e:
+                print(f"Error accessing vector store: {str(e)}")
         SYSTEM_PROMPT = get_prompt("customer_support_expert")
         messages = [SystemMessage(content=SYSTEM_PROMPT)] + messages
         response = self.model.invoke(messages)
         return {"messages": [response]}
 
     def add_nodes_edges(self, workflow):
+        super().add_nodes_edges(workflow)
         workflow.add_node("tools", ToolNode(tools=self.tools))
         workflow.add_conditional_edges(
             "invoke_agent",
@@ -233,47 +259,6 @@ class ChatWorkflow:
     def refresh_vectorstore(self):
         self.retriever_tool, self.tools = self.build_tools()
         self.model, self.workflow = self.build_model_and_workflow()
-
-    def add_pdf_to_vectorstore(self, pdf_path: str):
-        """
-        Add a new PDF to the existing vectorstore and update it.
-        
-        Args:
-            pdf_path (str): Path to the PDF file to be added
-        """
-        try:
-            # Load the PDF
-            loader = PyPDFLoader(pdf_path)
-            new_docs = loader.load()
-            print(f"[DEBUG] Loaded PDF from: {pdf_path}")
-
-            # Split documents into chunks
-            text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
-                chunk_size=100,
-                chunk_overlap=50
-            )
-            new_splits = text_splitter.split_documents(new_docs)
-            print(f"[DEBUG] Created {len(new_splits)} splits from new PDF")
-
-            # Get the existing vectorstore
-            with open(os.getcwd() + '/credentials.json') as f:
-                credentials = json.load(f)
-                API_KEY = credentials['OPENAI_API_KEY']
-            vectorstore = Chroma(
-                collection_name="rag-chroma",
-                embedding_function=OpenAIEmbeddings(api_key=API_KEY)
-            )
-
-            # Add new documents to the existing vectorstore
-            vectorstore.add_documents(new_splits)
-            print(f"[DEBUG] Added {len(new_splits)} new document splits to vectorstore")
-
-            # The vectorstore is automatically persisted in Chroma
-            return True
-
-        except Exception as e:
-            print(f"Error adding PDF to vectorstore: {str(e)}")
-            return False
 
     def invoke_agent(self, state):
         """
@@ -456,7 +441,6 @@ class ChatbotApp:
 
     def get_app_for_session(self, session_key: str, thread_id: str):
         """Get a compiled app instance for a specific session and thread"""
-        # checkpointer = DjangoSessionMemorySaver(session_key, thread_id)
         chat_workflow = ChatWorkflow()
         return chat_workflow.get_compiled_workflow()
 

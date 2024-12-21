@@ -1,3 +1,5 @@
+import os
+import uuid
 from rest_framework import viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -5,8 +7,9 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from .models import Prompt
 from .serializers import PromptSerializer
-from .llm import chatbot_app
+from .llm import CustomerSupportAgent
 from django.http import HttpRequest
+from core_agent.chroma import ChromaService
 
 
 class PromptView(viewsets.ModelViewSet):
@@ -21,9 +24,7 @@ def create_thread(request: HttpRequest) -> Response:
     Creates a new thread for chat conversations.
     """
     try:
-        thread_id = chatbot_app.create_new_thread(
-            session_key=request.session.session_key
-        )
+        thread_id = str(uuid.uuid4())
         return Response(
             {'thread_id': thread_id},
             status=status.HTTP_201_CREATED
@@ -58,6 +59,7 @@ def threads_runs(request: HttpRequest) -> Response:
         )
 
     try:
+        chatbot_app = CustomerSupportAgent()
         response = chatbot_app.process_chat(
             session_key=request.session.session_key,
             thread_id=thread_id,
@@ -96,8 +98,11 @@ def upload_files(request: HttpRequest) -> Response:
 
     try:
         # Save the file
+        # Create .tmp directory if it doesn't exist
+        tmp_dir = '.tmp'
+        os.makedirs(tmp_dir, exist_ok=True)
         file = request.FILES['file']
-        file_path = f'.tmp/{file.name}'
+        file_path = os.path.join(tmp_dir, file.name)
 
         # Save file to disk
         with open(file_path, 'wb+') as destination:
@@ -105,7 +110,8 @@ def upload_files(request: HttpRequest) -> Response:
                 destination.write(chunk)
 
         # Refresh the vector store after uploading the file
-        chatbot_app.chat_workflow.refresh_vectorstore()
+        chroma_service = ChromaService()
+        chroma_service.upload_and_vectorize_pdf_for_thread(thread_id, file_path)
 
         return Response({
             'file_path': file_path,

@@ -6,6 +6,7 @@ jobs=1
 # Disable specific warnings
 disable=C0111,  # missing-docstring
         C0103,  # invalid-name
+        C0303,  # trailing-whitespace
         W0613,  # unused-argument
         W0702,  # bare-except
         R0903,  # too-few-public-methods
