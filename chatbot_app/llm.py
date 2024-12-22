@@ -457,6 +457,3 @@ class ChatbotApp:
         )
 
         return final_state["messages"][-1].content
-
-# Initialize the chatbot app as a singleton
-chatbot_app = CustomerSupportAgent()
