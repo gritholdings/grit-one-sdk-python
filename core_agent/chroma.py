@@ -16,7 +16,7 @@ class Config:
     embedding_model: str = "text-embedding-3-large"
     collection_name: str = "collection_1"
     persist_directory_base: Path = Path(".tmp")
-    aws_s3_bucket_name: str = "example.com-9"
+    aws_s3_bucket_name: str = "example.com-assets"
     aws_s3_base_prefix: str = "threads"
 
     def get_persist_directory(self, thread_id: str) -> Path:

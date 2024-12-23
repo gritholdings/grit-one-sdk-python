@@ -23,7 +23,7 @@ from sentence_transformers import SentenceTransformer
 from pydantic import BaseModel, Field
 from core.utils import set_environ_credential
 from core_agent.agent import BaseAgent
-from core_agent.chroma import ChromaService
+from core_agent.chroma import ChromaService, Config
 from chatbot_app.prompts import get_prompt
 
 
@@ -122,6 +122,10 @@ class CustomEmbeddings(Embeddings):
 
     def embed_query(self, query: str) -> List[float]:
         return self.model.encode([query])[0].tolist()
+    
+
+class CustomConfig(Config):
+    aws_s3_bucket_name: str = "example.com-9"
 
 
 class CustomerSupportAgent(BaseAgent):
@@ -148,7 +152,7 @@ class CustomerSupportAgent(BaseAgent):
         if thread_id:
             # Check if thread has existing vector store
             try:
-                chroma_service = ChromaService()
+                chroma_service = ChromaService(config=CustomConfig())
                 if chroma_service.check_thread_exists(thread_id):
                     # Get existing vector store
                     vector_store = chroma_service.get_or_create_vector_store(thread_id)
