@@ -1,6 +1,7 @@
 import json
 import os
 import uuid
+from dataclasses import dataclass
 from typing import Dict, Any, List
 from datetime import datetime
 from typing import Literal
@@ -124,6 +125,7 @@ class CustomEmbeddings(Embeddings):
         return self.model.encode([query])[0].tolist()
     
 
+@dataclass
 class CustomConfig(Config):
     aws_s3_bucket_name: str = "example.com-9"
 
