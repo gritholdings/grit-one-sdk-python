@@ -77,9 +77,26 @@ Before running the application, make sure to install the necessary dependencies.
 
 Note that this is for development only. Change this setting in production.
 
-9. Run `python manage.py migrate` to apply database migrations for the first time.
+9. In aws.amazon.com, go to S3, then create (if it doesn't exist yet) a bucket for your chatbot vectorstores (assets).
 
-10. Create a new super admin. Run `python manage.py createsuperuser`, input email and password.
+```python
+@dataclass
+class CustomConfig(Config):
+    aws_s3_bucket_name: str = "yourdomain.example.com-assets"
+```
+
+10. In IAM, create a new user (if it doesn't exist yet) to access the S3 bucket. Then, add in credentials.json:
+```
+{
+   ...
+   "AWS_ACCESS_KEY_ID": "YOUR_AWS_ACCESS_KEY_ID",
+   "AWS_SECRET_ACCESS_KEY": "YOUR_AWS_SECRET_ACCESS_KEY"
+}
+```
+
+10. Run `python manage.py migrate` to apply database migrations for the first time.
+
+11. Create a new super admin. Run `python manage.py createsuperuser`, input email and password.
 
 ## Local Development
 1. Activate environment
