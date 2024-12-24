@@ -13,14 +13,7 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 import json
 import os
 from pathlib import Path
-
-# Customizable settings
-
-## Domain name. e.g. "example.com"
-DOMAIN_NAME = "meetgrit.com"
-
-## AWS RDS endpoint. e.g. "database-1-instance-1.xxxxxxxxxxx.us-east-1.rds.amazonaws.com"
-AWS_RDS_ENDPOINT = "database-1-instance-1.cpwpdhxjx3in.us-east-1.rds.amazonaws.com"
+from app.settings import DOMAIN_NAME, AWS_RDS_ENDPOINT
 
 # Basics
 
