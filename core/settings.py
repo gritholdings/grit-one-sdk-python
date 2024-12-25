@@ -14,6 +14,7 @@ import json
 import os
 from pathlib import Path
 from app.settings import DOMAIN_NAME, AWS_RDS_ENDPOINT
+from app.settings import STRIPE_PUBLISHABLE_KEY
 
 # Basics
 
@@ -55,6 +56,7 @@ INSTALLED_APPS = [
     'home',
     'core',
     'core_agent',
+    'core_payments.apps.PaymentsConfig',
     'customauth'
 ]
 

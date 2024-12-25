@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto py-8 px-4">
+    <h1 class="text-2xl font-bold mb-4">Subscription Successful!</h1>
+    <p class="mb-4">Your subscription has been activated. You now have 10 units available.</p>
+    <p class="mb-4">Remaining units: <span id="remaining-units">Loading...</span></p>
+</div>
+
+<script>
+    async function updateRemainingUnits() {
+        const response = await fetch('/payments/get-usage/');
+        const data = await response.json();
+        document.getElementById('remaining-units').textContent = data.remaining_units;
+    }
+    
+    updateRemainingUnits();
+    // Update every minute
+    setInterval(updateRemainingUnits, 60000);
+</script>
+{% endblock %}

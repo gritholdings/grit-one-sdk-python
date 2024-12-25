@@ -37,4 +37,5 @@ urlpatterns = [
     path('about-us/', home_views.about_us, name='about_us'),
     path('terms-and-conditions/', home_views.terms_and_conditions, name='terms-and-conditions'),
     path('profile/', home_views.profile, name='profile'),
+    path('payments/', include('core_payments.urls'))
 ]
