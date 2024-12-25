@@ -1,4 +1,5 @@
-# django-apprunner-chatbot
+# django-apprunner-chatbot-internal
+
 
 Two types of apps:
 

@@ -8,9 +8,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from .models import StripeCustomer
 from .utils import get_remaining_units
-from core.utils import load_credential
 
-stripe.api_key = load_credential("STRIPE_SECRET_KEY")
+stripe.api_key = settings.STRIPE_SECRET_KEY
 
 @login_required
 def subscription_page(request):
@@ -21,6 +20,8 @@ def subscription_page(request):
 @login_required
 def success_page(request):
     return render(request, 'payments/success.html')
+
+from django.views.decorators.csrf import csrf_exempt
 
 @csrf_exempt
 @login_required
