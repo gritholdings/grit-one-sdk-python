@@ -8,20 +8,19 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from .models import StripeCustomer
 from .utils import get_remaining_units
+from core.utils import load_credential
 
-stripe.api_key = settings.STRIPE_SECRET_KEY
+stripe.api_key = load_credential("STRIPE_SECRET_KEY")
 
 @login_required
 def subscription_page(request):
-    return render(request, 'payments/create_subscription.html', {
+    return render(request, 'core_payments/create_subscription.html', {
         'stripe_publishable_key': settings.STRIPE_PUBLISHABLE_KEY
     })
 
 @login_required
 def success_page(request):
-    return render(request, 'payments/success.html')
-
-from django.views.decorators.csrf import csrf_exempt
+    return render(request, 'core_payments/success.html')
 
 @csrf_exempt
 @login_required
@@ -81,8 +80,16 @@ def create_subscription(request):
 
 @login_required
 def get_usage(request):
-    remaining_units = get_remaining_units(request.user)
-    return JsonResponse({'remaining_units': remaining_units})
+    try:
+        stripe_customer = StripeCustomer.objects.get(user=request.user)
+        customer = stripe.Customer.retrieve(stripe_customer.stripe_customer_id)
+        available_credits = abs(customer.balance) / 100  # Convert from cents to dollars
+    except StripeCustomer.DoesNotExist:
+        available_credits = 0
+        
+    return JsonResponse({
+        'available_credits': available_credits
+    })
 
 @csrf_exempt
 @require_POST

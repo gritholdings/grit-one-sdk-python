@@ -16,7 +16,7 @@ def custom_logout_view(request):
     logout(request)
     return redirect('index')
 
-@api_view(['GET'])
+@api_view(['POST'])
 def is_authenticated(request):
     # check if user is authenticated
     if request.user.is_authenticated:

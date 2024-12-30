@@ -2,8 +2,9 @@ import time
 import stripe
 from django.conf import settings
 from .models import StripeCustomer
+from core.utils import load_credential
 
-stripe.api_key = settings.STRIPE_SECRET_KEY
+stripe.api_key = load_credential("STRIPE_SECRET_KEY")
 
 def get_stripe_subscription(user):
     try:

@@ -2,6 +2,11 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import CustomUser
 from .forms import CustomUserCreationForm, CustomUserChangeForm
+from core_payments.models import StripeCustomer
+
+class StripeCustomerInline(admin.StackedInline):
+    model = StripeCustomer
+    can_delete = False
 
 class CustomUserAdmin(UserAdmin):
     add_form = CustomUserCreationForm
@@ -22,5 +27,6 @@ class CustomUserAdmin(UserAdmin):
     )
     search_fields = ('email',)
     ordering = ('email',)
+    inlines = [StripeCustomerInline]
 
 admin.site.register(CustomUser, CustomUserAdmin)

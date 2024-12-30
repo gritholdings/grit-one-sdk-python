@@ -31,13 +31,6 @@ DJANGO_ENV = os.getenv('DJANGO_ENV', 'DEV')
 ## Assign the secret key from the JSON file
 SECRET_KEY = credentials['SECRET_KEY']
 
-## Debug mode
-if DJANGO_ENV == 'PROD':
-    DEBUG = False
-else:
-    DEBUG = True
-DEBUG = True
-
 ALLOWED_HOSTS = [".awsapprunner.com", "." + DOMAIN_NAME, "127.0.0.1"]
 
 
@@ -174,7 +167,7 @@ CSRF_TRUSTED_ORIGINS = [
 CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
 
 ### Configure CSRF settings
-CSRF_COOKIE_SECURE = True  # For HTTPS
+CSRF_COOKIE_SECURE = False  # For HTTPS
 CSRF_COOKIE_SAMESITE = 'Lax'  # Or 'None' if you need cross-site requests
 CSRF_COOKIE_DOMAIN = "." + DOMAIN_NAME  # Include subdomain
 CSRF_USE_SESSIONS = False  # Store CSRF token in cookie instead of session
@@ -212,9 +205,11 @@ STORAGES = {
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Import local settings if in development
-if DJANGO_ENV == 'DEV':
-    try:
-        from .local_settings import *
-    except ImportError:
-        pass
+# Import dev settings if environment is DEV
+if DJANGO_ENV == 'PROD':
+    DEBUG = False
+elif DJANGO_ENV == 'DEV':
+    pass
+
+# temporarily force DEBUG to True
+DEBUG = True
