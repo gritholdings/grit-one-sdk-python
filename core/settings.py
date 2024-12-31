@@ -172,6 +172,7 @@ CSRF_COOKIE_SAMESITE = 'Lax'  # Or 'None' if you need cross-site requests
 CSRF_COOKIE_DOMAIN = "." + DOMAIN_NAME  # Include subdomain
 CSRF_USE_SESSIONS = False  # Store CSRF token in cookie instead of session
 CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access to CSRF token
+CSRF_FAILURE_VIEW = "core.views.custom_csrf_failure_view"
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
@@ -209,7 +210,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 if DJANGO_ENV == 'PROD':
     DEBUG = False
 elif DJANGO_ENV == 'DEV':
-    pass
+    CSRF_COOKIE_DOMAIN = None
 
 # temporarily force DEBUG to True
 DEBUG = True

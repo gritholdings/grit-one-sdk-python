@@ -81,15 +81,45 @@ def create_subscription(request):
 @login_required
 def get_usage(request):
     try:
+        # 1. Look up the StripeCustomer entry for the current user
         stripe_customer = StripeCustomer.objects.get(user=request.user)
+        # 2. Retrieve the Customer in Stripe (not strictly needed
+        #    unless you want to confirm the customer still exists, etc.)
         customer = stripe.Customer.retrieve(stripe_customer.stripe_customer_id)
-        available_credits = abs(customer.balance) / 100  # Convert from cents to dollars
+
+        # 3. Retrieve the Subscription that has metered billing
+        subscription = stripe.Subscription.retrieve(stripe_customer.stripe_subscription_id)
+
+        # 4. Identify the Subscription Item ID that is "metered"
+        #    (Assuming the subscription has a single item. If you have multiple items,
+        #    find the one with metered pricing.)
+        subscription_item_id = subscription['items'].data[0].id
+
+        # 5. Get usage record summaries for the current billing period
+        usage_record_summaries = stripe.SubscriptionItem.list_usage_record_summaries(
+            subscription_item=subscription_item_id,
+            limit=100  # adjust as needed
+        )
+
+        total_usage = 0
+        for summary in usage_record_summaries.auto_paging_iter():
+            total_usage += summary.total_usage
+
+        # Example: Suppose each user is allowed 1000 "units" per month
+        monthly_allowance = 1000
+        remaining_credits = monthly_allowance - total_usage
+
+        return JsonResponse({
+            'total_usage': total_usage,
+            'remaining_credits': max(remaining_credits, 0)  # Avoid negative if usage goes over
+        })
+
     except StripeCustomer.DoesNotExist:
-        available_credits = 0
-        
-    return JsonResponse({
-        'available_credits': available_credits
-    })
+        return JsonResponse({
+            'error': 'No Stripe Customer found for this user.'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
 
 @csrf_exempt
 @require_POST
