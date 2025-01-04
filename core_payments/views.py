@@ -6,17 +6,38 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from django.shortcuts import redirect
 from .models import StripeCustomer
-from .utils import get_remaining_units
+from .utils import record_usage
 from core.utils import load_credential
 
 stripe.api_key = load_credential("STRIPE_SECRET_KEY")
 
 @login_required
-def subscription_page(request):
-    return render(request, 'core_payments/create_subscription.html', {
+def checkout(request):
+    return render(request, 'core_payments/checkout.html', {
         'stripe_publishable_key': settings.STRIPE_PUBLISHABLE_KEY
     })
+
+def create_checkout_session(request):
+    try:
+        YOUR_DOMAIN = "http://127.0.0.1:8000"
+        checkout_session = stripe.checkout.Session.create(
+            line_items=[
+                {
+                    'price': 'price_1Qd4AULeB9mYmbqSLsUfNyAq'
+                },
+            ],
+            mode='subscription',
+            success_url=YOUR_DOMAIN + '/success.html',
+            cancel_url=YOUR_DOMAIN + '/payments/checkout',
+        )
+    except Exception as e:
+        # Handle the error gracefully
+        return JsonResponse({'error': str(e)}, status=400)
+
+    # Redirect the user to the checkout_session's URL
+    return redirect(checkout_session.url, code=303)
 
 @login_required
 def success_page(request):
@@ -81,43 +102,33 @@ def create_subscription(request):
 @login_required
 def get_usage(request):
     try:
-        # 1. Look up the StripeCustomer entry for the current user
-        stripe_customer = StripeCustomer.objects.get(user=request.user)
-        # 2. Retrieve the Customer in Stripe (not strictly needed
-        #    unless you want to confirm the customer still exists, etc.)
-        customer = stripe.Customer.retrieve(stripe_customer.stripe_customer_id)
-
-        # 3. Retrieve the Subscription that has metered billing
-        subscription = stripe.Subscription.retrieve(stripe_customer.stripe_subscription_id)
-
-        # 4. Identify the Subscription Item ID that is "metered"
-        #    (Assuming the subscription has a single item. If you have multiple items,
-        #    find the one with metered pricing.)
-        subscription_item_id = subscription['items'].data[0].id
-
-        # 5. Get usage record summaries for the current billing period
-        usage_record_summaries = stripe.SubscriptionItem.list_usage_record_summaries(
-            subscription_item=subscription_item_id,
-            limit=100  # adjust as needed
-        )
-
-        total_usage = 0
-        for summary in usage_record_summaries.auto_paging_iter():
-            total_usage += summary.total_usage
-
-        # Example: Suppose each user is allowed 1000 "units" per month
-        monthly_allowance = 1000
-        remaining_credits = monthly_allowance - total_usage
+        user = request.user
+        units_remaining = user.stripecustomer.units_remaining
 
         return JsonResponse({
-            'total_usage': total_usage,
-            'remaining_credits': max(remaining_credits, 0)  # Avoid negative if usage goes over
+            'remaining_units': units_remaining
         })
 
     except StripeCustomer.DoesNotExist:
         return JsonResponse({
             'error': 'No Stripe Customer found for this user.'
         }, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+@login_required
+def record_usage_views(request):
+    try:
+        user = request.user
+        user_id = user.id
+        stripe_customer_id = user.stripecustomer.stripe_customer_id
+        units_remaining = user.stripecustomer.units_remaining
+        success = record_usage(user_id, stripe_customer_id, int("100"), units_remaining)
+        
+        if success:
+            return JsonResponse({'status': 'success'})
+        else:
+            return JsonResponse({'error': 'No remaining units'}, status=400)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=400)
 
