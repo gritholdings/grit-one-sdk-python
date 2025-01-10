@@ -21,7 +21,6 @@ from home import views as home_views
 from rest_framework import routers
 
 router = routers.DefaultRouter()
-router.register(r'prompts', chatbot_app_views.PromptView, 'prompt')
 
 urlpatterns = [
     path('', home_views.index, name='index'),
@@ -32,6 +31,7 @@ urlpatterns = [
     path('api/threads/create', chatbot_app_views.create_thread, name='create_thread'),
     path('api/threads/runs', chatbot_app_views.threads_runs, name='threads_runs'),
     path('api/files/upload', chatbot_app_views.upload_files, name='upload_files'),
+    path('api/models', chatbot_app_views.models_list, name='models_list'),
     path('onboarding/<int:step>/', home_views.onboarding, name='onboarding'),
     path('onboarding/save/', home_views.save_onboarding_progress, name='save_onboarding_progress'),
     path('about-us/', home_views.about_us, name='about_us'),

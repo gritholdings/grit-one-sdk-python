@@ -10,8 +10,15 @@ from django.shortcuts import redirect
 from .models import StripeCustomer
 from .utils import record_usage
 from core.utils import load_credential
+from core.settings import DJANGO_ENV
+from app.settings import DOMAIN_NAME, SUBDOMAIN_NAME, STRIPE_PRICE_ID
 
 stripe.api_key = load_credential("STRIPE_SECRET_KEY")
+
+if DJANGO_ENV != 'PROD':
+    DOMAIN_NAME = "http://127.0.0.1:8000"
+else:
+    DOMAIN_NAME = f"https://{SUBDOMAIN_NAME}.{DOMAIN_NAME}"
 
 @login_required
 def checkout(request):
@@ -21,16 +28,15 @@ def checkout(request):
 
 def create_checkout_session(request):
     try:
-        YOUR_DOMAIN = "http://127.0.0.1:8000"
         checkout_session = stripe.checkout.Session.create(
             line_items=[
                 {
-                    'price': 'price_1Qd4AULeB9mYmbqSLsUfNyAq'
+                    'price': STRIPE_PRICE_ID
                 },
             ],
             mode='subscription',
-            success_url=YOUR_DOMAIN + '/success.html',
-            cancel_url=YOUR_DOMAIN + '/payments/checkout',
+            success_url=DOMAIN_NAME + '/success.html',
+            cancel_url=DOMAIN_NAME + '/payments/checkout',
         )
     except Exception as e:
         # Handle the error gracefully
@@ -38,6 +44,21 @@ def create_checkout_session(request):
 
     # Redirect the user to the checkout_session's URL
     return redirect(checkout_session.url, code=303)
+
+@login_required
+def create_billing_portal_session(request):
+    try:
+        user =request.user
+        stripe_customer_id = user.stripecustomer.stripe_customer_id
+
+        portal_session = stripe.billing_portal.Session.create(
+            customer=stripe_customer_id,
+            return_url=DOMAIN_NAME + '/payments/checkout'
+        )
+
+        return redirect(portal_session.url, code=303)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 @login_required
 def success_page(request):

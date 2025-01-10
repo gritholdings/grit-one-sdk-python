@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 from app.settings import DOMAIN_NAME, AWS_RDS_ENDPOINT
 from app.settings import STRIPE_PUBLISHABLE_KEY
+from .utils import load_credential
 
 # Basics
 
@@ -173,6 +174,15 @@ CSRF_COOKIE_DOMAIN = "." + DOMAIN_NAME  # Include subdomain
 CSRF_USE_SESSIONS = False  # Store CSRF token in cookie instead of session
 CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access to CSRF token
 CSRF_FAILURE_VIEW = "core.views.custom_csrf_failure_view"
+
+# Email Service
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'email-smtp.us-east-1.amazonaws.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = load_credential("AWS_SES_SMTP_USERNAME")
+EMAIL_HOST_PASSWORD = load_credential("AWS_SES_SMTP_PASSWORD")
+DEFAULT_FROM_EMAIL = 'support@' + DOMAIN_NAME
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
