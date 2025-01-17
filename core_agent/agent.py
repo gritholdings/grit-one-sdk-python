@@ -1,15 +1,29 @@
 import uuid
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from django.apps import apps
 from langchain_core.messages import SystemMessage
 from langchain_community.tools.tavily_search import TavilySearchResults
+from langchain_community.callbacks.manager import get_openai_callback
 from langgraph.graph import END, START, StateGraph, MessagesState
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_openai import ChatOpenAI
 from core.utils import load_credential, set_environ_credential
-from .chroma import ChromaService, Config
+from .chroma import ChromaService
 
+if apps.is_installed("core_payments"):
+    from core_payments.utils import record_usage
+else:
+    def record_usage(*args, **kwargs):
+        pass
 
-class BaseAgent:
+@dataclass
+class AgentConfig:
+    enable_web_search: bool = True
+    record_usage_for_payment: bool = False
+
+class BaseAgent(ABC):
     """
     Base class for an agent. This class should be inherited by the agent class.
     """
@@ -54,27 +68,26 @@ class BaseAgent:
         Returns the model to be used for the agent
         """
         API_KEY = load_credential("OPENAI_API_KEY")
-        model = ChatOpenAI(model_name="gpt-4o", api_key=API_KEY)
+        model = ChatOpenAI(model="gpt-4o", api_key=API_KEY)
         return model
 
     def add_nodes_edges(self, workflow):
         workflow.add_edge("invoke_agent", END)
         return workflow
 
-    def run(self, new_message: str, thread_id: str, config: dict=None):
+    def run(self, new_message: str, thread_id: str):
         """
         Processes the chat message and returns the response.
         """
         self.thread_id = thread_id
-        if config is None:
-            config = {
-                "configurable": {
-                    "thread_id": thread_id
-                }
+        graph_config = {
+            "configurable": {
+                "thread_id": thread_id
             }
+        }
         final_state = self.graph.invoke(
             {"messages": [{"role": "user", "content": new_message}]},
-            config=config
+            config=graph_config
         )
         return final_state["messages"][-1].content
 
@@ -103,8 +116,8 @@ class EnhancedAgent(BaseAgent):
         if thread_id:
             # Check if thread has existing vector store
             try:
-                custom_config = self.get_custom_config()
-                chroma_service = ChromaService(config=custom_config)
+                chroma_service_config = self.get_chroma_service_config()
+                chroma_service = ChromaService(config=chroma_service_config)
                 if chroma_service.check_thread_exists(thread_id):
                     # Get existing vector store
                     vector_store = chroma_service.get_or_create_vector_store(thread_id)
@@ -125,13 +138,20 @@ class EnhancedAgent(BaseAgent):
         response = self.model.invoke(messages)
         return {"messages": [response]}
     
-    def get_custom_config(self):
-        """Override this method to provide a custom configuration for the agent"""
-        return Config()
-    
+    @abstractmethod
+    def get_agent_config(self):
+        """Override this method to provide a custom agent configuration"""
+        pass
+
+    @abstractmethod
     def get_agent_prompt(self) -> str:
         """Override this method to provide a custom agent prompt"""
-        return ""
+        pass
+    
+    @abstractmethod
+    def get_chroma_service_config(self):
+        """Override this method to provide a custom configuration for the agent"""
+        pass
 
     def add_nodes_edges(self, workflow):
         super().add_nodes_edges(workflow)
@@ -143,7 +163,22 @@ class EnhancedAgent(BaseAgent):
         workflow.add_edge("tools", "invoke_agent")
         return workflow
 
-    def process_chat(self, session_key: str, thread_id: str, new_message: str, config: dict = None) -> str:
-        """Process chat messages for a specific thread and return the response"""
-        response = self.run(new_message, thread_id, config)
+    def process_chat(self, user, session_key: str, thread_id: str, new_message: str) -> str:
+        """Process chat messages for a specific thread and return the response
+        Record usage for payment if enabled in the agent configuration
+        """
+        user_id = user.id
+        config = self.get_agent_config()
+        if config.record_usage_for_payment:
+            stripe_customer_id = user.stripecustomer.stripe_customer_id if user.stripecustomer else None
+            # check if user has enough units
+            if user.stripecustomer.units_remaining <= 0:
+                return "You have run out of units. Please purchase more units to continue using the service."
+            with get_openai_callback() as usage_tracker_cb:
+                response = self.run(new_message, thread_id)
+                # Record usage for payment
+                total_cost = usage_tracker_cb.total_cost
+                success = record_usage(user_id, stripe_customer_id, total_cost)
+        else:
+            response = self.run(new_message, thread_id)
         return response

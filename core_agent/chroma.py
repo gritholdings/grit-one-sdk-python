@@ -11,7 +11,7 @@ from core.utils import load_credential
 
 
 @dataclass
-class Config:
+class ChromaServiceConfig:
     """Configuration settings for ChromaService."""
     embedding_model: str = "text-embedding-3-large"
     collection_name: str = "collection_1"
@@ -32,9 +32,9 @@ class ChromaService:
     """
     Service for managing Chroma vector stores for different threads.
     """
-    def __init__(self, config: Optional[Config] = None):
+    def __init__(self, config: Optional[ChromaServiceConfig] = None):
         """Initialize ChromaService with optional configuration."""
-        self.config = config or Config()
+        self.config = config or ChromaServiceConfig()
         self.aws_s3_client = AWSS3Client()
 
     def get_or_create_vector_store(self, thread_id: str):

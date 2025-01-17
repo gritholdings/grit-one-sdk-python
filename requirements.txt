@@ -7,8 +7,8 @@ whitenoise
 openai
 langgraph>=0.2,<0.3
 langchain>=0.3,<0.4
-langchain-openai>=0.2,<0.3
-langchain-anthropic>=0.2,<0.3
+langchain-openai
+langchain-anthropic
 langchain_community
 langchain_chroma
 sentence_transformers

@@ -1,10 +1,12 @@
 import datetime
 import calendar
 import stripe
+import math
 from django.db.models import F
+from django.db.models.functions import Greatest
 from .models import StripeCustomer
 from core.utils import load_credential
-from app.settings import STRIPE_METER_ID, STRIPE_METER_EVENT_NAME
+from app.settings import STRIPE_METER_ID, STRIPE_METER_EVENT_NAME, STRIPE_PRICE_MULTIPLIER
 
 
 # v1 API
@@ -85,19 +87,20 @@ def get_stripe_monthly_units_used(stripe_customer_id):
             break
     return total_usage
 
-def record_usage(user_id, stripe_customer_id, value, units_remaining):
-    try:
-        StripeCustomer.objects.filter(user=user_id).update(
-            units_remaining=F('units_remaining') - value
-        )
-        # Record 1 unit of usage
-        stripe.billing.MeterEvent.create(
-            event_name=STRIPE_METER_EVENT_NAME,
-            payload={
-                "value": value,
-                "stripe_customer_id": stripe_customer_id
-            }
-        )
-        return True
-    except Exception as e:
-        return False
+def record_usage(user_id, stripe_customer_id, value: int) -> bool:
+    rounded_up_value = math.ceil(value * STRIPE_PRICE_MULTIPLIER)
+    StripeCustomer.objects.filter(user=user_id).update(
+        units_remaining=Greatest(F('units_remaining') - rounded_up_value, 0)
+    )
+    # Record 1 unit of usage
+    stripe.billing.MeterEvent.create(
+        event_name=STRIPE_METER_EVENT_NAME,
+        payload={
+            "value": rounded_up_value,
+            "stripe_customer_id": stripe_customer_id
+        }
+    )
+    return True
+    
+def get_credits_remaining(user_id) -> str:
+    return f"{StripeCustomer.objects.get(user=user_id).units_remaining / 100:.2f}"
