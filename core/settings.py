@@ -14,7 +14,6 @@ import json
 import os
 from pathlib import Path
 from app.settings import DOMAIN_NAME, AWS_RDS_ENDPOINT
-from app.settings import STRIPE_PUBLISHABLE_KEY
 from .utils import load_credential
 
 # Basics
@@ -50,7 +49,6 @@ INSTALLED_APPS = [
     'home',
     'core',
     'core_agent',
-    'core_payments.apps.PaymentsConfig',
     'customauth'
 ]
 
@@ -224,3 +222,8 @@ elif DJANGO_ENV == 'DEV':
 
 # temporarily force DEBUG to True
 DEBUG = True
+
+# Import additional settings that override the default settings
+import app.settings as app_settings
+
+INSTALLED_APPS += app_settings.ADDITIONAL_INSTALLED_APPS
