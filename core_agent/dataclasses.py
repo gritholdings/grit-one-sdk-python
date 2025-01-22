@@ -10,6 +10,7 @@ class AgentModel:
     label: str
     description: str
     agent_class: Optional[Type[BaseAgent] | str] = None
+    tags: Optional[List[str]] = field(default_factory=list)
 
 
 @dataclass
@@ -52,26 +53,37 @@ class AgentModels:
             return None
         return agent_class(*args, **kwargs)
     
-    def list_models(self) -> List[dict]:
+    def list_models(self, tags: Optional[List[str]] = None) -> List[dict]:
         """
         Return a list of dicts representing the agent models.
+        If `tags` is provided, only models containing *all* of those tags are returned.
+        
         Example structure:
         [
             {
                 'id': <id>,
                 'label': <label>,
                 'description': <description>
-                'agent_class': <agent_class_name_if_you_want_it>
             },
             ...
         ]
         """
+        # If no tags were passed in, return them all.
+        if not tags:
+            filtered_models = self.agent_models
+        else:
+            # Return only those models that contain all of the requested tags.
+            filtered_models = [
+                model for model in self.agent_models
+                if all(tag in model.tags for tag in tags)
+            ]
+
         return [
             {
                 'id': model.id,
                 'label': model.label,
-                'description': model.description
+                'description': model.description,
                 # 'agent_class': model.agent_class.__name__ if model.agent_class else None
             }
-            for model in self.agent_models
+            for model in filtered_models
         ]
