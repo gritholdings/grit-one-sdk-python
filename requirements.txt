@@ -6,6 +6,7 @@ gunicorn
 whitenoise
 openai
 langgraph>=0.2,<0.3
+langgraph-checkpoint-postgres
 langchain>=0.3,<0.4
 langchain-openai
 langchain-anthropic
@@ -16,3 +17,5 @@ pypdf
 asyncio
 boto3
 stripe
+PyMuPDF
+pillow
