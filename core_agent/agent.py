@@ -1,7 +1,7 @@
 import uuid
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import Generator
+from typing import Generator, Optional
+from datetime import date
 from django.apps import apps
 from langchain_core.messages import SystemMessage, AIMessageChunk, HumanMessage, ToolMessage
 from langchain_community.tools.tavily_search import TavilySearchResults
@@ -12,6 +12,8 @@ from langchain_openai import ChatOpenAI
 from core.utils import load_credential, set_environ_credential
 from .memory import MemoryStoreService
 from .utils import get_page_count, pdf_page_to_base64
+from .dataclasses import AgentConfig
+
 
 if apps.is_installed("core_payments"):
     from core_payments.utils import record_usage
@@ -19,16 +21,13 @@ else:
     def record_usage(*args, **kwargs):
         pass
 
-@dataclass
-class AgentConfig:
-    enable_web_search: bool = True
-    record_usage_for_payment: bool = True
 
 class BaseAgent(ABC):
     """
     Base class for an agent. This class should be inherited by the agent class.
     """
-    def __init__(self):
+    def __init__(self, config:Optional[AgentConfig] = None):
+        self.config = config or self.get_agent_config()
         self.tools = self.add_tools()
         self.workflow = self.build_workflow()
         self.model = self.get_model()
@@ -145,9 +144,8 @@ class EnhancedAgent(BaseAgent):
         If enable_web_search is True, load the TavilySearch tool.
         Otherwise, return an empty list.
         """
-        config = self.get_agent_config()
         tools = []
-        if config.enable_web_search:
+        if self.config.enable_web_search:
             set_environ_credential("TAVILY_API_KEY")
             tavily_tool = TavilySearchResults(max_results=3)
             tools.append(tavily_tool)
@@ -188,14 +186,16 @@ class EnhancedAgent(BaseAgent):
         return {"messages": [response]}
     
     @abstractmethod
-    def get_agent_config(self) -> AgentConfig:
+    def get_agent_config(self):
         """Override this method to provide a custom agent configuration"""
         pass
 
-    @abstractmethod
     def get_agent_prompt(self) -> str:
         """Override this method to provide a custom agent prompt"""
-        pass
+        TODAY_DATE = date.today().strftime('%Y-%m-%d')
+        agent_prompt_result = self.config.prompt_template.format(
+            TODAY_DATE=TODAY_DATE)
+        return agent_prompt_result
 
     def add_nodes_edges(self, workflow):
         """
@@ -215,8 +215,7 @@ class EnhancedAgent(BaseAgent):
         Record usage for payment if enabled in the agent configuration
         """
         user_id = str(user.id)
-        config = self.get_agent_config()
-        if config.record_usage_for_payment:
+        if self.config.record_usage_for_payment:
             stripe_customer_id = user.stripecustomer.stripe_customer_id if user.stripecustomer else None
             # check if user has enough units
             if user.stripecustomer.units_remaining <= 0:
@@ -229,7 +228,9 @@ class EnhancedAgent(BaseAgent):
                 finally:
                     # Record usage for payment
                     total_cost = usage_tracker_cb.total_cost
-                    success = record_usage(user_id, stripe_customer_id, total_cost)
+                    total_tokens = usage_tracker_cb.total_tokens
+                    success = record_usage(
+                        user_id=user_id, token_used=total_tokens, provider_cost=total_cost)
         else:
             for token in self.run(new_message, thread_id, user_id, data_type):
                 yield token

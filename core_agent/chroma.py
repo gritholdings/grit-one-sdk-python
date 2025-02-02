@@ -1,3 +1,6 @@
+"""
+Currently unused since PostgresStore is used instead of Chroma.
+"""
 import os
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings

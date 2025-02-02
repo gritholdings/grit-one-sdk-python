@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'chatbot_app',
+    'app_payments',
     'home',
     'core',
     'core_agent',
