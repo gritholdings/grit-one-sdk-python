@@ -46,7 +46,9 @@ class MemoryStoreService:
         store = self.get_store()
         return store.get(namespace_for_memory, thread_id)
     
-    def upsert_memory(self, namespace_for_memory: str, thread_id: str, key: str, new_memory: str) -> None:
+    def upsert_memory(self, namespace_for_memory: tuple, thread_id: str, key: str, new_memory: str) -> None:
+        if not isinstance(namespace_for_memory, tuple):
+            raise TypeError("namespace_for_memory must be a tuple")
         if not self.get_memory(namespace_for_memory, thread_id):
             self.put_memory(namespace_for_memory, thread_id, {})
         if key not in self.get_memory(

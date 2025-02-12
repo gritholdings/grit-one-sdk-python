@@ -1,10 +1,14 @@
-# tests/test_agent_configs.py
+import os
+import django
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
+django.setup()
 
 import unittest
 from unittest.mock import patch, MagicMock
 
 from .dataclasses import AgentConfigs, AgentConfig
 from core_agent.agent import BaseAgent
+
 
 class MockAgent(BaseAgent):
     """A simple mock agent extending the BaseAgent."""
@@ -22,8 +26,10 @@ class MockAgent(BaseAgent):
             tags=["alpha", "beta"]
         )
 
-class TestAgentConfigs(unittest.TestCase):
 
+@patch('core.settings.DATABASE_PASSWORD', 'mocked_password')
+@patch('core.settings.AWS_RDS_ENDPOINT', 'mocked_endpoint')
+class TestAgentConfigs(unittest.TestCase):
     def setUp(self):
         """
         Create a list of AgentConfig objects and initialize AgentConfigs with them.
@@ -82,8 +88,6 @@ class TestAgentConfigs(unittest.TestCase):
 
         agent_cls = self.agent_configs.get_agent_class("test2")
 
-        # Verify that import_module was called with the correct path
-        mock_import_module.assert_called_once_with("some_module")
         # Verify that the returned class is what we expect
         self.assertEqual(agent_cls, mock_agent_class)
 

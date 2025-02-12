@@ -14,7 +14,7 @@ import json
 import os
 from pathlib import Path
 from app.settings import DOMAIN_NAME, AWS_RDS_ENDPOINT
-from .utils import load_credential
+from .utils import load_credential, get_django_env
 
 # Basics
 
@@ -25,8 +25,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 with open(os.path.join(BASE_DIR, 'credentials.json')) as f:
     credentials = json.load(f)
 
-## Set a default value of 'DEV' if the environment variable is not found
-DJANGO_ENV = os.getenv('DJANGO_ENV', 'DEV')
+DJANGO_ENV = get_django_env()
 
 ## Assign the secret key from the JSON file
 SECRET_KEY = credentials['SECRET_KEY']
@@ -46,7 +45,6 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'chatbot_app',
-    'app_payments',
     'home',
     'core',
     'core_agent',
@@ -87,11 +85,18 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 
 # Database is AWS RDS Aurora PostgreSQL
-
 with open(os.getcwd() + '/credentials.json') as f:
     credentials = json.load(f)
     DATABASE_PASSWORD = credentials['DATABASE_PASSWORD']
 
+if DJANGO_ENV == 'TEST':
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
+else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',

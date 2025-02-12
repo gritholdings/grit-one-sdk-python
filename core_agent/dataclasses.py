@@ -11,6 +11,7 @@ class AgentConfig:
     agent_class: Optional[Type['BaseAgent'] | str] = None
     tags: Optional[List[str]] = field(default_factory=list)
     prompt_template: Optional[str] = None
+    overview_html: Optional[str] = None
     enable_web_search: bool = True
     record_usage_for_payment: bool = True
     suggested_messages: Optional[List[str]] = field(default_factory=list)
@@ -86,7 +87,8 @@ class AgentConfigs:
                 'id': model.id,
                 'label': model.label,
                 'description': model.description,
-                'suggested_messages': model.suggested_messages
+                'suggested_messages': model.suggested_messages,
+                'overview_html': model.overview_html,
             }
             for model in filtered_models
         ]

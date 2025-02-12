@@ -15,11 +15,16 @@ from .utils import get_page_count, pdf_page_to_base64
 from .dataclasses import AgentConfig
 
 
-if apps.is_installed("core_payments"):
-    from core_payments.utils import record_usage
-else:
-    def record_usage(*args, **kwargs):
-        pass
+def get_record_usage_function():
+    """
+    Returns the appropriate record_usage function based on whether core_payments is installed.
+    If not installed, returns a no-op function.
+    """
+    if apps.is_installed("core_payments"):
+        from core_payments.utils import record_usage
+        return record_usage
+    else:
+        return lambda *args, **kwargs: None
 
 
 class BaseAgent(ABC):
@@ -158,30 +163,38 @@ class EnhancedAgent(BaseAgent):
 
         agent_prompt = self.get_agent_prompt()
         namespace_for_memory = ("memories", user_id)
-        memories_str = ''
         memories = self.memory_store_service.get_memory(namespace_for_memory, thread_id)
-        if memories and 'conversation_history' in memories.value:
-            conversation_history = memories.value['conversation_history']
-            memories_str += '<conversation_history>\n'
-            for i, conversation_item in enumerate(conversation_history):
-                role, text = conversation_item.split(',', 1)
-                if role == 'user' or role == 'assistant':
-                    memories_str += f'<{role} index="{i}">{text}</{role}>\n'
-            memories_str += '</conversation_history>\n\n'
-        memories_list = [SystemMessage(content=memories_str)] if memories_str else []
+        # memories_str = ''
+        # if memories and 'conversation_history' in memories.value:
+        #     conversation_history = memories.value['conversation_history']
+        #     memories_str += '<conversation_history>\n'
+        #     for i, conversation_item in enumerate(conversation_history):
+        #         role, text = conversation_item.split(',', 1)
+        #         if role == 'user' or role == 'assistant':
+        #             memories_str += f'<{role} index="{i}">{text}</{role}>\n'
+        #     memories_str += '</conversation_history>\n\n'
+        # memories_list = [SystemMessage(content=memories_str)] if memories_str else []
 
         # read file images such as PDFs
-        image_list = []
+        memories_list = []
         if memories and 'conversation_history' in memories.value:
+            conversation_history = memories.value['conversation_history']
             for i, conversation_item in enumerate(conversation_history):
                 role, text = conversation_item.split(',', 1)
-                if role == 'user_image':
-                    image_list.append(HumanMessage(content=[{
+                if role == 'user':
+                    memories_list.append(HumanMessage(content=[{
+                        "type": "text",
+                        "text": text
+                    }]))
+                elif role == 'assistant':
+                    memories_list.append(SystemMessage(content=text))
+                elif role == 'user_image':
+                    memories_list.append(HumanMessage(content=[{
                         "type": "image_url",
                         "image_url": {"url": text}
                     }]))
 
-        messages = [SystemMessage(content=agent_prompt)] + memories_list + image_list + messages
+        messages = [SystemMessage(content=agent_prompt)] + memories_list + messages
         response = self.model.invoke(messages)
         return {"messages": [response]}
     
@@ -221,6 +234,7 @@ class EnhancedAgent(BaseAgent):
             if user.stripecustomer.units_remaining <= 0:
                 yield "You have run out of units. Please purchase more units to continue using the service."
                 return
+            record_usage = get_record_usage_function()
             with get_openai_callback() as usage_tracker_cb:
                 try:
                     for token in self.run(new_message, thread_id, user_id, data_type):
