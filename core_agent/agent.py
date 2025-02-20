@@ -1,9 +1,11 @@
 import uuid
+import logging
+import json
 from abc import ABC, abstractmethod
-from typing import Generator, Optional
+from typing import Generator, Optional, TypedDict
 from datetime import date
 from django.apps import apps
-from langchain_core.messages import SystemMessage, AIMessageChunk, HumanMessage, ToolMessage
+from langchain_core.messages import SystemMessage, AIMessageChunk, HumanMessage, ToolMessage, AIMessage
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_community.callbacks.manager import get_openai_callback
 from langgraph.graph import END, START, StateGraph, MessagesState
@@ -13,6 +15,10 @@ from core.utils import load_credential, set_environ_credential
 from .memory import MemoryStoreService
 from .utils import get_page_count, pdf_page_to_base64
 from .dataclasses import AgentConfig
+
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 def get_record_usage_function():
@@ -27,17 +33,67 @@ def get_record_usage_function():
         return lambda *args, **kwargs: None
 
 
+class BaseState(TypedDict):
+    messages: list[dict]
+
+
+def route_tools(state: BaseState):
+    """
+    Use in the conditional_edge to route to the ToolNode if the last message
+    has tool calls. Otherwise, route to the end.
+    """
+    if isinstance(state, list):
+        ai_message = state[-1]
+    elif messages := state.get("messages", []):
+        ai_message = messages[-1]
+    else:
+        raise ValueError(f"No messages found in input state to tool_edge: {state}")
+    if hasattr(ai_message, "tool_calls") and len(ai_message.tool_calls) > 0:
+        return "tools"
+    return "end"
+
+
+class BaseToolNode:
+    """A node that runs the tools requested in the last AIMessage."""
+
+    def __init__(self, tools: list) -> None:
+        self.tools_by_name = {tool.name: tool for tool in tools}
+
+    def __call__(self, inputs: dict):
+        # Get the existing conversation history.
+        messages = inputs.get("messages", [])
+        if not messages:
+            raise ValueError("No messages found in input")
+        
+        # The last message is expected to be the assistant message with tool_calls.
+        last_message = messages[-1]
+        outputs = []
+        for tool_call in last_message.tool_calls:
+            tool_result = self.tools_by_name[tool_call["name"]].invoke(
+                tool_call["args"]
+            )
+            outputs.append(
+                ToolMessage(
+                    content=json.dumps(tool_result),
+                    name=tool_call["name"],
+                    tool_call_id=tool_call["id"],
+                ))
+        return {"messages": messages + outputs}
+
+
+class BaseConfigSchema(TypedDict):
+    thread_id: str
+    user_id: str
+
+
 class BaseAgent(ABC):
     """
     Base class for an agent. This class should be inherited by the agent class.
     """
-    def __init__(self, config:Optional[AgentConfig] = None):
-        self.config = config or self.get_agent_config()
+    def __init__(self):
         self.tools = self.add_tools()
         self.workflow = self.build_workflow()
         self.model = self.get_model()
-        self.thread_id = None
-        self.user_id = None
         self.memory_store_service = MemoryStoreService()
         # check if there is tools to bind
         if self.tools:
@@ -50,7 +106,9 @@ class BaseAgent(ABC):
         """
         messages = state["messages"]
         response = self.model.invoke(messages)
-        return {"messages": [response]}
+        response = AIMessage(content=response.content, tool_calls=getattr(response, "tool_calls", None))
+        state["messages"] = [response]
+        return state
 
     def add_tools(self):
         """
@@ -63,7 +121,7 @@ class BaseAgent(ABC):
         return tools
 
     def build_workflow(self):
-        workflow = StateGraph(MessagesState)
+        workflow = StateGraph(BaseState, BaseConfigSchema)
         workflow.add_node("invoke_agent", self.invoke_agent)
         workflow.add_edge(START, "invoke_agent")
         workflow = self.add_nodes_edges(workflow)
@@ -74,7 +132,8 @@ class BaseAgent(ABC):
         Returns the model to be used for the agent
         """
         API_KEY = load_credential("OPENAI_API_KEY")
-        model = ChatOpenAI(model="gpt-4o", streaming=True, stream_usage=True, api_key=API_KEY)
+        model = ChatOpenAI(model="gpt-4o", streaming=True, stream_usage=True, api_key=API_KEY,
+                           max_retries=5, max_tokens=16000)
         return model
 
     def add_nodes_edges(self, workflow):
@@ -85,41 +144,43 @@ class BaseAgent(ABC):
         """
         Processes the chat message and returns the response.
         """
-        self.thread_id = thread_id
-        self.user_id = user_id
+        graph_state = {
+            "messages": [{"role": "user", "content": new_message}],
+        }
         graph_config = {
             "configurable": {
-                "thread_id": thread_id
+                "thread_id": thread_id,
+                "user_id": user_id
             }
         }
         if data_type == "text":
-            first = True
-            for msg, metadata in self.graph.stream(
-                {"messages": [{"role": "user", "content": new_message}]},
-                config=graph_config,
-                stream_mode="messages"
-            ):
-                if (msg.content
-                        and not isinstance(msg, HumanMessage)
-                        and not isinstance(msg, ToolMessage)):
-                    yield msg.content
-
-                if isinstance(msg, AIMessageChunk):
-                    if first:
-                        gathered = msg
-                        first = False
+            gathered_chunks = []
+            try:
+                for message, metadata in self.graph.stream(
+                    graph_state,
+                    config=graph_config,
+                    stream_mode="messages"
+                ):
+                    if (message.content
+                            and (isinstance(message, (AIMessage, AIMessageChunk))
+                            and not isinstance(message, (ToolMessage, HumanMessage)))):
+                        yield message.content
+                        gathered_chunks.append(message.content)
                     else:
-                        gathered = gathered + msg
+                        continue
+            except Exception as e:
+                logger.exception("Error during streaming: %s", e)
+                yield "An error occurred while processing your request."
+            finally:
+                final_answer = " ".join(gathered_chunks).strip()
 
-                    # if msg.tool_call_chunks:
-                        # yield gathered.tool_calls
-            # After finished streaming, save the memory
-            namespace_for_memory = ("memories", user_id)
-            self.memory_store_service.upsert_memory(
-                namespace_for_memory, thread_id, 'conversation_history', f'user,{new_message}')
-            self.memory_store_service.upsert_memory(
-                namespace_for_memory, thread_id, 'conversation_history', f'assistant,{gathered.content}')
-            self.memory_store_service.close()
+                # After finished streaming, save the memory
+                namespace_for_memory = ("memories", user_id)
+                self.memory_store_service.upsert_memory(
+                    namespace_for_memory, thread_id, 'conversation_history', f'user,{new_message}')
+                self.memory_store_service.upsert_memory(
+                    namespace_for_memory, thread_id, 'conversation_history', f'assistant,{final_answer}')
+                self.memory_store_service.close()
         elif data_type == "image":
             namespace_for_memory = ("memories", user_id)
             # add each page of the PDF as a separate memory
@@ -138,6 +199,10 @@ class EnhancedAgent(BaseAgent):
     A simple agent that can respond to user queries.
     It can use Tavily for web-based searching if enabled in the config.
     """
+    def __init__(self, config:Optional[AgentConfig] = None):
+        self.config = config or self.get_agent_config()
+        super().__init__()
+
     def create_new_thread(self, session_key: str) -> str:
         """Create a new thread and return its ID"""
         thread_id = str(uuid.uuid4())
@@ -156,10 +221,10 @@ class EnhancedAgent(BaseAgent):
             tools.append(tavily_tool)
         return tools
 
-    def invoke_agent(self, state):
-        messages = state["messages"]
-        thread_id = self.thread_id
-        user_id = self.user_id
+    def invoke_agent(self, state, config):
+        messages = state['messages']
+        thread_id = config['configurable']['thread_id']
+        user_id = config['configurable']['user_id']
 
         agent_prompt = self.get_agent_prompt()
         namespace_for_memory = ("memories", user_id)
@@ -196,7 +261,8 @@ class EnhancedAgent(BaseAgent):
 
         messages = [SystemMessage(content=agent_prompt)] + memories_list + messages
         response = self.model.invoke(messages)
-        return {"messages": [response]}
+        state['messages'] = [response]
+        return state
     
     @abstractmethod
     def get_agent_config(self):
@@ -216,10 +282,11 @@ class EnhancedAgent(BaseAgent):
         add a ToolNode and wire it correctly.
         Otherwise, just use the base agent flow.
         """
-        super().add_nodes_edges(workflow)
+        workflow.add_edge("invoke_agent", END)
         if self.tools:
-            workflow.add_node("tools", ToolNode(tools=self.tools))
-            workflow.add_conditional_edges("invoke_agent", tools_condition)
+            workflow.add_node("tools", BaseToolNode(tools=self.tools))
+            workflow.add_conditional_edges("invoke_agent", route_tools, {"tools": "tools", "end": END})
+            # workflow.add_conditional_edges("invoke_agent", tools_condition)
             workflow.add_edge("tools", "invoke_agent")
         return workflow
 

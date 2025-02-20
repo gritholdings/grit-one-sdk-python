@@ -32,6 +32,10 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     USERNAME_FIELD = 'email'  # Set email as the unique identifier
     REQUIRED_FIELDS = []  # Remove username from REQUIRED_FIELDS
 
+    class Meta:
+        verbose_name = 'User'
+        verbose_name_plural = 'Users'
+
     def __str__(self):
         return self.email
 

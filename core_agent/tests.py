@@ -8,6 +8,7 @@ from unittest.mock import patch, MagicMock
 
 from .dataclasses import AgentConfigs, AgentConfig
 from core_agent.agent import BaseAgent
+from .utils import get_computed_system_prompt
 
 
 class MockAgent(BaseAgent):
@@ -127,5 +128,29 @@ class TestAgentConfigs(unittest.TestCase):
         self.assertEqual(len(result), 0)
 
 
-if __name__ == "__main__":
-    unittest.main()
+class TestUtils(unittest.TestCase):
+    def test_get_computed_system_prompt_valid(self):
+        """
+        Test that get_computed_system_prompt returns the correct prompt when all fields are present.
+        """
+        metadata = {
+            'system_prompt': 'system prompt content',
+            'syllabus_info': 'syllabus info content here'
+        }
+        
+        system_prompt = """You are an AI tutor.
+Context:
+{SYSTEM_PROMPT}
+
+also this:
+{SYLLABUS_INFO}
+"""
+
+        result = get_computed_system_prompt(system_prompt, metadata)
+        self.assertEqual(result, """You are an AI tutor.
+Context:
+system prompt content
+
+also this:
+syllabus info content here
+""")

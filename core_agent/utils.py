@@ -49,3 +49,48 @@ def pdf_page_to_base64(pdf_path: str, page_number: int):
     # Encode to base64
     image_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
     return image_base64
+
+
+def get_computed_system_prompt(prompt_template: str, metadata_fields: dict) -> str:
+    """
+    Computes a system prompt by replacing placeholders with values from metadata fields.
+    
+    Args:
+        prompt_template (str): The template string containing placeholders in {FIELD_NAME} format
+        metadata_fields (dict): Dictionary containing field names and their values
+    
+    Returns:
+        str: The computed system prompt with all placeholders replaced
+        
+    Raises:
+        KeyError: If a placeholder in the template doesn't have a corresponding value in metadata_fields
+    """
+    try:
+        # Create a dictionary of uppercase keys for case-insensitive matching
+        formatted_fields = {
+            key.upper(): value 
+            for key, value in metadata_fields.items()
+        }
+        
+        # Replace each placeholder in the format {FIELD_NAME} with its corresponding value
+        computed_prompt = prompt_template
+        
+        # Find all placeholders in the template using string formatting
+        import re
+        placeholders = re.findall(r'\{([^}]+)\}', prompt_template)
+        
+        # Replace each placeholder
+        for placeholder in placeholders:
+            key = placeholder.upper()
+            if key not in formatted_fields:
+                raise KeyError(f"Missing metadata field for placeholder: {placeholder}")
+            
+            computed_prompt = computed_prompt.replace(
+                f"{{{placeholder}}}", 
+                str(formatted_fields[key])
+            )
+            
+        return computed_prompt
+        
+    except Exception as e:
+        raise Exception(f"Error computing system prompt: {str(e)}")

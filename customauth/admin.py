@@ -1,7 +1,11 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.models import Group
 from .models import CustomUser
 from .forms import CustomUserCreationForm, CustomUserChangeForm
+
+# Do not show groups in the admin panel
+admin.site.unregister(Group)
 
 
 class CustomUserAdmin(UserAdmin):
@@ -12,7 +16,7 @@ class CustomUserAdmin(UserAdmin):
     list_filter = ('is_staff', 'is_active')
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
-        ('Permissions', {'fields': ('is_staff', 'is_active', 'groups', 'user_permissions')}),
+        ('Permissions', {'fields': ('is_staff', 'is_active', 'user_permissions')}),
         ('Additional Info', {'fields': ('metadata',)}),
     )
     add_fieldsets = (

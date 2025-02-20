@@ -37,18 +37,19 @@ ALLOWED_HOSTS = [".awsapprunner.com", "." + DOMAIN_NAME, "127.0.0.1"]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
-    'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'corsheaders',
+    'customauth.apps.CustomauthConfig',
+    'django.contrib.auth',
     'rest_framework',
     'chatbot_app',
     'home',
     'core',
     'core_agent',
-    'customauth'
+    'app'
 ]
 
 MIDDLEWARE = [
