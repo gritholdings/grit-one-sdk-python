@@ -8,8 +8,7 @@ from django.apps import apps
 from langchain_core.messages import SystemMessage, AIMessageChunk, HumanMessage, ToolMessage, AIMessage
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_community.callbacks.manager import get_openai_callback
-from langgraph.graph import END, START, StateGraph, MessagesState
-from langgraph.prebuilt import ToolNode, tools_condition
+from langgraph.graph import END, START, StateGraph
 from langchain_openai import ChatOpenAI
 from core.utils import load_credential, set_environ_credential
 from .memory import MemoryStoreService
@@ -197,7 +196,7 @@ class BaseAgent(ABC):
 class EnhancedAgent(BaseAgent):
     """
     A simple agent that can respond to user queries.
-    It can use Tavily for web-based searching if enabled in the config.
+    If config.enable_web_search, it uses Tavily for web-based searching.
     """
     def __init__(self, config:Optional[AgentConfig] = None):
         self.config = config or self.get_agent_config()
