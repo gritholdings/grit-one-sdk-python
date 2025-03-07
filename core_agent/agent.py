@@ -10,7 +10,7 @@ from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_community.callbacks.manager import get_openai_callback
 from langgraph.graph import END, START, StateGraph
 from langchain_openai import ChatOpenAI
-from core.utils import load_credential, set_environ_credential
+from core.utils.env_config import load_credential, set_environ_credential
 from .memory import MemoryStoreService
 from .utils import get_page_count, pdf_page_to_base64
 from .dataclasses import AgentConfig
@@ -201,6 +201,9 @@ class EnhancedAgent(BaseAgent):
     def __init__(self, config:Optional[AgentConfig] = None):
         self.config = config or self.get_agent_config()
         super().__init__()
+        if self.config.enable_knowledge_base:
+            from core_agent.aws import BedrockClient
+            self.bedrock_client = BedrockClient()
 
     def create_new_thread(self, session_key: str) -> str:
         """Create a new thread and return its ID"""
@@ -226,18 +229,26 @@ class EnhancedAgent(BaseAgent):
         user_id = config['configurable']['user_id']
 
         agent_prompt = self.get_agent_prompt()
+        # add knowledge base using RAG
+        if self.config.enable_knowledge_base:
+            latest_query = messages[-1]['content']
+            
+            retrieval_results = self.bedrock_client.retrieve_from_knowledge_base(
+                knowledge_base_id=self.config.knowledge_base_id,
+                query=latest_query,
+                max_results=5
+            )
+            if retrieval_results:
+                knowledge_base_str = '\n\n<retrieved_knowledge>\n'
+                for i, result in enumerate(retrieval_results):
+                    knowledge_base_str += f"<document id='{i+1}'>\n"
+                    knowledge_base_str += f"{result['content']['text']}\n"
+                    knowledge_base_str += "</document>\n\n"
+                knowledge_base_str += '</retrieved_knowledge>\n\n'
+                agent_prompt += knowledge_base_str
+
         namespace_for_memory = ("memories", user_id)
         memories = self.memory_store_service.get_memory(namespace_for_memory, thread_id)
-        # memories_str = ''
-        # if memories and 'conversation_history' in memories.value:
-        #     conversation_history = memories.value['conversation_history']
-        #     memories_str += '<conversation_history>\n'
-        #     for i, conversation_item in enumerate(conversation_history):
-        #         role, text = conversation_item.split(',', 1)
-        #         if role == 'user' or role == 'assistant':
-        #             memories_str += f'<{role} index="{i}">{text}</{role}>\n'
-        #     memories_str += '</conversation_history>\n\n'
-        # memories_list = [SystemMessage(content=memories_str)] if memories_str else []
 
         # read file images such as PDFs
         memories_list = []
@@ -285,7 +296,6 @@ class EnhancedAgent(BaseAgent):
         if self.tools:
             workflow.add_node("tools", BaseToolNode(tools=self.tools))
             workflow.add_conditional_edges("invoke_agent", route_tools, {"tools": "tools", "end": END})
-            # workflow.add_conditional_edges("invoke_agent", tools_condition)
             workflow.add_edge("tools", "invoke_agent")
         return workflow
 

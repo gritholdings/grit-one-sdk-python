@@ -175,3 +175,6 @@ frontend/package.json
 
 # No tailwind css output
 home/static/home/global.css
+
+# No staticfiles
+staticfiles/

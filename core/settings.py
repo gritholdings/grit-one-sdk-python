@@ -14,7 +14,7 @@ import json
 import os
 from pathlib import Path
 from app.settings import DOMAIN_NAME, AWS_RDS_ENDPOINT
-from .utils import load_credential, get_django_env
+from .utils.env_config import load_credential, get_django_env
 
 # Basics
 
@@ -221,14 +221,28 @@ STORAGES = {
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Import dev settings if environment is DEV
-if DJANGO_ENV == 'PROD':
+# Use environment variables
+if DJANGO_ENV == 'PROD' or DJANGO_ENV == 'STAGING':
     DEBUG = False
-elif DJANGO_ENV == 'DEV':
-    CSRF_COOKIE_DOMAIN = None
+    if DJANGO_ENV == 'STAGING':
+        # The following settings enable printing of the exception traceback in the browser
+        DEBUG_PROPAGATE_EXCEPTIONS = True
+        from django.views.debug import technical_500_response
+        import sys
+        def custom_server_error(request):
+            # Capture the exception info; note that this works if an exception is active.
+            return technical_500_response(request, *sys.exc_info())
+        handler500 = custom_server_error
 
-# temporarily force DEBUG to True
-DEBUG = True
+        from whitenoise.storage import CompressedManifestStaticFilesStorage
+
+        class NonStrictManifestStaticFilesStorage(CompressedManifestStaticFilesStorage):
+            manifest_strict = False
+elif DJANGO_ENV == 'DEV':
+    DEBUG = True
+    CSRF_COOKIE_DOMAIN = None
+else:
+    DEBUG = True
 
 # Import additional settings that override the default settings
 import app.settings as app_settings

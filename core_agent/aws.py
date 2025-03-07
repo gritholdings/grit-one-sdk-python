@@ -1,7 +1,15 @@
 import os
 import boto3
 import requests
-from core.utils import load_credential
+from core.utils.env_config import load_credential
+
+
+def create_session():
+    return boto3.Session(
+        aws_access_key_id=load_credential("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=load_credential("AWS_SECRET_ACCESS_KEY"),
+        region_name="us-east-1"
+    )
 
 
 class AWSS3Client:
@@ -91,3 +99,38 @@ class AWSS3Client:
             )
         except Exception as e:
             raise Exception(f"Failed to upload {local_file_path}: {str(e)}") from e
+
+
+class BedrockClient:
+    def __init__(self):
+        self._session = create_session()
+        self._bedrock_agent_client = self._session.client(service_name="bedrock-agent-runtime")
+
+    def retrieve_from_knowledge_base(self, knowledge_base_id, query, max_results=5):
+        """
+        Retrieve information from an AWS Bedrock Knowledge Base.
+        
+        Args:
+            knowledge_base_id (str): The ID of the knowledge base to query
+            query (str): The search query to retrieve relevant information
+            max_results (int): Maximum number of results to return
+            region (str): AWS region where the knowledge base is located
+            
+        Returns:
+            retrieval_results (list): The response containing retrieved passages
+            [{"content": {"text": ""}}, ...]
+        """
+        # Make the retrieve request
+        response = self._bedrock_agent_client.retrieve(
+            knowledgeBaseId=knowledge_base_id,
+            retrievalQuery={
+                'text': query
+            },
+            retrievalConfiguration={
+                'vectorSearchConfiguration': {
+                    'numberOfResults': max_results
+                }
+            }
+        )
+        retrieval_results = response['retrievalResults']
+        return retrieval_results

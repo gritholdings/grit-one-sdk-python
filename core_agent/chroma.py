@@ -10,7 +10,7 @@ from typing import Optional
 from pathlib import Path
 from dataclasses import dataclass
 from core_agent.aws import AWSS3Client
-from core.utils import load_credential
+from core.utils.env_config import load_credential
 
 
 @dataclass

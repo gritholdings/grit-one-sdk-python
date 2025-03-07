@@ -13,6 +13,8 @@ class AgentConfig:
     prompt_template: Optional[str] = None
     overview_html: Optional[str] = None
     enable_web_search: bool = True
+    enable_knowledge_base: bool = False
+    knowledge_base_id: Optional[str] = None
     record_usage_for_payment: bool = True
     suggested_messages: Optional[List[str]] = field(default_factory=list)
 
