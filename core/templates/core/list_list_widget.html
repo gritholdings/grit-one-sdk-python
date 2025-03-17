@@ -1,0 +1,102 @@
+{% load static %}
+
+<div style="display: flex; flex-direction: column;">
+  <div id="list-tag-container-{{ widget.name }}">
+    {% if widget.list_items %}
+      {% for item in widget.list_items %}
+      <div class="list-tag-item" id="list-tag-item-{{ widget.name }}-{{ forloop.counter0 }}">
+        <!-- First input, e.g. item[0] -->
+        <input
+          type="text"
+          name="{{ widget.name }}"
+          id="{{ widget.name }}-{{ forloop.counter0 }}-display"
+          value="{{ item.0|default_if_none:'' }}"
+          {% for attr, val in widget.attrs.items %}
+            {{ attr }}="{{ val }}"
+          {% endfor %}
+        >
+    
+        <!-- Second input, e.g. item[1] -->
+        <input
+          type="text"
+          name="{{ widget.name }}"
+          id="{{ widget.name }}-{{ forloop.counter0 }}-value"
+          value="{{ item.1|default_if_none:'' }}"
+          {% for attr, val in widget.attrs.items %}
+            {{ attr }}="{{ val }}"
+          {% endfor %}
+        >
+    
+        <button
+          type="button"
+          class="remove-{{ widget.name }}-input"
+        >{{ widget.remove_button_label }}</button>
+      </div>
+    {% endfor %}
+    {% endif %}
+  </div>
+  <div>
+    <button type="button" id="add-{{ widget.name }}-input">
+      {{ widget.add_button_label }}
+    </button>
+  </div>
+</div>
+
+<script>
+  (function() {
+    var container = document.getElementById("list-tag-container-{{ widget.name }}");
+    var addButton = document.getElementById("add-{{ widget.name }}-input");
+    var inputCount = container.querySelectorAll(".list-tag-item").length;
+  
+    function addNewInput() {
+      var wrapper = document.createElement("div");
+      wrapper.className = "list-tag-item";
+      wrapper.id = "list-tag-item-{{ widget.name }}-" + inputCount;
+  
+      // First input
+      var displayInput = document.createElement("input");
+      displayInput.type = "text";
+      displayInput.name = "{{ widget.name }}";
+      displayInput.id = "{{ widget.name }}-" + inputCount + "-display";
+  
+      {% for attr, val in widget.attrs.items %}
+        displayInput.setAttribute("{{ attr }}", "{{ val }}");
+      {% endfor %}
+  
+      // Second input
+      var valueInput = document.createElement("input");
+      valueInput.type = "text";
+      valueInput.name = "{{ widget.name }}";
+      valueInput.id = "{{ widget.name }}-" + inputCount + "-value";
+  
+      {% for attr, val in widget.attrs.items %}
+        valueInput.setAttribute("{{ attr }}", "{{ val }}");
+      {% endfor %}
+  
+      var removeButton = document.createElement("button");
+      removeButton.type = "button";
+      removeButton.className = "remove-{{ widget.name }}-input";
+      removeButton.innerText = "{{ widget.remove_button_label }}";
+      removeButton.addEventListener("click", function() {
+        wrapper.remove();
+      });
+  
+      wrapper.appendChild(displayInput);
+      wrapper.appendChild(valueInput);
+      wrapper.appendChild(removeButton);
+      container.appendChild(wrapper);
+  
+      inputCount++;
+    }
+  
+    // Attach remove to any pre-existing rows
+    container.querySelectorAll(".remove-{{ widget.name }}-input").forEach(function(btn) {
+      btn.addEventListener("click", function(e) {
+        var wrapper = e.target.closest(".list-tag-item");
+        if (wrapper) wrapper.remove();
+      });
+    });
+  
+    addButton.addEventListener("click", addNewInput);
+  })();
+  </script>

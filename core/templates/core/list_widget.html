@@ -1,0 +1,93 @@
+<div style="display: flex; flex-direction: column;">
+  <div id="list-tag-container-{{ widget.name }}">
+    {% if widget.list_items %}
+      {# If there's already data, render one input per item #}
+      {% for item in widget.list_items %}
+        <div class="list-tag-item" id="list-tag-item-{{ widget.name }}-{{ forloop.counter0 }}">
+          <!-- <label for="{{ widget.name }}-{{ forloop.counter0 }}">
+            Message {{ forloop.counter }}
+          </label> -->
+          <input 
+            type="text"
+            name="{{ widget.name }}"
+            id="{{ widget.name }}-{{ forloop.counter0 }}"
+            value="{{ item|default_if_none:'' }}"
+            {% for attr, val in widget.attrs.items %}
+              {{ attr }}="{{ val }}"
+            {% endfor %}
+          >
+          <button type="button" class="remove-{{ widget.name }}-input">{{ widget.remove_button_label }}</button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  </div>
+  <div>
+    <button type="button" id="add-{{ widget.name }}-input">{{ widget.add_button_label }}</button>
+  </div>
+</div>
+  
+  <script>
+  (function() {
+    var container = document.getElementById("list-tag-container-{{ widget.name }}");
+    var addButton = document.getElementById("add-{{ widget.name }}-input");
+  
+    // Count how many inputs we already have:
+    var inputCount = container.querySelectorAll("input[name='{{ widget.name }}']").length;
+  
+    // A helper to create and append a new input+remove button
+    function addNewInput() {
+      // Create a container div
+      var wrapper = document.createElement("div");
+      wrapper.className = "list-tag-item";
+      wrapper.id = "list-tag-item-{{ widget.name }}-" + inputCount;
+  
+      // Create a label
+      // var label = document.createElement("label");
+      // label.htmlFor = "{{ widget.name }}-" + inputCount;
+      // label.innerText = "Message " + (inputCount + 1);
+  
+      // Create the input
+      var newInput = document.createElement("input");
+      newInput.type = "text";
+      newInput.name = "{{ widget.name }}";
+      newInput.id = "{{ widget.name }}-" + inputCount;
+      {% for attr, val in widget.attrs.items %}
+        newInput.setAttribute("{{ attr }}", "{{ val }}");
+      {% endfor %}
+  
+      // Create the remove button
+      var removeButton = document.createElement("button");
+      removeButton.type = "button";
+      removeButton.className = "remove-{{ widget.name }}-input";
+      removeButton.innerText = "Remove";
+  
+      // Append everything to the wrapper
+      // wrapper.appendChild(label);
+      wrapper.appendChild(newInput);
+      wrapper.appendChild(removeButton);
+  
+      // Append the wrapper to the main container
+      container.appendChild(wrapper);
+  
+      // Attach remove event to the newly created button
+      removeButton.addEventListener("click", function() {
+        wrapper.remove();  // Removes the entire div for this input
+      });
+  
+      // Update counter
+      inputCount++;
+    }
+  
+    // For removing existing items rendered at page load:
+    // (We add click listeners to all existing remove buttons)
+    container.querySelectorAll(".remove-{{ widget.name }}-input").forEach(function(btn) {
+      btn.addEventListener("click", function(event) {
+        var wrapper = event.target.closest(".list-tag-item");
+        if (wrapper) wrapper.remove();
+      });
+    });
+  
+    // Add a new blank input when the "Add another message" button is clicked
+    addButton.addEventListener("click", addNewInput);
+  })();
+  </script>

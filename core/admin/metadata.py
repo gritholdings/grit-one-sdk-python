@@ -1,3 +1,4 @@
+"""Metadata mixin"""
 
 
 class MetadataMixin:

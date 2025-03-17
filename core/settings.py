@@ -48,7 +48,7 @@ INSTALLED_APPS = [
     'chatbot_app',
     'home',
     'core',
-    'core_agent',
+    'core_agent.apps.AgentsConfig',
     'app'
 ]
 

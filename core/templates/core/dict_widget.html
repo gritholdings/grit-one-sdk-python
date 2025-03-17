@@ -1,0 +1,96 @@
+{% load static %}
+<div class="dict-tag-widget">
+
+  <!-- We'll store the final Key-Value dictionary JSON here -->
+  <input type="hidden" name="{{ widget.name }}" id="id_{{ widget.name }}" value="{{ widget.value|escapejs }}"/>
+
+  <table id="dict-tag-table-{{ widget.name }}">
+    <thead>
+      <tr>
+        <th>Key</th>
+        <th>Value</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for key, val in widget.kv_list %}
+      <tr>
+        <td><input type="text" class="tag-key" value="{{ key|escape }}"></td>
+        <td><input type="text" class="tag-value" value="{{ val|escape }}"></td>
+        <td>
+          <button type="button" class="remove-row">{{ widget.remove_button_label }}</button>
+        </td>
+      </tr>
+      {% endfor %}
+      {% if widget.kv_list|length == 0 %}
+      <!-- Render an empty row if no data -->
+      <tr>
+        <td><input type="text" class="tag-key" value=""></td>
+        <td><input type="text" class="tag-value" value=""></td>
+        <td><button type="button" class="remove-row">{{ widget.remove_button_label }}</button></td>
+      </tr>
+      {% endif %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="3">
+          <button type="button" class="add-row">{{ widget.add_button_label }}</button>
+        </td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+<script>
+(function() {
+    const widgetName = "{{ widget.name }}";
+    const table = document.getElementById("dict-tag-table-" + widgetName);
+    const hiddenInput = document.getElementById("id_" + widgetName);
+
+    function updateHiddenInput() {
+        // Read all rows, build an object {key: value, ...}, then JSON-encode
+        const obj = {};
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            const key = row.querySelector('.tag-key').value.trim();
+            const val = row.querySelector('.tag-value').value.trim();
+            if (key) {
+                obj[key] = val;
+            }
+        });
+        hiddenInput.value = JSON.stringify(obj);
+    }
+
+    // Attach change listeners to update JSON on any input changes
+    table.addEventListener('input', function(event) {
+        if (event.target.matches('.tag-key, .tag-value')) {
+            updateHiddenInput();
+        }
+    });
+
+    // Handle remove row
+    table.addEventListener('click', function(event) {
+        if (event.target.matches('.remove-row')) {
+            // Only remove if there's more than one row, or if you want to allow all to be removed, remove the check
+            const tbody = table.querySelector('tbody');
+            tbody.removeChild(event.target.closest('tr'));
+            updateHiddenInput();
+        }
+    });
+
+    // Handle add row
+    table.querySelector('.add-row').addEventListener('click', function() {
+        const tbody = table.querySelector('tbody');
+        const newRow = document.createElement('tr');
+        newRow.innerHTML = `
+          <td><input type="text" class="tag-key" value=""></td>
+          <td><input type="text" class="tag-value" value=""></td>
+          <td><button type="button" class="remove-row">X</button></td>
+        `;
+        tbody.appendChild(newRow);
+    });
+
+    // On page load, ensure the hidden JSON input is up to date
+    updateHiddenInput();
+})();
+</script>

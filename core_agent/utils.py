@@ -72,7 +72,7 @@ def get_computed_system_prompt(prompt_template: str, metadata_fields: dict) -> s
             for key, value in metadata_fields.items()
         }
         
-        # Replace each placeholder in the format {FIELD_NAME} with its corresponding value
+        # Replace each placeholder in the format {field_name} with its corresponding value
         computed_prompt = prompt_template
         
         # Find all placeholders in the template using string formatting
