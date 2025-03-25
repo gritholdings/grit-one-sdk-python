@@ -1,4 +1,4 @@
-# django-apprunner-chatbot-internal
+# Django Apprunner Chatbot
 
 Preview: https://dev.meetgrit.com/
 
