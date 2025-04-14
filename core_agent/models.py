@@ -2,6 +2,7 @@ import uuid
 import importlib
 from django.db import models
 from pydantic import BaseModel
+from .dataclasses import AgentConfig
 
 
 class AgentResponse(BaseModel):
@@ -31,7 +32,7 @@ class AgentManager(models.Manager):
         """
         Returns a list of agents that match the given tag.
         """
-        agent_queryset = self.filter(metadata__tags__Type__contains=agent_config_tag).order_by('name')
+        agent_queryset = self.filter(metadata__tags__Type__contains=agent_config_tag).order_by('metadata__order')
         agent_responses = [
             AgentResponse(**{
                 "id": str(agent.id),
@@ -49,20 +50,7 @@ class AgentManager(models.Manager):
         Returns a single agent by ID.
         """
         agent = self.get(id=agent_id)
-        agent_detail = AgentDetail(**{
-            "id": str(agent.id),
-            "name": agent.name,
-            "system_prompt": agent.system_prompt,
-            "suggested_messages": agent.metadata.get('suggested_messages', []),
-            "overview_html": agent.metadata.get('overview_html', ''),
-            "enable_web_search": agent.metadata.get('enable_web_search', False),
-            "enable_knowledge_base": agent.metadata.get('enable_knowledge_base', False),
-            "knowledge_base_id": agent.metadata.get('knowledge_base_id', ''),
-            "description": agent.metadata.get('description', ''),
-            "agent_class": agent.metadata.get('agent_class', ''),
-            "metadata": agent.metadata,
-        })
-        return agent_detail
+        return agent
     
     def get_agent_class(self, agent_class_str: str):
         if not agent_class_str:
@@ -78,16 +66,65 @@ class AgentManager(models.Manager):
         return agent_class_str
 
 
+class KnowledgeBase(models.Model):
+    id = models.UUIDField(default=uuid.uuid4, unique=True, primary_key=True)
+    name = models.CharField(max_length=255)
+    metadata = models.JSONField(blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
+
+class DataSource(models.Model):
+    id = models.UUIDField(default=uuid.uuid4, unique=True, primary_key=True)
+    name = models.CharField(max_length=255)
+    # data_source_config fields:
+    # {
+    # "type": "GITHUB" | "CUSTOM"
+    # "github_config": {
+    #   "crawler_config": {
+    #     "inclusion_prefixes": ["string",]
+    #   },
+    #   "source_config": {
+    #     "owner": "string",
+    #     "repo": "string",
+    #     "branch": "string"
+    #   }
+    # }
+    data_source_config = models.JSONField(blank=True, null=True)
+    knowledge_base = models.ForeignKey(KnowledgeBase, on_delete=models.CASCADE)
+    metadata = models.JSONField(blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
+
 class Agent(models.Model):
     id = models.UUIDField(default=uuid.uuid4, unique=True, primary_key=True)
     name = models.CharField(max_length=255)
     system_prompt = models.TextField(blank=True)
+    knowledge_bases = models.ManyToManyField(KnowledgeBase, related_name='knowledge_bases', blank=True)
     # metadata fields:
-    # 'suggested_messages', 'overview_html', 'enable_web_search',
+    # 'model_name', 'suggested_messages', 'overview_html', 'enable_web_search',
     # 'enable_knowledge_base', 'knowledge_base_id'
     metadata = models.JSONField(blank=True, null=True)
 
     objects = AgentManager()
+
+    def get_config(self) -> AgentConfig:
+        return AgentConfig(
+            id=str(self.id),
+            label=self.name,
+            description=self.metadata.get('description', ''),
+            agent_class=self.metadata.get('agent_class', ''),
+            prompt_template=self.system_prompt,
+            overview_html=self.metadata.get('overview_html', ''),
+            model_name=self.metadata.get('model_name', ''),
+            enable_web_search=self.metadata.get('enable_web_search', False),
+            enable_knowledge_base=self.metadata.get('enable_knowledge_base', False),
+            knowledge_bases=list(self.knowledge_bases.all().values()),
+            suggested_messages=self.metadata.get('suggested_messages', []),
+        )
 
     def __str__(self):
         return self.name

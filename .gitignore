@@ -170,8 +170,6 @@ credentials.json
 
 # No npm
 frontend/node_modules/
-frontend/package-lock.json
-frontend/package.json
 
 # No tailwind css output
 home/static/home/global.css

@@ -9,12 +9,13 @@ class AgentConfig:
     label: str
     description: str
     agent_class: Optional[Type['BaseAgent'] | str] = None
+    model_name: Optional[str] = None
     tags: Optional[List[str]] = field(default_factory=list)
     prompt_template: Optional[str] = None
     overview_html: Optional[str] = None
     enable_web_search: bool = True
     enable_knowledge_base: bool = False
-    knowledge_base_id: Optional[str] = None
+    knowledge_bases: Optional[List[str]] = field(default_factory=list)
     record_usage_for_payment: bool = True
     suggested_messages: Optional[List[str]] = field(default_factory=list)
 

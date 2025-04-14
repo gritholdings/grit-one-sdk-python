@@ -1,10 +1,13 @@
 Django>=5.0,<6.0
 djangorestframework
+adrf
 django-cors-headers
 psycopg[binary]>=3.2.0,<4.0
 gunicorn
+daphne
 whitenoise
 openai
+openai-agents
 langgraph>=0.2.76,<0.3
 langgraph-checkpoint-postgres
 langchain>=0.3,<0.4

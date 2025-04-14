@@ -1,3 +1,7 @@
+"""
+Unused. Synchronous agent implementation.
+"""
+
 import uuid
 import logging
 import json
@@ -11,7 +15,7 @@ from langchain_community.callbacks.manager import get_openai_callback
 from langgraph.graph import END, START, StateGraph
 from langchain_openai import ChatOpenAI
 from core.utils.env_config import load_credential, set_environ_credential
-from .memory import MemoryStoreService
+from .store import MemoryStoreService
 from .utils import get_page_count, pdf_page_to_base64
 from .dataclasses import AgentConfig
 
@@ -202,8 +206,8 @@ class EnhancedAgent(BaseAgent):
         self.config = config or self.get_agent_config()
         super().__init__()
         if self.config.enable_knowledge_base:
-            from core_agent.aws import BedrockClient
-            self.bedrock_client = BedrockClient()
+            from core_agent.store import KnowledgeBaseVectorStoreService
+            self.kb_vectorstore_service = KnowledgeBaseVectorStoreService()
 
     def create_new_thread(self, session_key: str) -> str:
         """Create a new thread and return its ID"""
@@ -232,18 +236,22 @@ class EnhancedAgent(BaseAgent):
         # add knowledge base using RAG
         if self.config.enable_knowledge_base:
             latest_query = messages[-1]['content']
-            
-            retrieval_results = self.bedrock_client.retrieve_from_knowledge_base(
-                knowledge_base_id=self.config.knowledge_base_id,
-                query=latest_query,
-                max_results=5
-            )
-            if retrieval_results:
+
+            knowledge_base_str = ''
+            knowledge_bases = self.config.knowledge_bases
+            if len(knowledge_bases) > 0:
                 knowledge_base_str = '\n\n<retrieved_knowledge>\n'
-                for i, result in enumerate(retrieval_results):
-                    knowledge_base_str += f"<document id='{i+1}'>\n"
-                    knowledge_base_str += f"{result['content']['text']}\n"
-                    knowledge_base_str += "</document>\n\n"
+            for knowledge_base in knowledge_bases:
+                retrieval_results = self.kb_vectorstore_service.search_documents(
+                    knowledge_base_id=str(knowledge_base['id']),
+                    query=latest_query
+                )
+                if retrieval_results:
+                    for i, result in enumerate(retrieval_results):
+                        knowledge_base_str += f"<document id='{i+1}'>\n"
+                        knowledge_base_str += f"{result['text']}\n"
+                        knowledge_base_str += "</document>\n\n"
+            if len(knowledge_bases) > 0:
                 knowledge_base_str += '</retrieved_knowledge>\n\n'
                 agent_prompt += knowledge_base_str
 
@@ -281,9 +289,9 @@ class EnhancedAgent(BaseAgent):
 
     def get_agent_prompt(self) -> str:
         """Override this method to provide a custom agent prompt"""
-        TODAY_DATE = date.today().strftime('%Y-%m-%d')
+        today_date = date.today().strftime('%Y-%m-%d')
         agent_prompt_result = self.config.prompt_template.format(
-            TODAY_DATE=TODAY_DATE)
+            today_date=today_date)
         return agent_prompt_result
 
     def add_nodes_edges(self, workflow):
