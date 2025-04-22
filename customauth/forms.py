@@ -3,7 +3,8 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from .models import CustomUser
 
-from django.contrib.auth.forms import PasswordChangeForm
+from django.contrib.auth.forms import PasswordChangeForm, PasswordResetForm
+
 
 class SignUpForm(UserCreationForm):
     def __init__(self, *args, **kwargs):
@@ -84,4 +85,16 @@ class CustomPasswordChangeForm(PasswordChangeForm):
     new_password2 = forms.CharField(
         widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Confirm New Password'}),
         label='Confirm New Password'
+    )
+
+
+class CustomPasswordResetForm(PasswordResetForm):
+    email = forms.EmailField(
+        widget=forms.EmailInput(
+            attrs={
+                'class': 'w-full mt-1 px-3 py-2 border rounded-lg',
+                'placeholder': 'Enter your email address'
+            }
+        ),
+        label='Email Address'
     )

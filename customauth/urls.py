@@ -6,6 +6,8 @@ from django.contrib.auth.views import (
     PasswordResetConfirmView,
     PasswordResetCompleteView
 )
+from .forms import CustomPasswordResetForm
+
 
 urlpatterns = [
     path('login/', CustomLoginView.as_view(), name='login'),
@@ -13,7 +15,9 @@ urlpatterns = [
     path('signup/', signup, name='signup'),
     path('is-authenticated/', is_authenticated, name='is_authenticated'),
     path('password-reset/',
-         PasswordResetView.as_view(template_name='customauth/password_reset_form.html'),
+         PasswordResetView.as_view(
+             template_name='customauth/password_reset_form.html',
+             form_class=CustomPasswordResetForm),
          name='password_reset'),
     path('password-reset-done/',
          PasswordResetDoneView.as_view(template_name='customauth/password_reset_done.html'),
