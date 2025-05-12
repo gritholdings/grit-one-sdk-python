@@ -1,6 +1,7 @@
 import uuid
 import importlib
 from django.db import models
+from django.apps import apps
 from pydantic import BaseModel
 from .dataclasses import AgentConfig
 
@@ -125,6 +126,98 @@ class Agent(models.Model):
             knowledge_bases=list(self.knowledge_bases.all().values()),
             suggested_messages=self.metadata.get('suggested_messages', []),
         )
+
+    def __str__(self):
+        return self.name
+
+
+class DataAutomationInvocation(models.Model):
+    class Status(models.TextChoices):
+        CREATED = 'created', 'Created'
+        IN_PROGRESS = 'in_progress', 'In Progress'
+        SUCCESS = 'success', 'Success'
+        ERROR = 'error', 'Error'
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.CREATED,
+    )
+    id = models.UUIDField(default=uuid.uuid4, unique=True, primary_key=True)
+    data_automation_project = models.ForeignKey(
+        'DataAutomationProject', on_delete=models.CASCADE, related_name='data_automation_project'
+    )
+    # metadata fields:
+    # 'error_message': 'string'
+    # 'output_configuration': {
+    #     "s3_uri": 'string'
+    # }
+    metadata = models.JSONField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.data_automation_project.name} - {self.id}"
+
+
+class Blueprint(models.Model):
+    id = models.UUIDField(default=uuid.uuid4, unique=True, primary_key=True)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    # schema fields:
+    """
+    {
+    "properties": {
+        "invoice_number": {
+            "type": "string",
+            "description": "The unique invoice identifier"
+        },
+        ...
+    }
+    """
+    schema = models.JSONField(blank=True, null=True)
+    metadata = models.JSONField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+    
+
+class DataAutomationProjectManager(models.Manager):
+    def get_user_projects(self, user):
+        """
+        Returns all DataAutomationProject instances associated with the given user
+        through the chain: DataAutomationProject -> account -> contact -> user
+        
+        Args:
+            user: The authenticated user from request.user
+            
+        Returns:
+            QuerySet of DataAutomationProject instances related to the user
+        """
+        if not user or user.is_anonymous:
+            return self.none()
+            
+        # Follow the relationship chain backward:
+        # user -> contact -> account -> project
+        return self.filter(
+            account__contacts__user=user
+        ).distinct()
+
+
+class DataAutomationProject(models.Model):
+    id = models.UUIDField(default=uuid.uuid4, unique=True, primary_key=True)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    blueprints = models.ManyToManyField(Blueprint, related_name="blueprints", blank=True)
+    if apps.is_installed('core_sales'):
+        account = models.ForeignKey('core_sales.Account', on_delete=models.CASCADE,
+                                    blank=True, null=True)
+    metadata = models.JSONField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    projects = DataAutomationProjectManager()
 
     def __str__(self):
         return self.name

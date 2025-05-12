@@ -167,7 +167,7 @@ class BaseOpenAIAgent:
 
     async def process_chat(self, user, thread_id: str, new_message: str, data_type: str = "text") -> Generator[str, None, None]:
         user_id = str(user.id)
-        if self.config.record_usage_for_payment:
+        if self.config.record_usage_for_payment and hasattr(user, 'stripecustomer'):
             # check if user has enough units
             units_remaining = await sync_to_async(lambda: user.stripecustomer.units_remaining)()
             if units_remaining <= 0:
@@ -191,7 +191,7 @@ class BaseOpenAIAgent:
                     thread_id=thread_id,
                     new_message=new_message,
                     final_output=result.final_output)
-                if self.config.record_usage_for_payment:
+                if self.config.record_usage_for_payment and hasattr(user, 'stripecustomer'):
                     input_tokens = result.raw_responses[0].usage.input_tokens
                     output_tokens = result.raw_responses[0].usage.output_tokens
                     total_tokens = input_tokens + output_tokens

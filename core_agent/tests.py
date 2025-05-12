@@ -143,10 +143,11 @@ class TestUtils(unittest.TestCase):
         
         system_prompt = """You are an AI tutor.
 Context:
-{SYSTEM_PROMPT}
+{system_prompt}
 
 also this:
-{SYLLABUS_INFO}
+{unknown_variable}
+{syllabus_info}
 """
 
         result = get_computed_system_prompt(system_prompt, metadata)
@@ -155,6 +156,7 @@ Context:
 system prompt content
 
 also this:
+{unknown_variable}
 syllabus info content here
 """)
 

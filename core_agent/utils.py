@@ -1,7 +1,7 @@
 import base64
 import io
 import os
-
+import re
 import fitz
 from PIL import Image
 
@@ -60,37 +60,26 @@ def get_computed_system_prompt(prompt_template: str, metadata_fields: dict) -> s
         metadata_fields (dict): Dictionary containing field names and their values
     
     Returns:
-        str: The computed system prompt with all placeholders replaced
-        
-    Raises:
-        KeyError: If a placeholder in the template doesn't have a corresponding value in metadata_fields
+        str: The computed system prompt with matching placeholders replaced
+    
+    Any placeholders in the template that do not match a key (case-insensitive) in metadata_fields 
+    will remain as-is.
     """
     try:
         # Create a dictionary of uppercase keys for case-insensitive matching
         formatted_fields = {
-            key.upper(): value 
+            key.lower(): value
             for key, value in metadata_fields.items()
         }
         
-        # Replace each placeholder in the format {field_name} with its corresponding value
         computed_prompt = prompt_template
         
-        # Find all placeholders in the template using string formatting
-        import re
-        placeholders = re.findall(r'\{([^}]+)\}', prompt_template)
+        # For each field, replace all placeholders that match it (case-insensitive)
+        for field_key_lower, field_value in formatted_fields.items():
+            pattern = re.compile(r'\{' + re.escape(field_key_lower) + r'\}', re.IGNORECASE)
+            computed_prompt = pattern.sub(str(field_value), computed_prompt)
         
-        # Replace each placeholder
-        for placeholder in placeholders:
-            key = placeholder.upper()
-            if key not in formatted_fields:
-                raise KeyError(f"Missing metadata field for placeholder: {placeholder}")
-            
-            computed_prompt = computed_prompt.replace(
-                f"{{{placeholder}}}", 
-                str(formatted_fields[key])
-            )
-            
         return computed_prompt
-        
+    
     except Exception as e:
         raise Exception(f"Error computing system prompt: {str(e)}")
