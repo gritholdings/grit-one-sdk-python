@@ -14,6 +14,10 @@
     {% if step == 1 %}
     <h2 class="text-xl font-semibold mb-2">Welcome to Your Company, Inc</h2>
     <p class="text-gray-600 mb-6">Let's get you started with your account setup.</p>
+
+    <div class="mb-6">
+      {% select_field name="agent_config_tag" label="Group Type" required=True options=agent_config_tag_options value=saved_data.agent_config_tag %}
+    </div>
     
     <div class="mb-6">
       {% input_field name="company_name" required=True value=saved_data.company_name %}

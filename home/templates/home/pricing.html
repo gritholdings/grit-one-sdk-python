@@ -1,22 +1,23 @@
-{% extends "base_generic.html" %}
+{% extends 'base_generic.html' %}
+{% load app_header %}
 {% block nav %}
-{% include "base_header.html" %}
+{% app_header %}
 {% endblock %}
 {% block content %}
-<!-- ========== MAIN CONTENT ========== -->
+<!-- Start Pricing -->
   <div class="overflow-hidden">
-    <!-- Hero -->
+    <!-- Start Hero -->
     <div class="relative">
 
       <div class="max-w-[85rem] px-4 pt-10 sm:px-6 lg:px-8 lg:pt-14 mx-auto">
-        <!-- Title -->
+        <!-- Start Title -->
         <div class="max-w-2xl mx-auto text-center mb-10">
           <h2 class="text-3xl leading-tight font-bold md:text-4xl md:leading-tight lg:text-5xl lg:leading-tight bg-clip-text bg-gradient-to-r from-secondary-600 to-tertiary-600 text-transparent">Simple, transparent pricing</h2>
           <p class="mt-2 lg:text-lg text-gray-800">Whatever your status, our offers evolve according to your needs.</p>
         </div>
         <!-- End Title -->
 
-        <!-- Switch -->
+        <!-- Start Switch -->
         <div class="flex justify-center items-center">
           <label for="pricing-switch" class="min-w-14 text-sm text-gray-600 me-3">
             Monthly
@@ -35,9 +36,9 @@
         </div>
         <!-- End Switch -->
 
-        <!-- Grid -->
+        <!-- Start Grid -->
         <div class="mt-6 md:mt-12 grid sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 lg:gap-3 xl:gap-6 lg:items-center">
-          <!-- Card -->
+          <!-- Start Card -->
           <div class="flex flex-col bg-white border border-gray-200 text-center rounded-2xl p-4 md:p-8">
             <h4 class="font-medium text-lg text-gray-800">Free</h4>
             <span class="mt-7 font-bold text-3xl md:text-4xl xl:text-5xl text-gray-800">Free</span>
@@ -72,7 +73,7 @@
           </div>
           <!-- End Card -->
 
-          <!-- Card -->
+          <!-- Start Card -->
           <div class="flex flex-col bg-white border-2 border-secondary-900 text-center shadow-xl rounded-2xl p-4 md:p-8">
             <p class="mb-3"><span class="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs uppercase font-semibold bg-secondary-100 text-secondary-700">Most popular</span></p>
             <h4 class="font-medium text-lg text-gray-800">Startup</h4>
@@ -110,7 +111,7 @@
           </div>
           <!-- End Card -->
 
-          <!-- Card -->
+          <!-- Start Card -->
           <div class="flex flex-col bg-white border border-gray-200 text-center rounded-2xl p-4 md:p-8">
             <h4 class="font-medium text-lg text-gray-800">Team</h4>
             <span class="mt-5 font-bold text-3xl md:text-4xl xl:text-5xl text-gray-800">
@@ -147,7 +148,7 @@
           </div>
           <!-- End Card -->
 
-          <!-- Card -->
+          <!-- Start Card -->
           <div class="flex flex-col bg-white border border-gray-200 text-center rounded-2xl p-4 md:p-8">
             <h4 class="font-medium text-lg text-gray-800">Enterprise</h4>
             <span class="mt-5 font-bold text-3xl md:text-4xl xl:text-5xl text-gray-800">
@@ -195,16 +196,16 @@
     <!-- End Hero -->
   </div>
 
-  <!-- Comparison Table -->
+  <!-- Start Comparison Table -->
   <div class="relative">
     <div class="max-w-[85rem] px-4 py-10 sm:px-6 lg:px-8 md:py-14 lg:py-20 mx-auto">
       <div class="max-w-2xl mx-auto text-center mb-10 lg:mb-14">
         <h2 class="text-2xl font-bold md:text-3xl md:leading-tight">Compare plans</h2>
       </div>
 
-      <!-- Header -->
+      <!-- Start Header -->
       <div class="hidden lg:block sticky top-0 start-0 py-2 bg-white/60 backdrop-blur-md">
-        <!-- Grid -->
+        <!-- Start Grid -->
         <div class="grid grid-cols-6 gap-6">
           <div class="col-span-2">
             <span class="font-semibold text-lg text-gray-800">
@@ -213,6 +214,7 @@
           </div>
           <!-- End Col -->
 
+          <!-- Start Col -->
           <div class="col-span-1">
             <span class="font-semibold text-lg text-gray-800">
               Free
@@ -223,6 +225,7 @@
           </div>
           <!-- End Col -->
 
+          <!-- Start Col -->
           <div class="col-span-1">
             <span class="font-semibold text-lg text-gray-800">
               Startup
@@ -233,6 +236,7 @@
           </div>
           <!-- End Col -->
 
+          <!-- Start Col -->
           <div class="col-span-1">
             <span class="font-semibold text-lg text-gray-800">
               Team
@@ -243,6 +247,7 @@
           </div>
           <!-- End Col -->
 
+          <!-- Start Col -->
           <div class="col-span-1">
             <span class="font-semibold text-lg text-gray-800">
               Enterprise
@@ -257,11 +262,11 @@
       </div>
       <!-- End Header -->
 
-      <!-- Section -->
+      <!-- Start Section -->
       <div class="space-y-4 lg:space-y-0">
-        <!-- List -->
+        <!-- Start List -->
         <ul class="grid lg:grid-cols-6 lg:gap-6">
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="lg:col-span-2 lg:py-3">
             <span class="text-lg font-semibold text-gray-800">
               General
@@ -269,29 +274,29 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="hidden lg:block lg:col-span-1 py-1.5 lg:py-3 px-4 lg:px-0 lg:text-center">
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="hidden lg:block lg:col-span-1 py-1.5 lg:py-3 px-4 lg:px-0 lg:text-center">
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="hidden lg:block lg:col-span-1 py-1.5 lg:py-3 px-4 lg:px-0 lg:text-center">
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="hidden lg:block lg:col-span-1 py-1.5 lg:py-3 px-4 lg:px-0 lg:text-center">
           </li>
           <!-- End Item -->
         </ul>
         <!-- End List -->
 
-        <!-- List -->
+        <!-- Start List -->
         <ul class="grid lg:grid-cols-6 lg:gap-6">
           <!-- Item -->
           <li class="lg:col-span-2 pb-1.5 lg:py-3">
@@ -301,7 +306,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -314,7 +319,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -327,7 +332,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -340,7 +345,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -355,9 +360,9 @@
         </ul>
         <!-- End List -->
 
-        <!-- List -->
+        <!-- Start List -->
         <ul class="grid lg:grid-cols-6 lg:gap-6">
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="lg:col-span-2 pb-1.5 lg:py-3">
             <span class="font-semibold lg:font-normal text-sm text-gray-800">
               Storage
@@ -365,7 +370,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -378,7 +383,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -391,7 +396,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -404,7 +409,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -419,9 +424,9 @@
         </ul>
         <!-- End List -->
 
-        <!-- List -->
+        <!-- Start List -->
         <ul class="grid lg:grid-cols-6 lg:gap-6">
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="lg:col-span-2 pb-1.5 lg:py-3">
             <span class="font-semibold lg:font-normal text-sm text-gray-800">
               Email sharing
@@ -429,7 +434,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -440,7 +445,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -451,7 +456,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -462,7 +467,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -475,9 +480,9 @@
         </ul>
         <!-- End List -->
 
-        <!-- List -->
+        <!-- Start List -->
         <ul class="grid lg:grid-cols-6 lg:gap-6">
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="lg:col-span-2 pb-1.5 lg:py-3">
             <span class="font-semibold lg:font-normal text-sm text-gray-800">
               Any time, anywhere access
@@ -485,7 +490,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -496,7 +501,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -507,7 +512,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -518,7 +523,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -533,11 +538,11 @@
       </div>
       <!-- End Section -->
 
-      <!-- Section -->
+      <!-- Start Section -->
       <div class="mt-6 space-y-4 lg:space-y-0">
-        <!-- List -->
+        <!-- Start List -->
         <ul class="grid lg:grid-cols-6 lg:gap-6">
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="lg:col-span-2 lg:py-3">
             <span class="text-lg font-semibold text-gray-800">
               Financial data
@@ -545,31 +550,31 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="hidden lg:block lg:col-span-1 py-1.5 lg:py-3 px-4 lg:px-0 lg:text-center">
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="hidden lg:block lg:col-span-1 py-1.5 lg:py-3 px-4 lg:px-0 lg:text-center">
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="hidden lg:block lg:col-span-1 py-1.5 lg:py-3 px-4 lg:px-0 lg:text-center">
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="hidden lg:block lg:col-span-1 py-1.5 lg:py-3 px-4 lg:px-0 lg:text-center">
           </li>
           <!-- End Item -->
         </ul>
         <!-- End List -->
 
-        <!-- List -->
+        <!-- Start List -->
         <ul class="grid lg:grid-cols-6 lg:gap-6">
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="lg:col-span-2 pb-1.5 lg:py-3">
             <span class="font-semibold lg:font-normal text-sm text-gray-8000">
               Open/High/Low/Close
@@ -577,7 +582,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -588,7 +593,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -599,7 +604,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -610,7 +615,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -623,9 +628,9 @@
         </ul>
         <!-- End List -->
 
-        <!-- List -->
+        <!-- Start List -->
         <ul class="grid lg:grid-cols-6 lg:gap-6">
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="lg:col-span-2 pb-1.5 lg:py-3">
             <span class="font-semibold lg:font-normal text-sm text-gray-800">
               Price-volume difference indicator
@@ -633,18 +638,18 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
                 Free
               </span>
-              <svg class="shrink-0 size-5 text-gray-400 xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>
+              <svg class="shrink-0 size-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>
             </div>
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -655,7 +660,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -666,7 +671,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -681,11 +686,11 @@
       </div>
       <!-- End Section -->
 
-      <!-- Section -->
+      <!-- Start Section -->
       <div class="mt-6 space-y-4 lg:space-y-0">
-        <!-- List -->
+        <!-- Start List -->
         <ul class="grid lg:grid-cols-6 lg:gap-6">
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="lg:col-span-2 lg:py-3">
             <span class="text-lg font-semibold text-gray-800">
               On-chain data
@@ -693,31 +698,31 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="hidden lg:block lg:col-span-1 py-1.5 lg:py-3 px-4 lg:px-0 lg:text-center">
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="hidden lg:block lg:col-span-1 py-1.5 lg:py-3 px-4 lg:px-0 lg:text-center">
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="hidden lg:block lg:col-span-1 py-1.5 lg:py-3 px-4 lg:px-0 lg:text-center">
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="hidden lg:block lg:col-span-1 py-1.5 lg:py-3 px-4 lg:px-0 lg:text-center">
           </li>
           <!-- End Item -->
         </ul>
         <!-- End List -->
 
-        <!-- List -->
+        <!-- Start List -->
         <ul class="grid lg:grid-cols-6 lg:gap-6">
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="lg:col-span-2 pb-1.5 lg:py-3">
             <span class="font-semibold lg:font-normal text-sm text-gray-800">
               Network growth
@@ -725,7 +730,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -736,7 +741,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -747,7 +752,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -758,7 +763,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -771,9 +776,9 @@
         </ul>
         <!-- End List -->
 
-        <!-- List -->
+        <!-- Start List -->
         <ul class="grid lg:grid-cols-6 lg:gap-6">
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="lg:col-span-2 pb-1.5 lg:py-3">
             <span class="font-semibold lg:font-normal text-sm text-gray-800">
               Average token age consumed
@@ -781,7 +786,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -792,7 +797,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -803,7 +808,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -814,7 +819,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -827,7 +832,7 @@
         </ul>
         <!-- End List -->
 
-        <!-- List -->
+        <!-- Start List -->
         <ul class="grid lg:grid-cols-6 lg:gap-6">
           <!-- Item -->
           <li class="lg:col-span-2 pb-1.5 lg:py-3">
@@ -837,7 +842,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -848,7 +853,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -859,7 +864,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -870,7 +875,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -883,9 +888,9 @@
         </ul>
         <!-- End List -->
 
-        <!-- List -->
+        <!-- Start List -->
         <ul class="grid lg:grid-cols-6 lg:gap-6">
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="lg:col-span-2 pb-1.5 lg:py-3">
             <span class="font-semibold lg:font-normal text-sm text-gray-800">
               Total ERC20 exchange funds flow
@@ -893,7 +898,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -904,7 +909,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -915,7 +920,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -926,7 +931,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -939,9 +944,9 @@
         </ul>
         <!-- End List -->
 
-        <!-- List -->
+        <!-- Start List -->
         <ul class="grid lg:grid-cols-6 lg:gap-6">
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="lg:col-span-2 pb-1.5 lg:py-3">
             <span class="font-semibold lg:font-normal text-sm text-gray-800">
               Transaction volume
@@ -949,7 +954,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -960,7 +965,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -971,7 +976,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -982,7 +987,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -995,9 +1000,9 @@
         </ul>
         <!-- End List -->
 
-        <!-- List -->
+        <!-- Start List -->
         <ul class="grid lg:grid-cols-6 lg:gap-6">
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="lg:col-span-2 pb-1.5 lg:py-3">
             <span class="font-semibold lg:font-normal text-sm text-gray-800">
               Total circulation (beta)
@@ -1005,7 +1010,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -1016,7 +1021,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -1027,7 +1032,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -1038,7 +1043,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -1051,9 +1056,9 @@
         </ul>
         <!-- End List -->
 
-        <!-- List -->
+        <!-- Start List -->
         <ul class="grid lg:grid-cols-6 lg:gap-6">
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="lg:col-span-2 pb-1.5 lg:py-3">
             <span class="font-semibold lg:font-normal text-sm text-gray-800">
               Velocity of tokens (beta)
@@ -1061,7 +1066,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -1072,7 +1077,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -1083,7 +1088,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -1094,7 +1099,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -1107,9 +1112,9 @@
         </ul>
         <!-- End List -->
 
-        <!-- List -->
+        <!-- Start List -->
         <ul class="grid lg:grid-cols-6 lg:gap-6">
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="lg:col-span-2 pb-1.5 lg:py-3">
             <span class="font-semibold lg:font-normal text-sm text-gray-800">
               ETH gas used
@@ -1128,7 +1133,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -1139,7 +1144,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -1150,7 +1155,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -1165,11 +1170,11 @@
       </div>
       <!-- End Section -->
 
-      <!-- Section -->
+      <!-- Start Section -->
       <div class="mt-6 space-y-4 lg:space-y-0">
-        <!-- List -->
+        <!-- Start List -->
         <ul class="grid lg:grid-cols-6 lg:gap-6">
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="lg:col-span-2 lg:py-3">
             <span class="text-lg font-semibold text-gray-800">
               Social data
@@ -1177,31 +1182,31 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="hidden lg:block lg:col-span-1 py-1.5 lg:py-3 px-4 lg:px-0 lg:text-center">
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="hidden lg:block lg:col-span-1 py-1.5 lg:py-3 px-4 lg:px-0 lg:text-center">
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="hidden lg:block lg:col-span-1 py-1.5 lg:py-3 px-4 lg:px-0 lg:text-center">
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="hidden lg:block lg:col-span-1 py-1.5 lg:py-3 px-4 lg:px-0 lg:text-center">
           </li>
           <!-- End Item -->
         </ul>
         <!-- End List -->
 
-        <!-- List -->
+        <!-- Start List -->
         <ul class="grid lg:grid-cols-6 lg:gap-6">
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="lg:col-span-2 pb-1.5 lg:py-3">
             <span class="font-semibold lg:font-normal text-sm text-gray-800">
               Dev activity
@@ -1209,7 +1214,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -1220,7 +1225,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -1231,7 +1236,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -1242,7 +1247,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -1255,9 +1260,9 @@
         </ul>
         <!-- End List -->
 
-        <!-- List -->
+        <!-- Start List -->
         <ul class="grid lg:grid-cols-6 lg:gap-6">
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="lg:col-span-2 pb-1.5 lg:py-3">
             <span class="font-semibold lg:font-normal text-sm text-gray-800">
               Topic search
@@ -1265,7 +1270,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -1276,7 +1281,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -1287,7 +1292,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -1298,7 +1303,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -1311,9 +1316,9 @@
         </ul>
         <!-- End List -->
 
-        <!-- List -->
+        <!-- Start List -->
         <ul class="grid lg:grid-cols-6 lg:gap-6">
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="lg:col-span-2 pb-1.5 lg:py-3">
             <span class="font-semibold lg:font-normal text-sm text-gray-800">
               Relative social dominance
@@ -1321,7 +1326,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -1332,7 +1337,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -1343,7 +1348,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -1354,7 +1359,7 @@
           </li>
           <!-- End Item -->
 
-          <!-- Item -->
+          <!-- Start Item -->
           <li class="col-span-1 py-1.5 lg:py-3 border-b border-gray-200">
             <div class="grid grid-cols-2 md:grid-cols-6 lg:block">
               <span class="lg:hidden md:col-span-2 text-sm text-gray-800">
@@ -1369,9 +1374,9 @@
       </div>
       <!-- End Section -->
 
-      <!-- Header -->
+      <!-- Start Header -->
       <div class="hidden lg:block mt-6">
-        <!-- Grid -->
+        <!-- Start Grid -->
         <div class="grid grid-cols-6 gap-6">
           <div class="col-span-2">
           </div>
@@ -1409,7 +1414,7 @@
       </div>
       <!-- End Header -->
 
-      <!-- Button Group -->
+      <!-- Start Button Group -->
       <div class="mt-8 md:mt-12 flex justify-center items-center gap-x-3">
         <p class="text-sm text-gray-500">
           Need a custom plan?
@@ -1424,10 +1429,11 @@
   </div>
   <!-- End Comparison Table -->
 
-  <!-- FAQ -->
+  <!-- Start FAQ -->
   <div class="max-w-[85rem] px-4 py-10 sm:px-6 lg:px-8 lg:py-14 mx-auto">
-    <!-- Grid -->
+    <!-- Start Grid -->
     <div class="grid md:grid-cols-5 gap-10">
+      <!-- Start Col -->
       <div class="md:col-span-2">
         <div class="max-w-xs">
           <h2 class="text-2xl font-bold md:text-4xl md:leading-tight">Frequently<br>asked questions</h2>
@@ -1437,7 +1443,7 @@
       <!-- End Col -->
 
       <div class="md:col-span-3">
-        <!-- Accordion -->
+        <!-- Start Accordion -->
         <div class="hs-accordion-group divide-y divide-gray-200">
           <div class="hs-accordion pb-3 active" id="hs-basic-with-title-and-arrow-stretched-heading-one">
             <button class="hs-accordion-toggle group pb-3 inline-flex items-center justify-between gap-x-3 w-full md:text-lg font-semibold text-start text-gray-800 rounded-lg transition hover:text-gray-500 focus:outline-none focus:text-gray-500" aria-expanded="true" aria-controls="hs-basic-with-title-and-arrow-stretched-collapse-one">
@@ -1460,7 +1466,7 @@
             </button>
             <div id="hs-basic-with-title-and-arrow-stretched-collapse-two" class="hs-accordion-content hidden w-full overflow-hidden transition-[height] duration-300" role="region" aria-labelledby="hs-basic-with-title-and-arrow-stretched-heading-two">
               <p class="text-gray-600">
-                We offer tiered subscription plans to suit different needs and team sizes. Each tier includes specific features and capabilities designed to provide the best value for your requirements.
+                We offer tiered plans to suit different needs and team sizes. Each tier includes specific features and capabilities designed to provide the best value for your requirements.
               </p>
             </div>
           </div>
@@ -1524,6 +1530,5 @@
     <!-- End Grid -->
   </div>
   <!-- End FAQ -->
-<!-- ========== END MAIN CONTENT ========== -->
-
+<!-- End Pricing -->
 {% endblock %}

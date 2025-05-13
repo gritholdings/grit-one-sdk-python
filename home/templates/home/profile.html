@@ -1,27 +1,52 @@
 {% extends 'base_generic.html' %}
-{% load form_components %}
+{% load app_header %}
 {% block nav %}
-{% include "base_header.html" %}
+{% app_header %}
 {% endblock %}
 {% block content %}
 <div class="max-w-2xl mx-auto my-8 p-8 bg-white shadow-md rounded-lg">
-    <h2 class="text-xl font-semibold mb-2">Edit Your Profile</h2>
-    <p class="text-gray-600 mb-6">Manage your profile settings</p>
-    
-    <div class="mb-6">
-      {% input_field name="name" required=False value=saved_data.name %}
-    </div>
+  <h2 class="text-xl font-semibold mb-2">Edit Your Profile</h2>
+  <h3 class="text-lg font-semibold mb-4">Profile Settings</h3>
+  <p class="text-gray-600 mb-6">Manage your profile settings</p>
+  
+  <div class="mb-6">
+    <a class="text-primary-600 hover:underline" href="/onboarding/1">Manage Profile</a>
+  </div>
 
+  <div class="mb-6">
     <a class="text-primary-600 hover:underline" href="{% url 'password_reset' %}">Reset Password</a>
-    
-    <div class="flex justify-between items-center gap-4 mt-8">     
-      <button type="submit" name="save" 
-        formaction="{% url 'profile' %}"
-        formnovalidate
-        class="px-4 py-2 border border-primary-600 text-primary-600 hover:bg-primary-600 hover:text-white font-medium rounded-md transition-colors">
-          Save
-      </button>
+  </div>
+  
+  <div class="flex justify-between items-center gap-4 mt-8 mb-8">
+    <button type="submit" name="save" 
+      formaction="{% url 'profile' %}"
+      formnovalidate
+      class="px-4 py-2 border border-primary-600 text-primary-600 hover:bg-primary-600 hover:text-white font-medium rounded-md transition-colors">
+        Save
+    </button>
+  </div>
+  <h3 class="text-lg font-semibold mb-4">Billing</h3>
+  <div class="mt-6">
+    <div>Remaining Credits: ${{ credits_remaining }}</div>
+  </div>
+  <div class="mt-6">
+    <a href="{% url 'checkout_page' %}" class="text-primary-600 hover:underline">Change Plan</a>
+  </div>
+  <div class="mt-6">
+    <a href="{% url 'create_billing_portal_session_page' %}" class="text-primary-600 hover:underline">Manage Payment</a>
+  </div>
+  {% if request.user.is_staff %}
+    <div class="mt-6 p-4 bg-gray-100 rounded-lg">
+      <h3 class="text-lg font-semibold mb-2 text-yellow-400">Admin Panel</h3>
+      <div class="mt-6">
+        <a href="/admin/" class="text-primary-600 hover:underline">Go to Admin Dashboard</a>
+      </div>
+      <div class="mt-6">
+        <a href="/agent/knowledge-base-webhook/" class="text-primary-600 hover:underline" target="_blank">Sync AI Agent Knowledge Base</a>
+      </div>
     </div>
-  </form>
+  {% endif %}
 </div>
+{% endblock %}
+{% block footer %}
 {% endblock %}

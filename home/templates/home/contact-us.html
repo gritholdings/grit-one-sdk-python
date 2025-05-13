@@ -1,0 +1,74 @@
+{% extends 'base_generic.html' %}
+{% load app_header %}
+{% block nav %}
+{% app_header %}
+{% endblock %}
+{% block content %}
+<!-- Start Contact Us -->
+<div class="max-w-[85rem] px-4 py-10 sm:px-6 lg:px-8 lg:py-14 mx-auto">
+  <div class="max-w-xl mx-auto">
+    <div class="text-center">
+      <h1 class="text-3xl font-bold text-gray-800 sm:text-4xl">
+        Contact us
+      </h1>
+      <p class="mt-1 text-gray-600">
+        Questions about our services? Ready to book a meeting? Reach out to our team for assistance.
+      </p>
+    </div>
+  </div>
+
+  <div class="mt-12 max-w-lg mx-auto">
+    <!-- Start Card -->
+    <div class="flex flex-col border border-gray-200 rounded-xl p-4 sm:p-6 lg:p-8">
+      <h2 class="mb-8 text-xl font-semibold text-gray-800">
+        Fill in the form
+      </h2>
+
+      <form method="post">
+        <div class="grid gap-4 lg:gap-6">
+            {% csrf_token %}
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
+              <div>
+                <label for="{{ form.first_name.id_for_label }}" class="block mb-2 text-sm text-gray-700 font-medium">{{ form.first_name.label }}</label>
+                {{ form.first_name }}
+              </div>
+              <div>
+                <label for="{{ form.last_name.id_for_label }}" class="block mb-2 text-sm text-gray-700 font-medium">{{ form.last_name.label }}</label>
+                {{ form.last_name }}
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
+              <div>
+                <label for="{{ form.email.id_for_label }}" class="block mb-2 text-sm text-gray-700 font-medium">{{ form.email.label }}</label>
+                {{ form.email }}
+              </div>
+              <div>
+                <label for="{{ form.phone.id_for_label }}" class="block mb-2 text-sm text-gray-700 font-medium">{{ form.phone.label }}</label>
+                {{ form.phone }}
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
+              <div>
+                <label for="{{ form.company.id_for_label }}" class="block mb-2 text-sm text-gray-700 font-medium">{{ form.company.label }}</label>
+                {{ form.company }}
+              </div>
+              <div>
+                <label for="{{ form.message.id_for_label }}" class="block mb-2 text-sm text-gray-700 font-medium">{{ form.message.label }}</label>
+                {{ form.message }}
+              </div>
+            </div>
+            <div class="mt-6 grid">
+            <button type="submit" class="w-full py-3 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 focus:outline-hidden focus:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none">Submit</button>
+            <div class="mt-3 text-center">
+                <p class="text-sm text-gray-500">
+                  A member of our team will reach out shortly.
+                </p>
+              </div>
+        </div>
+      </form>
+    </div>
+    <!-- End Card -->
+  </div>
+</div>
+<!-- End Contact Us -->
+{% endblock %}

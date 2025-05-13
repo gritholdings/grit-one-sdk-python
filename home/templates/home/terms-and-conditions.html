@@ -1,29 +1,31 @@
 {% extends 'base_generic.html' %}
+{% load app_header %}
 {% block nav %}
-{% include "base_header.html" %}
+{% app_header %}
 {% endblock %}
 {% block content %}
-
-<!-- Terms and Conditions --> 
+<!-- Start Terms and Conditions --> 
 <div class="max-w-[85rem] mt-10 px-4 sm:px-6 lg:px-8 mx-auto">
   <div class="grid lg:grid-cols-3 gap-y-8 lg:gap-y-0 lg:gap-x-6 lg:gap-x-12">
-    <!-- Content -->
+    <!-- Start Content -->
     <div class="lg:col-span-2">
       <div class="space-y-5 md:space-y-8">
-        <!-- Header -->
+        <!-- Start Header -->
         <div class="space-y-3">
           <h1 class="text-2xl font-bold md:text-3xl">Terms and Conditions</h1>
-          <p class="text-sm text-gray-500">Last Updated: December 8, 2024</p>
+          <p class="text-sm text-gray-500">Last Updated: May 8, 2025</p>
         </div>
+        <!-- End Header -->
 
-        <!-- Welcome Section -->
+        <!-- Start Welcome Section -->
         <div class="space-y-3">
           <p class="text-lg text-gray-800">Welcome to Your Company, Inc. By using our services, you agree to these Terms and Conditions.</p>
         </div>
+        <!-- End Welcome Section -->
 
-        <!-- Main Sections -->
+        <!-- Start Main Sections -->
         <div class="space-y-6">
-          <!-- Service Use -->
+          <!-- Start Service Use -->
           <div class="space-y-3">
             <h2 class="text-xl font-semibold">1. Service Use</h2>
             <ul class="list-disc list-outside space-y-2 ps-5 text-gray-800">
@@ -32,8 +34,9 @@
               <li class="ps-2">You agree to use the service lawfully and appropriately</li>
             </ul>
           </div>
+          <!-- End Service Use -->
 
-          <!-- User Content -->
+          <!-- Start User Content -->
           <div class="space-y-3">
             <h2 class="text-xl font-semibold">2. User Content</h2>
             <ul class="list-disc list-outside space-y-2 ps-5 text-gray-800">
@@ -42,8 +45,9 @@
               <li class="ps-2">You must not upload illegal or harmful content</li>
             </ul>
           </div>
+          <!-- End User Content -->
 
-          <!-- Privacy & Data -->
+          <!-- Start Privacy & Data -->
           <div class="space-y-3">
             <h2 class="text-xl font-semibold">3. Privacy &amp; Data</h2>
             <ul class="list-disc list-outside space-y-2 ps-5 text-gray-800">
@@ -52,8 +56,9 @@
               <li class="ps-2">We may use cookies to improve user experience</li>
             </ul>
           </div>
+          <!-- End Privacy & Data -->
 
-          <!-- Contact Information -->
+          <!-- Start Contact Information -->
           <div class="space-y-3 mt-8 pt-8 border-t border-gray-200">
             <h2 class="text-lg font-semibold">Contact Us</h2>
             <p class="text-gray-800">
@@ -61,11 +66,13 @@
               Your Company, Inc.
             </p>
           </div>
+          <!-- End Contact Information -->
         </div>
+        <!-- End Main Sections -->
       </div>
     </div>
 
-    <!-- Sticky Sidebar -->
+    <!-- Start Sticky Sidebar -->
     <div class="lg:col-span-1">
       <div class="sticky top-4">
         <div class="space-y-4">
@@ -85,7 +92,9 @@
           </div>
         </div>
       </div>
+    <!-- End Sticky Sidebar -->
     </div>
+  <!-- End Content -->
   </div>
 </div>
 {% endblock %}

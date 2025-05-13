@@ -1,13 +1,13 @@
-{% extends "base_generic.html" %}
+{% extends 'base_generic.html' %}
+{% load app_header %}
 {% block nav %}
-{% include "base_header.html" %}
+{% app_header %}
 {% endblock %}
 {% block content %}
-
-<!-- Hero -->
+<!-- Start Hero -->
 <div class="relative overflow-hidden before:absolute before:top-0 before:start-1/2 before:bg-[url('https://preline.co/assets/svg/examples/squared-bg-element.svg')] before:bg-no-repeat before:bg-top before:size-full before:-z-[1] before:transform before:-translate-x-1/2">
   <div class="max-w-[85rem] mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-10">
-    <!-- Announcement Banner -->
+    <!-- Start Announcement Banner -->
     <!-- <div class="flex justify-center">
       <a class="inline-flex items-center gap-x-2 bg-white border border-gray-200 text-xs text-gray-600 p-2 px-3 rounded-full transition hover:border-gray-300 focus:outline-none focus:border-gray-300" href="#">
         Explore the Capital Product
@@ -19,7 +19,7 @@
     </div> -->
     <!-- End Announcement Banner -->
 
-    <!-- Title -->
+    <!-- Start Title -->
     <div class="mt-5 max-w-xl text-center mx-auto">
       <h1 class="block font-bold text-gray-800 text-4xl md:text-5xl lg:text-6xl">
           AI Chatbot for Customer Support
@@ -31,10 +31,10 @@
       <p class="text-lg text-gray-600">Deliver seamless customer support with AI-driven conversations powered by advanced language models and intuitive tools.</p>
     </div>
 
-    <!-- Buttons -->
+    <!-- Start Buttons -->
     <div class="mt-8 gap-3 flex justify-center">
-      <a class="inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-primary-600 to-secondary-600 hover:from-secondary-600 hover:to-primary-600 focus:outline-none focus:from-secondary-600 focus:to-primary-600 border border-transparent text-white text-sm font-medium rounded-full py-3 px-4" href="#">
-        Get Started
+      <a class="inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-primary-600 to-secondary-600 hover:from-secondary-600 hover:to-primary-600 focus:outline-none focus:from-secondary-600 focus:to-primary-600 border border-transparent text-white text-sm font-medium rounded-full py-3 px-4" href="/contact-us">
+        Contact Us
       </a>
     </div>
     <!-- End Buttons -->
@@ -42,10 +42,10 @@
 </div>
 <!-- End Hero -->
 
-<!-- Icon Blocks -->
+<!-- Start Icon Blocks -->
 <div class="max-w-[85rem] px-4 py-10 sm:px-6 lg:px-8 lg:py-14 mx-auto">
   <div class="grid sm:grid-cols-2 lg:grid-cols-3 items-center gap-6">
-    <!-- Card -->
+    <!-- Start Card -->
     <a class="group flex gap-y-6 size-full hover:bg-gray-100 focus:outline-none focus:bg-gray-100 rounded-lg p-5" href="#">
       <svg class="shrink-0 size-8 text-gray-800 mt-0.5 me-6" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
 
@@ -63,7 +63,7 @@
     </a>
     <!-- End Card -->
 
-    <!-- Card -->
+    <!-- Start Card -->
     <a class="group flex gap-y-6 size-full hover:bg-gray-100 focus:outline-none focus:bg-gray-100 rounded-lg p-5" href="#">
       <svg class="shrink-0 size-8 text-gray-800 mt-0.5 me-6" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/></svg>
 
@@ -81,7 +81,7 @@
     </a>
     <!-- End Card -->
 
-    <!-- Card -->
+    <!-- Start Card -->
     <a class="group flex gap-y-6 size-full hover:bg-gray-100 focus:outline-none focus:bg-gray-100 rounded-lg p-5" href="#">
       <svg class="shrink-0 size-8 text-gray-800 mt-0.5 me-6" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/><path d="M22 7v3a2 2 0 0 1-2 2v0a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12v0a2 2 0 0 1-2-2V7"/></svg>
 

@@ -3,30 +3,20 @@ from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
-from django.conf import settings
 from customauth.models import CustomUser
+from core.utils.env_config import get_platform_url
+from core_payments.utils import get_credits_remaining
+from core_sales.models import Lead
+
+from .forms import CustomContactForm
+
 
 def _get_platform_url(request):
-    django_env = os.getenv('DJANGO_ENV', 'DEV')
     # Make sure user has completed onboarding before redirecting to platform
     if hasattr(request.user, 'metadata') and request.user.metadata.get('has_completed_onboarding', False) is False:
         return reverse('onboarding', kwargs={'step': 1})
-    platform_url = f'https://platform.{settings.DOMAIN_NAME}/' if django_env == 'PROD' else 'http://127.0.0.1:3000'
+    platform_url = get_platform_url()
     return platform_url
-
-def index(request):
-    platform_url = _get_platform_url(request)
-    context = {
-        'platform_url': platform_url
-    }
-    return render(request, "home/index.html", context)
-
-def pricing(request):
-    platform_url = _get_platform_url(request)
-    context = {
-        'platform_url': platform_url 
-    }
-    return render(request, "home/pricing.html", context)
 
 TOTAL_STEPS = 3
 
@@ -106,6 +96,11 @@ def onboarding(request, step):
     # Get previously saved data for this step
     saved_data = CustomUser.objects.get(id=request.user.id).metadata
 
+    agent_config_tag_options = [
+        ('public', 'Public'),
+        ('private', 'Private')
+    ]
+
     industry_options = [
         ('tech', 'Technology'),
         ('finance', 'Finance'),
@@ -140,6 +135,7 @@ def onboarding(request, step):
         'show_previous': step > 1,
         'is_last_step': step == TOTAL_STEPS,
         'platform_url': platform_url,
+        'agent_config_tag_options': agent_config_tag_options,
         'industry_options': industry_options,
         'team_size_options': team_size_options,
         'tech_product_type_options': tech_product_type_options,
@@ -181,26 +177,42 @@ def save_onboarding_progress(request):
             return redirect('onboarding', step=current_step + 1)
         elif 'previous' in request.POST and current_step > 1:
             return redirect('onboarding', step=current_step - 1)
+        elif current_step == TOTAL_STEPS:
+            platform_url = get_platform_url()
+            return redirect(platform_url)
 
     return redirect('index')
 
-def about_us(request):
-    platform_url = _get_platform_url(request)
-    context = {
-        'platform_url': platform_url 
-    }
-    return render(request, "home/about-us.html", context)
-
-def terms_and_conditions(request):
-    platform_url = _get_platform_url(request)
-    context = {
-        'platform_url': platform_url 
-    }
-    return render(request, "home/terms-and-conditions.html", context)
-
 def profile(request):
-    platform_url = _get_platform_url(request)
-    context = {
-        'platform_url': platform_url 
-    }
+    user_id = request.user.id
+    context = {}
+    credits_remaining = get_credits_remaining(user_id)
+    context['credits_remaining'] = credits_remaining
+
     return render(request, "home/profile.html", context)
+
+def contact_us(request):
+    context = {}
+    if request.method == 'POST':
+        filled_form = CustomContactForm(request.POST)
+        if filled_form.is_valid():
+            first_name = filled_form.cleaned_data['first_name']
+            last_name = filled_form.cleaned_data['last_name']
+            email = filled_form.cleaned_data['email']
+            phone = filled_form.cleaned_data['phone'] # '' if not provided
+            company = filled_form.cleaned_data['company']
+            message = filled_form.cleaned_data['message']
+            Lead.objects.create_with_metadata(
+                first_name=first_name,
+                last_name=last_name,
+                email=email,
+                phone=phone,
+                company=company,
+                message=message
+            )
+            # For example, you could redirect to a thank you page:
+            return redirect('contact_us_complete')
+    else:
+        empty_form = CustomContactForm()
+        context['form'] = empty_form
+        return render(request, "home/contact-us.html", context)

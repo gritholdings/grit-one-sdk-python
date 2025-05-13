@@ -1,3 +1,8 @@
+import os
+import django
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
+django.setup()
+
 from django.test import TestCase
 from customauth.models import CustomUser
 from home.views import update_user_metadata
