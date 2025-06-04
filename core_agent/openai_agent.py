@@ -53,11 +53,27 @@ def get_record_usage_function():
 
 class BaseOpenAIAgent:
     def __init__(self, config:Optional[AgentConfig] = None):
-        self.config = config
+        agent = self.get_agent() # pylint: disable=assignment-from-none
+        if agent is not None:
+            self.config = agent.get_config()
+        else:
+            self.config = config if config is not None else self.get_agent_config()
+        if self.config is None:
+            raise ValueError("Config cannot be None")
         self.memory_store_service = MemoryStoreService()
-        if self.config.enable_knowledge_base:
+        if self.config is not None and self.config.enable_knowledge_base:
             from core_agent.store import KnowledgeBaseVectorStoreService
             self.kb_vectorstore_service = KnowledgeBaseVectorStoreService()
+
+    def get_agent(self) -> Optional['Agent']:
+        """Override this method to provide a custom agent instance.
+        If agent is passed from the constructor, that agent config will be used instead."""
+        return None
+
+    def get_agent_config(self):
+        """Override this method to provide a custom agent config.
+        If config is passed from the constructor, that will be used instead."""
+        return None
 
     def create_new_thread(self, session_key: str) -> str:
         """Create a new thread and return its ID"""
@@ -166,8 +182,9 @@ class BaseOpenAIAgent:
         self.memory_store_service.close()
 
     async def process_chat(self, user, thread_id: str, new_message: str, data_type: str = "text") -> Generator[str, None, None]:
-        user_id = str(user.id)
-        if self.config.record_usage_for_payment and hasattr(user, 'stripecustomer'):
+        user_id = await sync_to_async(lambda: str(user.id))()
+        is_stripecustomer = await sync_to_async(hasattr)(user, 'stripecustomer')
+        if self.config.record_usage_for_payment and is_stripecustomer:
             # check if user has enough units
             units_remaining = await sync_to_async(lambda: user.stripecustomer.units_remaining)()
             if units_remaining <= 0:

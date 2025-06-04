@@ -4,14 +4,16 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
 django.setup()
 
 import unittest
+from datetime import datetime
 from unittest.mock import patch, Mock, MagicMock, call
 
-from .dataclasses import AgentConfigs, AgentConfig
+from core_agent.dataclasses import AgentConfigs, AgentConfig
 from core.utils.aws.s3 import S3Client
 from core.utils.github import GithubClient
-from core_agent.agent import BaseAgent
+from core_agent.langchain.agent import BaseAgent
 from core_agent.knowledge_base import KnowledgeBaseClient
-from .utils import get_computed_system_prompt
+from core_agent.store import MemoryStoreService
+from core_agent.utils import get_computed_system_prompt
 
 
 class MockAgent(BaseAgent):
@@ -161,12 +163,222 @@ syllabus info content here
 """)
 
 
+class TestMemoryStoreService(unittest.TestCase):
+    
+    def setUp(self):
+        """Set up test fixtures."""
+        self.service = MemoryStoreService()
+        self.created_memories = []  # Track memories created during tests
+    
+    def tearDown(self):
+        """Clean up test fixtures and memory records."""
+        # Clean up all memories created during tests
+        for namespace, thread_id in self.created_memories:
+            try:
+                self.service.delete_memory(namespace, thread_id)
+            except Exception:
+                pass  # Ignore if already deleted or doesn't exist
+        
+        self.service.close()
+    
+    def test_put_memory_actual_database(self):
+        """Test put_memory with actual database integration."""
+        namespace = ("test", "memory", "integration")
+        thread_id = "test_thread_123"
+        self.created_memories.append((namespace, thread_id))  # Track for cleanup
+        
+        test_memory = {
+            "test_key": "test_value",
+            "created_at": "2023-01-01T12:00:00",
+            "data": ["item1", "item2"]
+        }
+        
+        # Put memory to database
+        self.service.put_memory(namespace, thread_id, test_memory)
+        
+        # Retrieve memory from database
+        retrieved = self.service.get_memory(namespace, thread_id)
+        
+        # Assertions
+        self.assertIsNotNone(retrieved)
+        if retrieved is not None:
+            self.assertIsNotNone(retrieved.value)
+            self.assertEqual(retrieved.value["test_key"], "test_value")
+            self.assertEqual(retrieved.value["created_at"], "2023-01-01T12:00:00")
+            self.assertEqual(retrieved.value["data"], ["item1", "item2"])
+    
+    def test_memory_cleanup_verification(self):
+        """Test that memory cleanup actually removes records from database."""
+        namespace = ("test", "cleanup", "verification")
+        thread_id = "cleanup_test_thread"
+        self.created_memories.append((namespace, thread_id))  # Track for cleanup
+        
+        test_memory = {"cleanup_test": "should_be_deleted"}
+        
+        # Put memory to database
+        self.service.put_memory(namespace, thread_id, test_memory)
+        
+        # Verify it exists
+        retrieved = self.service.get_memory(namespace, thread_id)
+        self.assertIsNotNone(retrieved)
+        
+        # Manually clean up this specific memory
+        deleted = self.service.delete_memory(namespace, thread_id)
+        self.assertTrue(deleted)
+        
+        # Verify it's gone
+        retrieved_after_delete = self.service.get_memory(namespace, thread_id)
+        self.assertIsNone(retrieved_after_delete)
+        
+        # Remove from tracking since we manually deleted it
+        self.created_memories.remove((namespace, thread_id))
+    
+    @patch.object(MemoryStoreService, 'get_store')
+    def test_upsert_memory_invalid_namespace_type(self, mock_get_store):
+        """Test that upsert_memory raises TypeError for non-tuple namespace."""
+        with self.assertRaises(TypeError) as context:
+            self.service.upsert_memory("not_a_tuple", "thread1", "key1", "memory1")
+        self.assertEqual(str(context.exception), "namespace_for_memory must be a tuple")
+    
+    @patch.object(MemoryStoreService, 'get_store')
+    @patch.object(MemoryStoreService, 'get_memory')
+    @patch.object(MemoryStoreService, 'put_memory')
+    @patch('core_agent.store.datetime')
+    def test_upsert_memory_new_thread(self, mock_datetime, mock_put_memory, mock_get_memory, mock_get_store):
+        """Test upsert_memory when no memory exists for thread."""
+        namespace = ("test", "namespace")
+        thread_id = "thread1"
+        key = "key1"
+        memory = "new_memory"
+        
+        # Mock datetime.now()
+        mock_now = datetime(2023, 1, 1, 12, 0, 0)
+        mock_datetime.now.return_value = mock_now
+        mock_now_iso = mock_now.isoformat()
+        
+        # Mock that no memory exists initially, then return memory with timestamps
+        mock_get_memory.side_effect = [
+            None,  # First call - no thread exists
+            Mock(value={"created_at": mock_now_iso, "updated_at": mock_now_iso})  # Second call - after initial creation
+        ]
+        
+        self.service.upsert_memory(namespace, thread_id, key, memory)
+        
+        # Should be called 2 times in the updated function
+        self.assertEqual(mock_get_memory.call_count, 2)
+        
+        # Should put initial data with timestamps, then final memory with timestamps
+        expected_calls = [
+            call(namespace, thread_id, {"created_at": mock_now_iso, "updated_at": mock_now_iso}),
+            call(namespace, thread_id, {
+                "created_at": mock_now_iso, 
+                "updated_at": mock_now_iso, 
+                "key1": ["new_memory"]
+            })
+        ]
+        mock_put_memory.assert_has_calls(expected_calls)
+    
+    @patch.object(MemoryStoreService, 'get_store')
+    @patch.object(MemoryStoreService, 'get_memory')
+    @patch.object(MemoryStoreService, 'put_memory')
+    @patch('core_agent.store.datetime')
+    def test_upsert_memory_existing_thread_new_key(self, mock_datetime, mock_put_memory, mock_get_memory, mock_get_store):
+        """Test upsert_memory when thread exists but key doesn't."""
+        namespace = ("test", "namespace")
+        thread_id = "thread1"
+        key = "new_key"
+        memory = "new_memory"
+        
+        # Mock datetime.now()
+        mock_now = datetime(2023, 1, 1, 12, 0, 0)
+        mock_created_at = datetime(2023, 1, 1, 10, 0, 0)  # Earlier creation time
+        mock_datetime.now.return_value = mock_now
+        mock_now_iso = mock_now.isoformat()
+        mock_created_at_iso = mock_created_at.isoformat()
+        
+        # Mock existing thread with other data and timestamps
+        existing_memory = Mock(value={
+            "other_key": ["other_data"], 
+            "created_at": mock_created_at_iso,
+            "updated_at": mock_created_at_iso
+        })
+        mock_get_memory.return_value = existing_memory
+        
+        self.service.upsert_memory(namespace, thread_id, key, memory)
+        
+        # Should preserve created_at but update updated_at, and add new key
+        expected_call = call(namespace, thread_id, {
+            "other_key": ["other_data"],
+            "created_at": mock_created_at_iso,  # Preserved from existing
+            "updated_at": mock_now_iso,  # Updated to current time
+            "new_key": ["new_memory"]
+        })
+        mock_put_memory.assert_called_with(*expected_call.args, **expected_call.kwargs)
+    
+    @patch.object(MemoryStoreService, 'get_store')
+    @patch.object(MemoryStoreService, 'get_memory')
+    @patch.object(MemoryStoreService, 'put_memory')
+    @patch('core_agent.store.datetime')
+    def test_upsert_memory_existing_key(self, mock_datetime, mock_put_memory, mock_get_memory, mock_get_store):
+        """Test upsert_memory when key already exists."""
+        namespace = ("test", "namespace")
+        thread_id = "thread1"
+        key = "existing_key"
+        memory = "new_memory"
+        
+        # Mock datetime.now()
+        mock_now = datetime(2023, 1, 1, 12, 0, 0)
+        mock_created_at = datetime(2023, 1, 1, 10, 0, 0)  # Earlier creation time
+        mock_datetime.now.return_value = mock_now
+        mock_now_iso = mock_now.isoformat()
+        mock_created_at_iso = mock_created_at.isoformat()
+        
+        # Mock existing memory with data and timestamps
+        existing_memory = Mock(value={
+            "existing_key": ["old_memory"],
+            "created_at": mock_created_at_iso,
+            "updated_at": mock_created_at_iso
+        })
+        mock_get_memory.return_value = existing_memory
+        
+        self.service.upsert_memory(namespace, thread_id, key, memory)
+        
+        # Should append to existing list and update timestamp
+        expected_call = call(namespace, thread_id, {
+            "existing_key": ["old_memory", "new_memory"],
+            "created_at": mock_created_at_iso,  # Preserved from existing
+            "updated_at": mock_now_iso  # Updated to current time
+        })
+        mock_put_memory.assert_called_with(*expected_call.args, **expected_call.kwargs)
+    
+    @patch.object(MemoryStoreService, 'get_store')
+    @patch.object(MemoryStoreService, 'get_memory')
+    @patch('core_agent.store.datetime')
+    def test_upsert_memory_missing_value_attribute(self, mock_datetime, mock_get_memory, mock_get_store):
+        """Test upsert_memory when get_memory returns object without value attribute."""
+        namespace = ("test", "namespace")
+        thread_id = "thread1"
+        key = "key1"
+        memory = "new_memory"
+        
+        # Mock datetime.now()
+        mock_now = datetime(2023, 1, 1, 12, 0, 0)
+        mock_datetime.now.return_value = mock_now
+        
+        # Mock memory object without value attribute
+        mock_memory = Mock(spec=[])  # spec=[] means no attributes
+        mock_get_memory.return_value = mock_memory
+        
+        with self.assertRaises(AttributeError):
+            self.service.upsert_memory(namespace, thread_id, key, memory)
+
+
 class TestKnowledgeBaseClient(unittest.TestCase):
     
     def setUp(self):
         """Set up test fixtures."""
         self.client = KnowledgeBaseClient(bucket_name="test-bucket")
-        
+    
     @patch('core_agent.knowledge_base.requests.get')
     @patch.object(S3Client, 'upload_file_to_s3')
     @patch.object(S3Client, 'list_s3_files_in_prefix')
@@ -221,12 +433,13 @@ class TestKnowledgeBaseClient(unittest.TestCase):
         mock_requests_get.side_effect = [mock_response1, mock_response2]
         
         # Call the method under test
-        result = self.client.upload_github_folder_to_s3(
-            github_owner=github_owner,
-            github_repo=github_repo,
-            github_folder=github_folder,
-            github_branch=github_branch
-        )
+        with patch('builtins.print'):
+            result = self.client.upload_github_folder_to_s3(
+                github_owner=github_owner,
+                github_repo=github_repo,
+                github_folder=github_folder,
+                github_branch=github_branch
+            )
         
         # Assert GitHub client was called correctly
         mock_fetch_github_contents.assert_called_once_with(

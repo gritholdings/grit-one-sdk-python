@@ -1,3 +1,6 @@
+"""
+Deprecated. Langgraph's multi-agent supervisor.
+"""
 from typing import Any, Type, Sequence, Literal, Callable
 from typing_extensions import Annotated, TypedDict
 from langchain_core.messages import BaseMessage

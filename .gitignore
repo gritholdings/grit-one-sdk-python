@@ -167,6 +167,7 @@ credentials.json
 
 # Temporary file uploads
 .tmp/*
+tmp/*
 
 # No npm
 frontend/node_modules/

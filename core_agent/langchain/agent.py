@@ -1,5 +1,5 @@
 """
-Unused. Synchronous agent implementation.
+Deprecated. Synchronous agent implementation.
 """
 
 import uuid
@@ -15,9 +15,9 @@ from langchain_community.callbacks.manager import get_openai_callback
 from langgraph.graph import END, START, StateGraph
 from langchain_openai import ChatOpenAI
 from core.utils.env_config import load_credential, set_environ_credential
-from .store import MemoryStoreService
-from .utils import get_page_count, pdf_page_to_base64
-from .dataclasses import AgentConfig
+from ..store import MemoryStoreService
+from ..utils import get_page_count, pdf_page_to_base64
+from ..dataclasses import AgentConfig
 
 
 logger = logging.getLogger(__name__)

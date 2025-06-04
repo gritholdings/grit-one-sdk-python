@@ -1,5 +1,6 @@
 import random
 import string
+from datetime import datetime
 from typing import Optional, Dict, Any, List, Tuple
 from langchain_openai import OpenAIEmbeddings
 from langgraph.store.postgres import PostgresStore
@@ -50,19 +51,102 @@ class MemoryStoreService:
         store = self.get_store()
         return store.get(namespace_for_memory, thread_id)
     
+    def list_memories(self, namespace_for_memory):
+        store = self.get_store()
+        memories = store.search(namespace_for_memory, limit=20)
+        return memories
+    
     def upsert_memory(self, namespace_for_memory: tuple, thread_id: str, key: str, new_memory: str) -> None:
         if not isinstance(namespace_for_memory, tuple):
             raise TypeError("namespace_for_memory must be a tuple")
-        if not self.get_memory(namespace_for_memory, thread_id):
-            self.put_memory(namespace_for_memory, thread_id, {})
-        if key not in self.get_memory(
-                namespace_for_memory, thread_id).value:
-            self.put_memory(
-                namespace_for_memory, thread_id, {key: []})
-        current_memory = self.get_memory(
-            namespace_for_memory, thread_id).value[key]
+        
+        now = datetime.now().isoformat()
+        
+        # Check if thread exists, if not create empty dict with timestamps
+        memory_obj = self.get_memory(namespace_for_memory, thread_id)
+        if not memory_obj:
+            initial_data = {
+                'created_at': now,
+                'updated_at': now
+            }
+            self.put_memory(namespace_for_memory, thread_id, initial_data)
+        
+        # Check if key exists in memory, if not create empty list for that key
+        memory_obj = self.get_memory(namespace_for_memory, thread_id)
+        memory_data = memory_obj.value if memory_obj else {}
+        
+        # Set created_at if this is the first time creating the key
+        if key not in memory_data:
+            memory_data[key] = []
+            memory_data['created_at'] = memory_data.get('created_at', now)
+        
+        # Always update updated_at when modifying memory
+        memory_data['updated_at'] = now
+        
+        # Get the current memory for the key and append new memory
+        current_memory = memory_data[key]
         current_memory = current_memory + [new_memory]
-        self.put_memory(namespace_for_memory, thread_id, {key: current_memory})
+        memory_data[key] = current_memory
+        
+        self.put_memory(namespace_for_memory, thread_id, memory_data)
+    
+    def delete_memory(self, namespace_for_memory: tuple, thread_id: str) -> bool:
+        """
+        Delete a specific memory record.
+        
+        Args:
+            namespace_for_memory: The namespace tuple for the memory
+            thread_id: The thread ID for the memory
+            
+        Returns:
+            True if memory was deleted, False if it didn't exist
+        """
+        store = self.get_store()
+        memory_obj = self.get_memory(namespace_for_memory, thread_id)
+        if not memory_obj:
+            return False
+        
+        store.delete(namespace_for_memory, thread_id)
+        return True
+    
+    def get_memories_by_date_range(self, user_ids: list, from_date: str, to_date: str) -> list:
+        """
+        Get memories for multiple users within a date range.
+        
+        Args:
+            user_ids: List of user IDs to search
+            from_date: Start date (ISO format string)
+            to_date: End date (ISO format string)
+            
+        Returns:
+            List of conversation histories with metadata
+        """
+        store = self.get_store()
+        all_conversations = []
+        
+        for user_id in user_ids:
+            namespace_for_memory = ("memories", str(user_id))
+            memories = store.search(namespace_for_memory, limit=100)
+            
+            for memory in memories:
+                memory_data = memory.value
+                created_at = memory_data.get('created_at')
+                updated_at = memory_data.get('updated_at')
+                
+                # Filter by date range using created_at or updated_at
+                date_to_check = updated_at or created_at
+                if date_to_check and from_date <= date_to_check <= to_date:
+                    conversation_history = memory_data.get('conversation_history', [])
+                    if conversation_history:
+                        all_conversations.append({
+                            'user_id': user_id,
+                            'thread_id': memory.key,
+                            'conversation_history': conversation_history,
+                            'created_at': created_at,
+                            'updated_at': updated_at
+                        })
+        
+        return all_conversations
 
 
 class KnowledgeBaseVectorStoreServiceConfig:

@@ -16,6 +16,7 @@ def build_docker():
     container_name = IMAGE_NAME
     
     # Commands to stop, remove, and build the Docker image
+    collectstatic_command = "python manage.py collectstatic --clear --noinput"
     stop_command = f"docker --context {DOCKER_CONTEXT} stop {container_name} || true"
     rm_command = f"docker --context {DOCKER_CONTEXT} rm {container_name} || true"
     build_command = (
@@ -24,11 +25,16 @@ def build_docker():
     )
     
     try:
-        subprocess.run(stop_command, shell=True, check=False)
-        subprocess.run(rm_command, shell=True, check=False)
-        subprocess.run(build_command, shell=True, check=True)
+        subprocess.run(collectstatic_command, shell=True, check=True, timeout=30)
+        subprocess.run(stop_command, shell=True, check=False, timeout=30)
+        subprocess.run(rm_command, shell=True, check=False, timeout=30)
+        subprocess.run(build_command, shell=True, check=True, timeout=30)
+    except subprocess.TimeoutExpired as error:
+        print(f"Command timed out: {error}")
+        print("Try to open Docker Desktop, then reset/resume. Make sure it says Engine running")
     except subprocess.CalledProcessError as error:
         print(f"An error occurred during the Docker build process: {error}")
+        print("Try to open Docker Desktop, then reset/resume. Make sure it says Engine running")
 
 
 def deploy_to_ecr():
