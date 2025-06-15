@@ -22,3 +22,6 @@ boto3
 stripe
 PyMuPDF
 pillow
+mkdocs
+mkdocs-material
+PyYAML

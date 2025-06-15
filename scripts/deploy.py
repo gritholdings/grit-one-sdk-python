@@ -11,7 +11,7 @@ DOCKER_CONTEXT = "desktop-linux"
 IMAGE_TAG = "latest"
 
 
-def build_docker():
+def build_image():
     # Define the container name as the image name (modify if different)
     container_name = IMAGE_NAME
     
@@ -28,7 +28,7 @@ def build_docker():
         subprocess.run(collectstatic_command, shell=True, check=True, timeout=30)
         subprocess.run(stop_command, shell=True, check=False, timeout=30)
         subprocess.run(rm_command, shell=True, check=False, timeout=30)
-        subprocess.run(build_command, shell=True, check=True, timeout=30)
+        subprocess.run(build_command, shell=True, check=True, timeout=600)
     except subprocess.TimeoutExpired as error:
         print(f"Command timed out: {error}")
         print("Try to open Docker Desktop, then reset/resume. Make sure it says Engine running")
@@ -37,7 +37,7 @@ def build_docker():
         print("Try to open Docker Desktop, then reset/resume. Make sure it says Engine running")
 
 
-def deploy_to_ecr():
+def deploy():
     # Construct the AWS ECR registry URL
     ecr_url = f"{AWS_ACCOUNT_ID}.dkr.ecr.{AWS_REGION}.amazonaws.com"
 

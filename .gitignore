@@ -177,3 +177,6 @@ home/static/home/global.css
 
 # No staticfiles
 staticfiles/
+
+# Built documentation
+app_docs/docs_build/

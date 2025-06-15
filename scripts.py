@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Point of entry"""
 import sys
-from scripts.deploy import deploy_to_ecr, build_docker
+from scripts.deploy import deploy, build_image
 
 
 class ManagementUtility:
@@ -15,14 +15,14 @@ class ManagementUtility:
             subcommand = self.argv[1]
         except IndexError:
             subcommand = 'help' # Default to 'help' if no command is provided
-        if subcommand == 'build_docker':
-            build_docker()
-        elif subcommand == 'deploy_to_ecr':
-            deploy_to_ecr()
+        if subcommand == 'build_image':
+            build_image()
+        elif subcommand == 'deploy':
+            deploy()
         elif subcommand == 'help':
             print("Available commands:")
-            print("build_docker")
-            print("deploy_to_ecr")
+            print("build_image")
+            print("deploy")
             print("help")
         else:
             print(f"Unknown command: {subcommand}")

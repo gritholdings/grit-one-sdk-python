@@ -51,6 +51,27 @@ def pdf_page_to_base64(pdf_path: str, page_number: int):
     return image_base64
 
 
+def extract_placeholders_from_template(template: str) -> list:
+    """
+    Extract all placeholder names from a template string.
+    
+    Args:
+        template (str): The template string containing placeholders in {FIELD_NAME} format
+    
+    Returns:
+        list: List of unique placeholder names (lowercase) found in the template
+    """
+    if not template:
+        return []
+    
+    # Find all placeholders in the format {field_name}
+    pattern = re.compile(r'\{([^}]+)\}')
+    placeholders = pattern.findall(template)
+    
+    # Return unique placeholders in lowercase
+    return list(set(placeholder.lower() for placeholder in placeholders))
+
+
 def get_computed_system_prompt(prompt_template: str, metadata_fields: dict) -> str:
     """
     Computes a system prompt by replacing placeholders with values from metadata fields.

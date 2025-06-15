@@ -46,6 +46,57 @@ class AgentManager(models.Manager):
         ]
         return agent_responses
     
+    def get_user_agents(self, user, agent_config_tag: str = None):
+        """
+        Returns agents accessible to the given user.
+        This includes:
+        - Public agents (account=null) that match the agent_config_tag
+        - Private agents belonging to the user's account
+        
+        Args:
+            user: The authenticated user
+            agent_config_tag: Optional tag filter for public agents
+            
+        Returns:
+            List of AgentResponse objects
+        """
+        if not user or user.is_anonymous:
+            # Anonymous users only see public agents with matching tag
+            if agent_config_tag:
+                agent_queryset = self.filter(
+                    account__isnull=True,
+                    metadata__tags__Type__contains=agent_config_tag
+                ).order_by('metadata__order')
+            else:
+                return []
+        else:
+            # Authenticated users see both public and private agents
+            from django.db.models import Q
+            
+            # Start with private agents for user's account
+            query = Q(account__contacts__user=user)
+            
+            # Add public agents with matching tag
+            if agent_config_tag:
+                query |= Q(account__isnull=True, metadata__tags__Type__contains=agent_config_tag)
+            else:
+                # If no tag specified, include all public agents
+                query |= Q(account__isnull=True)
+            
+            agent_queryset = self.filter(query).distinct().order_by('metadata__order')
+        
+        agent_responses = [
+            AgentResponse(**{
+                "id": str(agent.id),
+                "label": agent.name,
+                "description": agent.metadata.get('description', ''),
+                "suggested_messages": agent.metadata.get('suggested_messages', []),
+                "overview_html": agent.metadata.get('overview_html', ''),
+            })
+            for agent in agent_queryset
+        ]
+        return agent_responses
+    
     def get_agent(self, agent_id: str):
         """
         Returns a single agent by ID.
@@ -105,6 +156,9 @@ class Agent(models.Model):
     name = models.CharField(max_length=255)
     system_prompt = models.TextField(blank=True)
     knowledge_bases = models.ManyToManyField(KnowledgeBase, related_name='knowledge_bases', blank=True)
+    if apps.is_installed('core_sales'):
+        account = models.ForeignKey('core_sales.Account', on_delete=models.CASCADE,
+                                    blank=True, null=True)
     # metadata fields:
     # 'model_name', 'suggested_messages', 'overview_html', 'enable_web_search',
     # 'enable_knowledge_base', 'knowledge_base_id'

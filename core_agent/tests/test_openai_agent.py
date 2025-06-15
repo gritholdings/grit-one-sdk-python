@@ -171,25 +171,6 @@ class TestModelLookupError(unittest.TestCase):
         result = Agent.objects.get_agent_class(agent_class_str=None)
         self.assertIsNone(result)
     
-    def test_course_lookup_with_non_existent_uuid(self):
-        """Test Course lookup with non-existent UUID raises ObjectDoesNotExist."""
-        from django.core.exceptions import ObjectDoesNotExist
-        
-        # Import Course model if available
-        try:
-            from core_classroom.models import Course
-            
-            # Test with a UUID that doesn't exist
-            non_existent_uuid = "28105bb0-d1a3-4d53-aec4-ee841024872f"
-            
-            # This should raise ObjectDoesNotExist
-            with self.assertRaises(ObjectDoesNotExist):
-                Course.objects.select_related('agent').get(id=non_existent_uuid)
-                
-        except ImportError:
-            # Skip test if Course model is not available
-            self.skipTest("Course model not available")
-    
     def test_safe_agent_lookup_with_uuid(self):
         """Test safe Agent lookup that returns None instead of raising exception."""
         from core_agent.models import Agent

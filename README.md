@@ -191,8 +191,8 @@ Option 1: This error is due to Tailwind not finding any classes to scan in what 
 
 Option 2: Browser may not refresh properly. In Chrome, do `command + shift + r` for hard reload.
 Option 3: Sometimes class change is not being detected. To fix this:
-1. Remove the problematic tailwind classname
-1. Run `Run With Install`
-1. Re-add the problematic tailwind classname
-1. Run `Run With Install`
-1. Now, the css should be applied correctly
+    1. Remove the problematic tailwind classname
+    1. Run `Run With Install`
+    1. Re-add the problematic tailwind classname
+    1. Run `Run With Install`
+    1. Now, the css should be applied correctly
