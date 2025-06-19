@@ -149,6 +149,6 @@ curl -X POST -d "username=your_username&password=your_password" http://localhost
 ### Deployment To AWS
 
 ```
-python scripts.py build_docker
-python scripts.py deploy_to_ecr
+python scripts.py build_image
+python scripts.py deploy
 ```
