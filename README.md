@@ -1,28 +1,25 @@
-# Django Apprunner Chatbot
+# Grit One SDK for Python
 
 ## Preview Environment
 Development preview available at: https://dev.meetgrit.com/
 
 ## System Overview
 
-The Django AppRunner Chatbot system consists of two separate applications working in tandem:
+This SDK consists of two separate applications working in tandem:
 1. Backend Application (This Repository)
-    - Technology Stack: AWS AppRunner → Amazon ECR → Docker → Django → Django REST API
-    - Presentation Layer: HTML + Tailwind CSS
-1. Frontend Application ([Separate Repository](https://github.com/gritholdings/amplify-next-chatbot))
-    - Technology Stack: AWS Amplify Gen 2 → NextJS → React TypeScript
+1. Frontend Application ([Separate Repository](https://github.com/gritholdings/grit-web-sdk-ts))
 
 ## Core Backend Features
 
 ### Authentication
-The system implements Django's native authentication framework (django.contrib.auth) which provides:
+The system provides:
 - User registration with email
 - Secure login/logout functionality
 - Session management via cookies
 - Password storage as salted hashes using PBKDF2 algorithm with SHA256
 
 ### Role-Based Access Control
-User permissions are managed through Django's group-based permission system:
+User permissions are managed through group-based permission system:
 - Each user is assigned to appropriate groups
 - Permission inheritance is implemented through groups
 - Predefined role categories:
@@ -30,14 +27,6 @@ User permissions are managed through Django's group-based permission system:
     - Internal employee
     - B2C customer
     - B2B customer
-
-### Deployment Architecture
-The application uses a containerized deployment approach:
-- Version Control: Git
-- Containerization: Docker
-- Container Registry: Amazon ECR
-- Deployment Platform: AWS AppRunner
-- Testing: Automated testing integrated in deployment pipeline
 
 ## Additional Features (Available Upon Request)
 
@@ -51,7 +40,6 @@ The application uses a containerized deployment approach:
 For additional customization options or bespoke implementation requirements, please contact us. Our team can design and develop tailored solutions to meet your specific business needs: https://www.meetgrit.com
 
 ## Requirements
-- Django 5.1+
 - Python 3.11+
 
 ## Installation
@@ -82,16 +70,9 @@ Before running the application, make sure to install the necessary dependencies.
 1. For local development, add this in `BASE_DIR/credentials.json`:
     ```
     {
-        "SECRET_KEY": "django-xxxx",
+        "SECRET_KEY": "xxxx",
         "DATABASE_PASSWORD": ""
     }
-    ```
-    To get secret key for the first time, do the following:
-    ```
-    python manage.py shell
-    >> from django.core.management.utils import get_random_secret_key
-    >> get_random_secret_key()
-    "YOUR_SECRET_KEY"
     ```
 
 1. Go to aws.amazon.com -> RDS -> DB Instances -> database instance. Copy this endpoint.
@@ -164,35 +145,10 @@ curl -X POST -d "username=your_username&password=your_password" http://localhost
     ```
 
 ## Deployment To Production
-(Optional) Run the docker locally to check.
-```
-docker run --platform=linux/amd64 -p 8000:8000 chatbot:latest
-```
 
-### Step 1: Preparation
-Build docker. To run locally:
-```
-docker buildx build --platform=linux/amd64 -t chatbot .
-```
+### Deployment To AWS
 
-### Step 2: Deployment to AWS App Runner
 ```
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 907965464542.dkr.ecr.us-east-1.amazonaws.com
-docker tag chatbot:latest 907965464542.dkr.ecr.us-east-1.amazonaws.com/django-apprunner-chatbot/chatbot:latest
-docker push 907965464542.dkr.ecr.us-east-1.amazonaws.com/django-apprunner-chatbot/chatbot:latest
+python scripts.py build_docker
+python scripts.py deploy_to_ecr
 ```
-
-## Troubleshooting
-### CSS classes not being applied from Tailwind CSS
-Option 1: This error is due to Tailwind not finding any classes to scan in what it 'thinks' is your HTML code directories. To fix, run:
-```
-./scripts/install.sh
-```
-
-Option 2: Browser may not refresh properly. In Chrome, do `command + shift + r` for hard reload.
-Option 3: Sometimes class change is not being detected. To fix this:
-    1. Remove the problematic tailwind classname
-    1. Run `Run With Install`
-    1. Re-add the problematic tailwind classname
-    1. Run `Run With Install`
-    1. Now, the css should be applied correctly
