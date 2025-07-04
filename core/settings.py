@@ -180,12 +180,16 @@ CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access to CSRF token
 CSRF_FAILURE_VIEW = "core.views.custom_csrf_failure_view"
 
 # Email Service
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'email-smtp.us-east-1.amazonaws.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = load_credential("AWS_SES_SMTP_USERNAME")
-EMAIL_HOST_PASSWORD = load_credential("AWS_SES_SMTP_PASSWORD")
+if DJANGO_ENV in ['TEST', 'DEV']:
+    # Use locmem backend for tests and local development to prevent sending real emails
+    EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = 'email-smtp.us-east-1.amazonaws.com'
+    EMAIL_PORT = 587
+    EMAIL_USE_TLS = True
+    EMAIL_HOST_USER = load_credential("AWS_SES_SMTP_USERNAME")
+    EMAIL_HOST_PASSWORD = load_credential("AWS_SES_SMTP_PASSWORD")
 DEFAULT_FROM_EMAIL = 'support@' + DOMAIN_NAME
 
 # Internationalization

@@ -109,6 +109,54 @@ class MemoryStoreService:
         store.delete(namespace_for_memory, thread_id)
         return True
     
+    def get_current_agent_id(self, user_id: str, thread_id: str) -> Optional[str]:
+        """
+        Get the current agent handling a conversation thread.
+        
+        Args:
+            user_id: The user ID
+            thread_id: The thread ID
+            
+        Returns:
+            The current agent name/ID if set, None otherwise
+        """
+        namespace_for_memory = ("memories", user_id)
+        memory_obj = self.get_memory(namespace_for_memory, thread_id)
+        
+        if memory_obj and memory_obj.value:
+            return memory_obj.value.get('current_agent_id')
+        
+        return None
+    
+    def set_current_agent_id(self, user_id: str, thread_id: str, agent_id: str) -> None:
+        """
+        Set the current agent handling a conversation thread.
+        
+        Args:
+            user_id: The user ID
+            thread_id: The thread ID
+            agent_id: The ID of the agent to set as current
+        """
+        namespace_for_memory = ("memories", user_id)
+        now = datetime.now().isoformat()
+        
+        # Get existing memory or create new one
+        memory_obj = self.get_memory(namespace_for_memory, thread_id)
+        if memory_obj:
+            memory_data = memory_obj.value
+        else:
+            memory_data = {
+                'created_at': now,
+                'updated_at': now
+            }
+        
+        # Update current agent and timestamp
+        memory_data['current_agent_id'] = agent_id
+        memory_data['updated_at'] = now
+        
+        # Save back to store
+        self.put_memory(namespace_for_memory, thread_id, memory_data)
+    
     def get_memories_by_date_range(self, user_ids: list, from_date: str, to_date: str) -> list:
         """
         Get memories for multiple users within a date range.

@@ -4,20 +4,23 @@ Asynchronous Agent implementation using openai-agents.
 
 import uuid
 import logging
+import json
 from datetime import date
-from typing import Generator, Optional
+from typing import AsyncGenerator, Optional
 from asgiref.sync import sync_to_async
 from django.apps import apps
 from agents import Runner, WebSearchTool, ModelSettings
 from agents import Agent as OpenAIAgent
 from openai.types.responses import ResponseTextDeltaEvent
-from .dataclasses import AgentConfig
+from core_agent.dataclasses import AgentConfig
+from core_agent.models import Agent
+from core_agent.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX, prompt_with_handoff_instructions
 from .store import MemoryStoreService
 from .utils import get_page_count, pdf_page_to_base64
 
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 
 # Cost in USD per 1 million tokens
@@ -26,6 +29,14 @@ MODEL_CONFIG = {
         "price_per_1m_tokens_input": 2.5,
         "price_per_1m_tokens_output": 10,
     },
+    "gpt-4.1": {
+        "price_per_1m_tokens_input": 2,
+        "price_per_1m_tokens_output": 8,
+    },
+    "gpt-4.1-mini": {
+        "price_per_1m_tokens_input": 0.4,
+        "price_per_1m_tokens_output": 1.6,
+    },
     "gpt-4.5": {
         "price_per_1m_tokens_input": 75,
         "price_per_1m_tokens_output": 150,
@@ -33,6 +44,10 @@ MODEL_CONFIG = {
     "o1": {
         "price_per_1m_tokens_input": 15,
         "price_per_1m_tokens_output": 60,
+    },
+    "o3": {
+        "price_per_1m_tokens_input": 2,
+        "price_per_1m_tokens_output": 8,
     }
 }
 
@@ -52,23 +67,45 @@ def get_record_usage_function():
 
 
 class BaseOpenAIAgent:
-    def __init__(self, config:Optional[AgentConfig] = None):
-        agent = self.get_agent() # pylint: disable=assignment-from-none
-        if agent is not None:
-            self.config = agent.get_config()
-        else:
-            self.config = config if config is not None else self.get_agent_config()
+    def __init__(self, config: Optional[AgentConfig] = None, handoff_context: Optional[dict] = None):
+        """Regular synchronous __init__ method"""
+        self._config = config
+        self._initialized = False
+        # Don't initialize async components here
+        self.memory_store_service = None
+        self.kb_vectorstore_service = None
+        self.config = None  # Will be properly set in initialize()
+        self.current_agent = None  # Placeholder for current agent instance
+        self.agent_instance = None  # The Django Agent model instance
+        self.handoff_context = handoff_context  # Store handoff context if provided
+    
+    async def initialize(self):
+        """
+        Async initialization method to be called after __init__
+        Do not create agent yet, just set up the configuration and services.
+        """
+        if self._initialized:
+            return
+            
+        # Get the configuration
+        self.config = self._config if self._config is not None else await sync_to_async(self.get_agent_config)()
+        
         if self.config is None:
             raise ValueError("Config cannot be None")
+        
         self.memory_store_service = MemoryStoreService()
         if self.config is not None and self.config.enable_knowledge_base:
             from core_agent.store import KnowledgeBaseVectorStoreService
             self.kb_vectorstore_service = KnowledgeBaseVectorStoreService()
-
-    def get_agent(self) -> Optional['Agent']:
-        """Override this method to provide a custom agent instance.
-        If agent is passed from the constructor, that agent config will be used instead."""
-        return None
+        
+        self._initialized = True
+    
+    @classmethod
+    async def create(cls, config: Optional[AgentConfig] = None, **kwargs) -> 'BaseOpenAIAgent':
+        """Factory method for creating and initializing an agent"""
+        instance = cls(config=config, **kwargs)
+        await instance.initialize()
+        return instance
 
     def get_agent_config(self):
         """Override this method to provide a custom agent config.
@@ -81,21 +118,47 @@ class BaseOpenAIAgent:
         return thread_id
 
     def get_agent_instructions(self) -> str:
-        """Override this method to provide a custom agent prompt"""
-        today_date = date.today().strftime('%Y-%m-%d')
-        agent_prompt_result = self.config.prompt_template.format(
-            today_date=today_date)
-        return agent_prompt_result
+        """Override this method to provide a custom agent prompt
+        """
+        return Agent.objects.get_formatted_prompt_template(self.config.id)
 
     def create_agent(self):
         instructions = self.get_agent_instructions()
         tools = []
         if self.config.enable_web_search:
             tools.append(WebSearchTool())
-        model_name = self.config.model_name if self.config.model_name != '' else DEFAULT_MODEL_NAME
-        created_agent = OpenAIAgent(name="Assistant", instructions=instructions,
-                                    model=model_name, tools=tools,
-                                    model_settings=ModelSettings(max_tokens=16000))
+        
+        # Get sub-agents configuration from the agent's metadata if available
+        sub_agents = Agent.objects.get_sub_agents(self.config.id)
+        
+        # Create handoff agents for the SDK
+        handoff_agents = []
+        for sub_agent in sub_agents:
+            # Create OpenAI Agent instances for each sub-agent
+            sub_agent_config = Agent.objects.get_agent_config(sub_agent.id)
+            sub_agent_instance = None
+            sub_agent_instance = OpenAIAgent(
+                name=sub_agent_config.label, 
+                instructions=Agent.objects.get_formatted_prompt_template(sub_agent.id),
+                model=sub_agent_config.model_name,
+                # tools=tools, assuming sub-agents do not have their own tools for now
+                # handoffs=handoff_agents,  # Assume there are no sub agents for sub-agents for now
+                model_settings=ModelSettings(max_tokens=16000)
+            )
+            handoff_agents.append(sub_agent_instance)
+        
+        # Store the agent instance reference
+        self.agent_instance = Agent.objects.get(id=self.config.id)
+            
+        model_name = self.config.model_name or DEFAULT_MODEL_NAME
+        created_agent = OpenAIAgent(
+            name=self.config.label, 
+            instructions=instructions,
+            model=model_name, 
+            tools=tools,
+            handoffs=handoff_agents,  # Add handoffs parameter
+            model_settings=ModelSettings(max_tokens=16000)
+        )
         return created_agent
     
     def build_messages(self, user_id: str, thread_id: str, new_message: str):
@@ -180,11 +243,67 @@ class BaseOpenAIAgent:
         self.memory_store_service.upsert_memory(
             namespace_for_memory, thread_id, 'conversation_history', f'assistant,{final_output}')
         self.memory_store_service.close()
+    
+    def detect_handoff_from_function_calls(self, function_calls: list) -> tuple[bool, str, str]:
+        """
+        Check if any function calls are handoff requests.
+        Returns (is_handoff, target_agent_name, agent_id)
+        
+        Note: This is kept for backward compatibility but returns False
+        since we're using SDK native handoffs.
+        """
+        return False, "", ""
+    
+    async def handoff_to_agent(self, agent_id: str, user, thread_id: str, conversation_history: list) -> 'BaseOpenAIAgent':
+        """
+        Create and return an instance of the specified sub-agent.
+        Transfers the conversation history to maintain context.
+        """
+        
+        # Get the specific sub-agent by ID
+        try:
+            target_sub_agent = await sync_to_async(Agent.objects.get)(id=agent_id)
+        except Agent.DoesNotExist:
+            raise ValueError(f"Sub-agent with ID '{agent_id}' not found")
+        
+        agent_id = str(target_sub_agent.id)
+        
+        # The target_sub_agent is already the Agent model instance
+        agent_instance = target_sub_agent
+        
+        # Get the agent class and instantiate it
+        agent_class_str = agent_instance.metadata.get('agent_class', 'core_agent.openai_agent.BaseOpenAIAgent')
+        agent_class = await sync_to_async(Agent.objects.get_agent_class)(agent_class_str)
+        
+        # Create the sub-agent instance with config from the agent
+        agent_config = await sync_to_async(agent_instance.get_config)()
+        sub_agent = agent_class(config=agent_config)
+        
+        # Initialize the sub-agent
+        await sub_agent.initialize()
+        
+        # Transfer conversation history by saving to memory store
+        user_id = await sync_to_async(lambda: str(user.id))()
+        namespace_for_memory = ("memories", user_id)
+        
+        # Clear existing memory for this thread and add the transferred history
+        await sync_to_async(sub_agent.memory_store_service.delete_memory)(namespace_for_memory, thread_id)
+        for msg in conversation_history:
+            role = msg.get('role', 'user')
+            content = msg.get('content', '')
+            await sync_to_async(sub_agent.memory_store_service.upsert_memory)(
+                namespace_for_memory, thread_id, 'conversation_history', f'{role},{content}'
+            )
+        # Set current agent id
+        await sync_to_async(sub_agent.memory_store_service.set_current_agent_id)(user_id=user_id, thread_id=thread_id, agent_id=agent_id)
+        
+        return sub_agent
 
-    async def process_chat(self, user, thread_id: str, new_message: str, data_type: str = "text") -> Generator[str, None, None]:
+    async def process_chat(self, user, thread_id: str, new_message: str, data_type: str = "text") -> AsyncGenerator[str, None]:
         user_id = await sync_to_async(lambda: str(user.id))()
         is_stripecustomer = await sync_to_async(hasattr)(user, 'stripecustomer')
-        if self.config.record_usage_for_payment and is_stripecustomer:
+        record_usage = None
+        if getattr(self.config, 'record_usage_for_payment', False) and is_stripecustomer:
             # check if user has enough units
             units_remaining = await sync_to_async(lambda: user.stripecustomer.units_remaining)()
             if units_remaining <= 0:
@@ -195,20 +314,76 @@ class BaseOpenAIAgent:
             openai_agent = await sync_to_async(self.create_agent)()
             messages = await sync_to_async(self.build_messages)(user_id=user_id, thread_id=thread_id, new_message=new_message)
             result = Runner.run_streamed(openai_agent, input=messages)
+            final_output = ""
+            function_calls = []
+            handoff_detected = False
+            target_agent_name = ""
+            target_agent_id = ""
+            
             try:
                 async for event in result.stream_events():
                     if event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent):
                         yield event.data.delta
+                        final_output += event.data.delta
+                    elif event.type == "run_item_stream_event" and event.name == "tool_called":
+                        # Collect function calls for later processing
+                        if hasattr(event, 'item') and hasattr(event.item, 'raw_item'):
+                            function_calls.append(event.item.raw_item)
+                    elif event.type == "run_item_stream_event" and event.name == "handoff_occured":
+                        # Note: "handoff_occured" is the actual event name (misspelled) in openai-agents-python
+                        handoff_detected = True
+                        
+                        if hasattr(event, 'item'):
+                            # Extract handoff details from the event
+                            handoff_item = event.item
+                            
+                            # Extract target agent information from the handoff item
+                            if hasattr(handoff_item, 'target_agent'):
+                                target_agent_name = handoff_item.target_agent.name
+                            
+                                # Get the target agent ID from our sub-agents mapping
+                                sub_agents = await sync_to_async(Agent.objects.get_sub_agents)(self.config.id)
+                                sub_agents_list = await sync_to_async(list)(sub_agents)
+                                if sub_agents_list:
+                                    for sub_agent in sub_agents_list:
+                                        if sub_agent.name == target_agent_name:
+                                            target_agent_id = str(sub_agent.id)
+                                            break
             except Exception as e:
                 logger.error(f"Error in process_chat: {str(e)}")
                 yield f"\n[Stream Error]: {str(e)}\n"
             finally:
-                await sync_to_async(self.on_agent_end)(
-                    user_id=user_id,
-                    thread_id=thread_id,
-                    new_message=new_message,
-                    final_output=result.final_output)
-                if self.config.record_usage_for_payment and hasattr(user, 'stripecustomer'):
+                # Check if SDK detected a handoff
+                if handoff_detected and target_agent_id:
+                    # Handoff detected, create the sub-agent and transfer conversation history
+                    
+                    # Build conversation history from messages
+                    conversation_history = await sync_to_async(self.build_messages)(
+                        user_id=user_id, thread_id=thread_id, new_message=new_message
+                    )
+                    
+                    # Add the assistant's response to the conversation history
+                    conversation_history.append({
+                        "role": "assistant",
+                        "content": final_output
+                    })
+                    
+                    # Create the sub-agent instance and transfer conversation
+                    sub_agent = await self.handoff_to_agent(
+                        agent_id=target_agent_id,
+                        user=user,
+                        thread_id=thread_id,
+                        conversation_history=conversation_history
+                    )
+                else:
+                    # No handoff detected, normal completion
+                    await sync_to_async(self.on_agent_end)(
+                        user_id=user_id,
+                        thread_id=thread_id,
+                        new_message=new_message,
+                        final_output=result.final_output)
+                    
+                if getattr(self.config, 'record_usage_for_payment', False) and hasattr(user, 'stripecustomer') and record_usage:
                     input_tokens = result.raw_responses[0].usage.input_tokens
                     output_tokens = result.raw_responses[0].usage.output_tokens
                     total_tokens = input_tokens + output_tokens

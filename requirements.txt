@@ -1,6 +1,7 @@
 Django>=5.0,<6.0
 djangorestframework
 adrf
+asgiref>=3.7.0
 django-cors-headers
 psycopg[binary]>=3.2.0,<4.0
 gunicorn

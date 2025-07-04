@@ -1,8 +1,10 @@
 import uuid
 import importlib
+from datetime import date
 from django.db import models
 from django.apps import apps
 from pydantic import BaseModel
+from core_agent.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
 from .dataclasses import AgentConfig
 
 
@@ -104,9 +106,20 @@ class AgentManager(models.Manager):
         agent = self.get(id=agent_id)
         return agent
     
+    def get_agent_by_name(self, agent_name: str):
+        """
+        Returns a single agent by name.
+        """
+        try:
+            agent = self.get(name=agent_name)
+            return agent
+        except self.model.DoesNotExist:
+            return None
+    
     def get_agent_class(self, agent_class_str: str):
         if not agent_class_str:
-            return None
+            # Use default agent class for empty string or None
+            agent_class_str = "core_agent.openai_agent.BaseOpenAIAgent"
 
         # If agent_class is a string, dynamically import
         if isinstance(agent_class_str, str):
@@ -116,6 +129,69 @@ class AgentManager(models.Manager):
 
         # Otherwise return as-is
         return agent_class_str
+    
+    def get_agent_config(self, agent_id: str) -> AgentConfig:
+        """
+        Returns the AgentConfig for the specified agent ID.
+        
+        Args:
+            agent_id: The ID of the agent
+            
+        Returns:
+            AgentConfig object containing agent details
+        """
+        try:
+            agent = self.get(id=agent_id)
+            return agent.get_config()
+        except self.model.DoesNotExist:
+            return None
+
+    def get_sub_agents(self, agent_id: str) -> models.QuerySet:
+        """
+        Returns sub-agents of the specified agent.
+        
+        Args:
+            agent_id: The ID of the parent agent
+            
+        Returns:
+            QuerySet of Agent objects that are sub-agents
+        """
+        try:
+            parent_agent = self.get(id=agent_id)
+            return parent_agent.sub_agents.all()
+        except self.model.DoesNotExist:
+            return self.none()
+    
+    def get_formatted_prompt_template(self, agent_id: str) -> str:
+        """
+        Returns the formatted prompt template for the specified agent.
+        
+        Args:
+            agent_id: The ID of the agent
+            
+        Returns:
+            Formatted prompt template string
+        """
+        today_date = date.today().strftime('%Y-%m-%d')
+        agent = self.get(id=agent_id)
+        formatted_prompt_template = agent.system_prompt.format(
+            today_date=today_date,
+            recommended_prompt_prefix=RECOMMENDED_PROMPT_PREFIX
+        )
+
+        # Prepare handoff instructions if sub-agents exist
+        handoff_instructions = ""
+        sub_agents = self.get_sub_agents(agent_id)
+        if sub_agents.exists():
+            handoff_instructions = "\n\n# Handoff Instructions\n"
+            handoff_instructions += "You can transfer conversations to specialized agents when appropriate. "
+            handoff_instructions += "Available agents:\n"
+            for sub_agent in sub_agents:
+                description = sub_agent.metadata.get('description', '') if sub_agent.metadata else ''
+                handoff_instructions += f"- {sub_agent.name}: {description}\n"
+            handoff_instructions += "\nWhen you determine a handoff is needed, simply indicate which agent should handle the request."
+
+        return formatted_prompt_template + handoff_instructions
 
 
 class KnowledgeBase(models.Model):
@@ -156,6 +232,7 @@ class Agent(models.Model):
     name = models.CharField(max_length=255)
     system_prompt = models.TextField(blank=True)
     knowledge_bases = models.ManyToManyField(KnowledgeBase, related_name='knowledge_bases', blank=True)
+    sub_agents = models.ManyToManyField('self', symmetrical=False, related_name='parent_agents', blank=True)
     if apps.is_installed('core_sales'):
         account = models.ForeignKey('core_sales.Account', on_delete=models.CASCADE,
                                     blank=True, null=True)

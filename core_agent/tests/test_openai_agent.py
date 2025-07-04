@@ -162,14 +162,15 @@ class TestModelLookupError(unittest.TestCase):
             Agent.objects.get_agent_class(agent_class_str=invalid_class_str)
     
     def test_agent_get_agent_class_with_empty_string(self):
-        """Test get_agent_class with empty string returns None."""
+        """Test get_agent_class with empty string returns default BaseOpenAIAgent."""
         from core_agent.models import Agent
+        from core_agent.openai_agent import BaseOpenAIAgent
         
         result = Agent.objects.get_agent_class(agent_class_str="")
-        self.assertIsNone(result)
+        self.assertEqual(result, BaseOpenAIAgent)
         
         result = Agent.objects.get_agent_class(agent_class_str=None)
-        self.assertIsNone(result)
+        self.assertEqual(result, BaseOpenAIAgent)
     
     def test_safe_agent_lookup_with_uuid(self):
         """Test safe Agent lookup that returns None instead of raising exception."""
