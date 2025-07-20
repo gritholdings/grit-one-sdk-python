@@ -26,3 +26,4 @@ pillow
 mkdocs
 mkdocs-material
 PyYAML
+markdown2
