@@ -2,4 +2,4 @@
 @source not "../env/";
 
 /* Add custom styles */
-@import "../app_frontend/app.css";
+@import "./app_frontend/app.css";

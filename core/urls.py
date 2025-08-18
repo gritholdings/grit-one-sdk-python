@@ -4,6 +4,11 @@ Core Urls
 from django.contrib import admin
 from django.urls import path, include
 from home import views as home_views
+from core.metadata import metadata
+from core.metadata.autodiscover import autodiscover
+
+# Autodiscover metadata registrations from all apps
+autodiscover()
 
 urlpatterns = [
     path('auth/', include('customauth.urls')),
@@ -13,3 +18,9 @@ urlpatterns = [
     path('profile/', home_views.profile, name='profile'),
     path('', include('app.urls')),
 ]
+
+# Append auto-generated metadata URLs
+# These are added after app.urls to allow manual overrides
+metadata_patterns = metadata.get_urlpatterns()
+if metadata_patterns:
+    urlpatterns += metadata_patterns

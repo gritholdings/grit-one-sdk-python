@@ -1,0 +1,26 @@
+{% extends 'base_page.html' %}
+{% load app_header %}
+{% load vite_tags %}
+{% block extra_head %}
+{% vite_assets %}
+{% endblock %}
+{% block nav %}
+{% page_header %}
+{% endblock %}
+{% block content %}
+<div class="px-4 py-10 sm:px-6 lg:px-8 lg:py-14 mx-auto">
+  <div
+    data-react-component="ListView"
+    data-prop-title="{{ title }}"
+    data-prop-data-source="items"
+    data-prop-columns='{{ columns|default:"[]" }}'
+    data-prop-actions='{{ actions|default:"[]" }}'
+  >
+  </div>
+  {{ items|json_script:"items" }}
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+</script>
+{% endblock %}

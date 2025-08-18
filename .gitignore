@@ -184,6 +184,7 @@ frontend/node_modules/
 frontend/dist/
 frontend/dist-ssr/
 frontend/*.local
+frontend/vite.pid
 
 # Editor directories and files
 frontend/*.suo
@@ -204,3 +205,6 @@ staticfiles/
 
 # Built documentation
 app_docs/docs_build/
+
+# Credentials
+e2e_tests/e2e_credentials.json

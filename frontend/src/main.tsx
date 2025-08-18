@@ -7,7 +7,11 @@ import App from './App.tsx'
 async function loadComponent(componentName: string) {
   // For Vite, we need to use glob imports
   const components = {
-    // Import all components from showcases
+    // Import all components from app_frontend components
+    ...import.meta.glob('../app_frontend/src/components/*.tsx'),
+    // Import all components from app_frontend showcases
+    ...import.meta.glob('../app_frontend/src/components/showcases/*.tsx'),
+    // Import all components from frontend showcases
     ...import.meta.glob('./components/showcases/*.tsx'),
     // Import all components from ui
     ...import.meta.glob('./components/ui/*.tsx'),
@@ -24,21 +28,28 @@ async function loadComponent(componentName: string) {
   
   // Try different paths
   const possiblePaths = [
+    `../app_frontend/src/components/${kebabName}.tsx`,
+    `../app_frontend/src/components/showcases/${kebabName}.tsx`,
+    `../app_frontend/src/components/showcases/app-count-button.tsx`, // Special case for AppCountButton
     `./components/ui/${componentName.toLowerCase()}.tsx`,
     `./components/showcases/${kebabName}.tsx`,
-    `./components/showcases/app-count-button.tsx`, // Special case for AppCountButton
+    `./components/showcases/app-count-button.tsx`, // Special case for AppCountButton in frontend
     `./components/${componentName}.tsx`,
-    `./components/${kebabName}.tsx`
+    `./components/${kebabName}.tsx`,
+    `./components/record-detail.tsx` // Special case for RecordDetail
   ]
   
   for (const path of possiblePaths) {
     if (components[path]) {
       try {
         const module = await components[path]() as any
-        return module[componentName] || module.default
+        // Try to find the component by name first, then default export
+        const component = module[componentName] || module.default || module['default']
+        if (component) {
+          return component
+        }
       } catch (error) {
         console.error(`Error loading component ${componentName} from ${path}:`, error)
-        return null
       }
     }
   }
@@ -73,12 +84,30 @@ async function mountComponents() {
     Array.from(element.attributes).forEach((attr) => {
       if (attr.name.startsWith('data-prop-')) {
         const propName = attr.name.replace('data-prop-', '').replace(/-([a-z])/g, (g) => g[1].toUpperCase())
-        try {
-          // Try to parse as JSON first (for objects, arrays, booleans, numbers)
-          props[propName] = JSON.parse(attr.value)
-        } catch {
-          // If not valid JSON, treat as string
-          props[propName] = attr.value
+        
+        // Special handling for data-source
+        if (attr.name === 'data-prop-data-source') {
+          // Get data from the json_script tag with the specified ID
+          const scriptElement = document.getElementById(attr.value)
+          if (scriptElement) {
+            try {
+              props['data'] = JSON.parse(scriptElement.textContent || '{}')
+            } catch (e) {
+              console.error(`Failed to parse data from script element with id "${attr.value}":`, e)
+              props['data'] = {}
+            }
+          } else {
+            console.warn(`Script element with id "${attr.value}" not found`)
+            props['data'] = {}
+          }
+        } else {
+          try {
+            // Try to parse as JSON first (for objects, arrays, booleans, numbers)
+            props[propName] = JSON.parse(attr.value)
+          } catch {
+            // If not valid JSON, treat as string
+            props[propName] = attr.value
+          }
         }
       }
     })

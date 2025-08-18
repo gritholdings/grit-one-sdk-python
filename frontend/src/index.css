@@ -1,5 +1,9 @@
-@import "tailwindcss";
+@import "tailwindcss" source("../../");
+@source not "../../env/";
 @import "tw-animate-css";
+
+/* Add custom styles */
+@import "../app_frontend/app.css";
 
 @custom-variant dark (&:is(.dark *));
 

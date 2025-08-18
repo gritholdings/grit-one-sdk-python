@@ -5,6 +5,7 @@ from django.db import models
 from django.apps import apps
 from pydantic import BaseModel
 from core_agent.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
+from customauth.models import CustomUser
 from .dataclasses import AgentConfig
 
 
@@ -227,6 +228,31 @@ class DataSource(models.Model):
         return self.name
 
 
+class OwnedAgentQuerySet(models.QuerySet):
+    def for_owner(self, owner)  :
+        """Agents accessible by a specific owner"""
+        return self.filter(owner=owner)
+
+
+class OwnedAgentManager(models.Manager):
+    def for_user(self, user_id):
+        """
+        Get all agents for a user.
+        This includes both owned and shared agents.
+        """
+        from customauth.models import CustomUser
+        try:
+            # user_id can be either a UUID object or a string
+            user = CustomUser.objects.get(id=user_id)
+            return self.get_queryset().for_owner(owner=user)
+        except CustomUser.DoesNotExist:
+            return self.none()
+
+    def get_agent(self, agent_id) :
+        """Get a specific agent by ID"""
+        return self.get_queryset().get(id=agent_id)
+
+
 class Agent(models.Model):
     id = models.UUIDField(default=uuid.uuid4, unique=True, primary_key=True)
     name = models.CharField(max_length=255)
@@ -240,8 +266,10 @@ class Agent(models.Model):
     # 'model_name', 'suggested_messages', 'overview_html', 'enable_web_search',
     # 'enable_knowledge_base', 'knowledge_base_id'
     metadata = models.JSONField(blank=True, null=True)
+    owner = models.ForeignKey(CustomUser, on_delete=models.DO_NOTHING, blank=True, null=True)
 
     objects = AgentManager()
+    owned = OwnedAgentManager.from_queryset(OwnedAgentQuerySet)()
 
     def get_config(self) -> AgentConfig:
         return AgentConfig(

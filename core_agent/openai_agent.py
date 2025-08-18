@@ -198,30 +198,63 @@ class BaseOpenAIAgent:
         if memories and 'conversation_history' in memories.value:
             conversation_history = memories.value['conversation_history']
             for i, conversation_item in enumerate(conversation_history):
-                role, text = conversation_item.split(',', 1)
-                if role == 'user':
-                    memories_list.append({
-                        "role": "user",
-                        "content": text
-                    })
-                elif role == 'assistant':
-                    memories_list.append({
-                        "role": "assistant",
-                        "content": text
-                    })
-                elif role == 'user_image':
-                    memories_list.append({
-                        "role": "user",
-                        "content": [
-                        {
-                            "type": "input_text",
-                            "text": ""},
-                        {
-                            "type": "input_image",
-                            "image_url": text
-                        }
-                        ]
-                    })
+                # Check if it's a dict (new format) or string (old format)
+                if isinstance(conversation_item, dict):
+                    # New structured format
+                    role = conversation_item.get('role')
+                    content = conversation_item.get('content')
+                    metadata = conversation_item.get('metadata', {})
+                    
+                    if role == 'user':
+                        memories_list.append({
+                            "role": "user",
+                            "content": content
+                        })
+                    elif role == 'assistant':
+                        memories_list.append({
+                            "role": "assistant",
+                            "content": content
+                        })
+                    elif role == 'user_image':
+                        filename = metadata.get('filename', 'Uploaded file')
+                        memories_list.append({
+                            "role": "user",
+                            "content": [
+                            {
+                                "type": "input_text",
+                                "text": f"[Uploaded file: {filename}]"},
+                            {
+                                "type": "input_image",
+                                "image_url": content
+                            }
+                            ]
+                        })
+                else:
+                    # Old string format (backward compatibility)
+                    role, text = conversation_item.split(',', 1)
+                    if role == 'user':
+                        memories_list.append({
+                            "role": "user",
+                            "content": text
+                        })
+                    elif role == 'assistant':
+                        memories_list.append({
+                            "role": "assistant",
+                            "content": text
+                        })
+                    elif role == 'user_image':
+                        memories_list.append({
+                            "role": "user",
+                            "content": [
+                            {
+                                "type": "input_text",
+                                "text": ""},
+                            {
+                                "type": "input_image",
+                                "image_url": text
+                            }
+                            ]
+                        })
 
         # add new message
         formatted_new_message = {
@@ -238,10 +271,14 @@ class BaseOpenAIAgent:
     def on_agent_end(self, user_id: str, thread_id: str, new_message: str, final_output: str):
         # After finished streaming, save the memory
         namespace_for_memory = ("memories", user_id)
+        # Store user message in new structured format
         self.memory_store_service.upsert_memory(
-            namespace_for_memory, thread_id, 'conversation_history', f'user,{new_message}')
+            namespace_for_memory, thread_id, 'conversation_history', 
+            {"role": "user", "content": new_message})
+        # Store assistant message in new structured format
         self.memory_store_service.upsert_memory(
-            namespace_for_memory, thread_id, 'conversation_history', f'assistant,{final_output}')
+            namespace_for_memory, thread_id, 'conversation_history', 
+            {"role": "assistant", "content": final_output})
         self.memory_store_service.close()
     
     def detect_handoff_from_function_calls(self, function_calls: list) -> tuple[bool, str, str]:
@@ -299,7 +336,11 @@ class BaseOpenAIAgent:
         
         return sub_agent
 
-    async def process_chat(self, user, thread_id: str, new_message: str, data_type: str = "text") -> AsyncGenerator[str, None]:
+    async def process_chat(self, user, thread_id: str, new_message: str, data_type: str = "text", file_metadata: dict = None) -> AsyncGenerator[str, None]:
+        # Ensure the agent is initialized
+        if not self._initialized:
+            await self.initialize()
+        
         user_id = await sync_to_async(lambda: str(user.id))()
         is_stripecustomer = await sync_to_async(hasattr)(user, 'stripecustomer')
         record_usage = None
@@ -399,8 +440,21 @@ class BaseOpenAIAgent:
             page_count = await sync_to_async(get_page_count)(new_message)
             for page_index in range(page_count):
                 base64_image = await sync_to_async(pdf_page_to_base64)(pdf_path=new_message, page_number=page_index)
-                await sync_to_async(self.memory_store_service.upsert_memory)(
-                    namespace_for_memory, thread_id, 'conversation_history', f'user_image,data:image/jpeg;base64,{base64_image}')
+                # Store as structured data with metadata
+                if file_metadata and 'filename' in file_metadata:
+                    # Store with new structure including metadata
+                    memory_entry = {
+                        "role": "user_image",
+                        "content": f"data:image/jpeg;base64,{base64_image}",
+                        "metadata": file_metadata
+                    }
+                    await sync_to_async(self.memory_store_service.upsert_memory)(
+                        namespace_for_memory, thread_id, 'conversation_history', memory_entry)
+                else:
+                    # Backward compatible format
+                    await sync_to_async(self.memory_store_service.upsert_memory)(
+                        namespace_for_memory, thread_id, 'conversation_history', 
+                        f'user_image,data:image/jpeg;base64,{base64_image}')
             await sync_to_async(self.memory_store_service.close)()
         else:
             raise ValueError(f"Unsupported data type: {data_type}")

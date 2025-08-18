@@ -15,7 +15,7 @@
           <h1 class="text-xl font-semibold mb-1 text-center">Sign in</h1>
           <p class="mt-2 text-sm text-gray-600">
             Don't have an account yet?
-            <a class="text-primary-600 decoration-2 hover:underline focus:outline-none focus:underline font-medium" href="/auth/signup">Sign up here</a>
+            <a class="text-primary-600 decoration-2 hover:underline focus:outline-none focus:underline font-medium" href="{% url 'signup' %}">Sign up here</a>
           </p>
         </div>
         <div class="mt-6 space-y-5">
@@ -69,10 +69,5 @@
       </a>
     </p>
   </main>
-  <script type="module">
-    import preline from 'https://cdn.jsdelivr.net/npm/preline@2.5.1/+esm';
-  </script>
 </body>
 </html>
-
-

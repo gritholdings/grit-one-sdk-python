@@ -58,5 +58,5 @@ coverage/
 
 # Exclude build artifacts
 build/
-dist/
+# dist/ - Commented out to include frontend build output in home/static/home/dist
 *.egg-info/

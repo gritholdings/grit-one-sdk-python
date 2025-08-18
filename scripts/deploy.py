@@ -15,7 +15,9 @@ def build_image():
     # Define the container name as the image name (modify if different)
     container_name = IMAGE_NAME
     
-    # Commands to stop, remove, and build the Docker image
+    # Commands to build frontend, collect static files, and build Docker image
+    npm_install_command = "cd frontend && npm install"
+    npm_build_command = "cd frontend && npm run build"
     collectstatic_command = "python manage.py collectstatic --clear --noinput"
     stop_command = f"docker --context {DOCKER_CONTEXT} stop {container_name} || true"
     rm_command = f"docker --context {DOCKER_CONTEXT} rm {container_name} || true"
@@ -25,16 +27,32 @@ def build_image():
     )
     
     try:
+        # Build frontend assets first
+        print("Installing frontend dependencies...")
+        subprocess.run(npm_install_command, shell=True, check=True, timeout=300)
+        print("Building frontend assets...")
+        subprocess.run(npm_build_command, shell=True, check=True, timeout=120)
+        print("Frontend build completed successfully.")
+        
+        # Then collect static files (including the built frontend assets)
+        print("Collecting static files...")
         subprocess.run(collectstatic_command, shell=True, check=True, timeout=30)
+        
+        # Finally, build the Docker image
+        print("Building Docker image...")
         subprocess.run(stop_command, shell=True, check=False, timeout=30)
         subprocess.run(rm_command, shell=True, check=False, timeout=30)
         subprocess.run(build_command, shell=True, check=True, timeout=600)
+        print("Docker image built successfully.")
     except subprocess.TimeoutExpired as error:
         print(f"Command timed out: {error}")
         print("Try to open Docker Desktop, then reset/resume. Make sure it says Engine running")
     except subprocess.CalledProcessError as error:
-        print(f"An error occurred during the Docker build process: {error}")
-        print("Try to open Docker Desktop, then reset/resume. Make sure it says Engine running")
+        print(f"An error occurred during the build process: {error}")
+        if "npm" in str(error.cmd):
+            print("Make sure Node.js and npm are installed on your system.")
+        else:
+            print("Try to open Docker Desktop, then reset/resume. Make sure it says Engine running")
 
 
 def deploy():
