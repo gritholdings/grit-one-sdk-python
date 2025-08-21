@@ -11,8 +11,11 @@ register = template.Library()
 def vite_assets():
     """Include Vite assets in production or development"""
     # Check if Vite dev server is running (development mode with hot reload)
-    vite_dev_mode = os.environ.get('DEVELOPMENT_MODE') == 'true' or (
-        settings.DEBUG and os.path.exists(os.path.join(settings.BASE_DIR, 'frontend', 'vite.pid'))
+    # DJANGO_ENV=PROD should always use production build
+    vite_dev_mode = (
+        os.environ.get('DJANGO_ENV') != 'PROD' and 
+        (os.environ.get('DEVELOPMENT_MODE') == 'true' or 
+         (settings.DEBUG and os.path.exists(os.path.join(settings.BASE_DIR, 'frontend', 'vite.pid'))))
     )
     
     if vite_dev_mode:

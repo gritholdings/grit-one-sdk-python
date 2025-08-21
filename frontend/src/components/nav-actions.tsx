@@ -187,15 +187,22 @@ export function NavActions({ groups = defaultGroups, deleteUrl, modelName }: Nav
                                   
                                   if (response.ok) {
                                     const data = await response.json()
-                                    if (data.success && data.course_id) {
-                                      // Redirect to the new course detail page
-                                      window.location.href = `/r/Course/${data.course_id}/view`
+                                    if (data.success) {
+                                      // Check for different ID types and redirect accordingly
+                                      if (data.course_id) {
+                                        window.location.href = `/r/Course/${data.course_id}/view`
+                                      } else if (data.agent_id) {
+                                        window.location.href = `/r/Agent/${data.agent_id}/view`
+                                      } else {
+                                        // Default: refresh the current page
+                                        window.location.reload()
+                                      }
                                     }
                                   } else {
-                                    console.error('Failed to create course:', response.statusText)
+                                    console.error('Failed to create record:', response.statusText)
                                   }
                                 } catch (error) {
-                                  console.error('Error creating course:', error)
+                                  console.error('Error creating record:', error)
                                 }
                               } else if (item.href) {
                                 window.location.href = item.href

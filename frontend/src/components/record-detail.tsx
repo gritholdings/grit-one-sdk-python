@@ -86,7 +86,7 @@ export default function RecordDetail({
   const [generalError, setGeneralError] = useState<string | null>(null)
   const [hasInitialized, setHasInitialized] = useState(false)
   const [editingInline, setEditingInline] = useState<InlineConfig | null>(null)
-  const [inlinesData, setInlinesData] = useState<InlineConfig[]>(inlines || [])
+  const [inlinesData, setInlinesData] = useState<InlineConfig[]>(() => inlines || [])
   
   // Derive delete URL and model name from update URL
   const deleteUrl = updateUrl ? updateUrl.replace('/update', '/delete') : undefined
@@ -102,6 +102,13 @@ export default function RecordDetail({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [record.id, hasInitialized])
+
+  // Update inlines data when inlines prop changes
+  useEffect(() => {
+    if (inlines) {
+      setInlinesData(inlines)
+    }
+  }, [inlines])
 
   // Get fields to display (either from fieldsets or all form fields)
   const getFieldsToDisplay = (): string[] => {

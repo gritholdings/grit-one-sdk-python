@@ -5,18 +5,18 @@ import App from './App.tsx'
 
 // Function to dynamically import components
 async function loadComponent(componentName: string) {
-  // For Vite, we need to use glob imports
+  // For Vite, we need to use glob imports with eager loading for production builds
   const components = {
     // Import all components from app_frontend components
-    ...import.meta.glob('../app_frontend/src/components/*.tsx'),
+    ...import.meta.glob('../app_frontend/src/components/*.tsx', { eager: true }),
     // Import all components from app_frontend showcases
-    ...import.meta.glob('../app_frontend/src/components/showcases/*.tsx'),
+    ...import.meta.glob('../app_frontend/src/components/showcases/*.tsx', { eager: true }),
     // Import all components from frontend showcases
-    ...import.meta.glob('./components/showcases/*.tsx'),
+    ...import.meta.glob('./components/showcases/*.tsx', { eager: true }),
     // Import all components from ui
-    ...import.meta.glob('./components/ui/*.tsx'),
+    ...import.meta.glob('./components/ui/*.tsx', { eager: true }),
     // Import all components from root components
-    ...import.meta.glob('./components/*.tsx')
+    ...import.meta.glob('./components/*.tsx', { eager: true })
   }
   
   // Convert component name to kebab-case for showcases
@@ -42,7 +42,8 @@ async function loadComponent(componentName: string) {
   for (const path of possiblePaths) {
     if (components[path]) {
       try {
-        const module = await components[path]() as any
+        // With eager loading, modules are already loaded
+        const module = components[path] as any
         // Try to find the component by name first, then default export
         const component = module[componentName] || module.default || module['default']
         if (component) {

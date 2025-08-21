@@ -53,6 +53,14 @@ export default defineConfig({
       input: {
         main: path.resolve(__dirname, 'src/main.tsx'),
       },
+      output: {
+        entryFileNames: 'assets/[name].[hash].js',
+        chunkFileNames: 'assets/[name].[hash].js',
+        assetFileNames: 'assets/[name].[hash].[ext]',
+      },
     },
+    cssCodeSplit: true,
+    sourcemap: false,
+    minify: true,
   },
 })
