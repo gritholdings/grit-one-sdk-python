@@ -238,7 +238,7 @@ export function ScreenFlow({ config, open, onClose }: ScreenFlowProps) {
 
           {(entityId || config.existingRecord) && currentStepConfig && (
             <div className="space-y-6">
-              <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:py-5">
+              <div className="py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:py-4">
                 <Label htmlFor={currentStepConfig.field} className="text-sm font-medium text-gray-500 sm:pt-1.5">
                   {currentStepConfig.label || currentStepConfig.field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                   {currentStepConfig.required && <span className="text-red-500 ml-1">*</span>}

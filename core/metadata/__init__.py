@@ -5,6 +5,12 @@ class ModelMetadata:
     """
     # List display fields for list views
     list_display = None
+
+    # Actions available in list views
+    list_actions = None
+    
+    # Actions available in detail views (component-based)
+    detail_actions = None
     
     # Fieldsets for organizing form fields
     fieldsets = None
@@ -82,6 +88,16 @@ class MetadataRegistry:
                     f'r/{model_name}/<uuid:{model_name_lower}_id>/view',
                     detail_view,
                     name=f'{model_name_lower}_detailview'
+                )
+            )
+            
+            # Generate create view URL
+            create_view = view_generator.create_create_view(model_class, metadata_class)
+            patterns.append(
+                path(
+                    f'm/{model_name}/create',
+                    create_view,
+                    name=f'{model_name_lower}_create'
                 )
             )
             

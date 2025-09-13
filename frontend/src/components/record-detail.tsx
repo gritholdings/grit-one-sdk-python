@@ -4,6 +4,7 @@
  */
 import { AppSidebar } from "@app_frontend/components/app-sidebar"
 import { NavActions } from "@/components/nav-actions"
+import { CreateRecordDialog } from "@/components/create-record-dialog"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -28,9 +29,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { useState, useEffect } from "react"
-import { Pencil, Save, X, Edit } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { Pencil, Save, X, Edit, Plus } from "lucide-react"
 import { InlineEditDialog } from "@/components/inline-edit-dialog"
+import { getActionComponent } from "@/components/action-component-registry"
+import { camelToSnakeCase } from "@/lib/utils"
 
 interface FieldConfig {
   widget: "TextInput" | "Textarea" | "Select"
@@ -52,6 +55,19 @@ interface InlineConfig {
   readonly_fields: string[]
   can_delete: boolean
   items: InlineItem[]
+  relationship_type?: 'many_to_many' | 'one_to_many' | null
+}
+
+interface ActionConfig {
+  label: string
+  action?: string
+  component?: string
+  props?: Record<string, any>
+  icon?: React.ComponentType
+  confirm?: string
+  href?: string
+  url?: string
+  method?: string
 }
 
 interface RecordDetailProps {
@@ -59,7 +75,9 @@ interface RecordDetailProps {
   fieldsets?: Array<[string, { fields: string[] }]>
   form?: Record<string, FieldConfig>
   inlines?: InlineConfig[]
+  detailActions?: Array<ActionConfig[]>
   updateUrl: string
+  appConfigurations?: string | Record<string, any>
 }
 
 // Helper function to get CSRF token
@@ -77,7 +95,9 @@ export default function RecordDetail({
   fieldsets = [],
   form = {},
   inlines = [],
-  updateUrl
+  detailActions = [],
+  updateUrl,
+  appConfigurations
 }: RecordDetailProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState<Record<string, unknown>>(record)
@@ -87,6 +107,13 @@ export default function RecordDetail({
   const [hasInitialized, setHasInitialized] = useState(false)
   const [editingInline, setEditingInline] = useState<InlineConfig | null>(null)
   const [inlinesData, setInlinesData] = useState<InlineConfig[]>(() => inlines || [])
+  const [createDialogState, setCreateDialogState] = useState<{
+    open: boolean
+    modelName: string
+    createUrl: string
+    parentField: string
+    parentId: string
+  }>({ open: false, modelName: '', createUrl: '', parentField: '', parentId: '' })
   
   // Derive delete URL and model name from update URL
   const deleteUrl = updateUrl ? updateUrl.replace('/update', '/delete') : undefined
@@ -157,6 +184,9 @@ export default function RecordDetail({
           // Handle foreign key objects - send just the ID
           if (typeof value === 'object' && 'id' in value) {
             formDataToSend.append(field, String(value.id))
+          } else if (typeof value === 'object') {
+            // Handle JSON fields like metadata - serialize as JSON string
+            formDataToSend.append(field, JSON.stringify(value))
           } else {
             formDataToSend.append(field, String(value))
           }
@@ -245,6 +275,32 @@ export default function RecordDetail({
     await response.json() // Still consume the response to complete the request
   }
 
+  // Component to render HTML fields with React components
+  const HtmlFieldRenderer = ({ htmlContent, fieldName }: { htmlContent: string, fieldName: string }) => {
+    const containerRef = useRef<HTMLDivElement>(null)
+    
+    useEffect(() => {
+      if (containerRef.current) {
+        // Set the HTML content
+        containerRef.current.innerHTML = htmlContent
+        
+        // Mount only the components within this specific container
+        if ((window as any).mountReactComponents) {
+          setTimeout(() => {
+            // Find components only within this container
+            const componentElements = containerRef.current?.querySelectorAll('[data-react-component]')
+            if (componentElements && componentElements.length > 0) {
+              // Call mount function only if there are components to mount
+              (window as any).mountReactComponents()
+            }
+          }, 0)
+        }
+      }
+    }, [htmlContent])
+    
+    return <div ref={containerRef} data-field-name={fieldName}></div>
+  }
+
   const renderField = (field: string) => {
     const fieldConfig = form[field]
     const value = formData[field]
@@ -272,8 +328,27 @@ export default function RecordDetail({
     
     const fieldErrors = errors[field]
 
+    // Check if the value contains HTML with React component markers
+    const isHtmlWithReactComponent = typeof displayValue === 'string' && 
+      displayValue.includes('data-react-component=')
+
     if (!isEditing || !fieldConfig) {
       // Read-only mode
+      
+      // Special handling for HTML with React components
+      if (isHtmlWithReactComponent) {
+        return (
+          <div key={field} className="py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:py-4">
+            <dt className="text-sm font-medium text-gray-500 sm:pt-1.5">
+              {field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+            </dt>
+            <dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">
+              <HtmlFieldRenderer htmlContent={displayValue} fieldName={field} />
+            </dd>
+          </div>
+        )
+      }
+      
       // For Select widgets, show the label instead of the value
       let displayText = displayValue || '-'
       if (fieldConfig?.widget === 'Select' && fieldConfig.choices && displayValue) {
@@ -281,13 +356,42 @@ export default function RecordDetail({
         displayText = choice ? choice.label : displayValue
       }
       
+      // Check if this is a foreign key field (has id and name properties)
+      const isForeignKey = typeof value === 'object' && value !== null && 'id' in value && 'name' in value
+      
+      // Generate link for foreign key fields
+      let displayContent: React.ReactNode = <span>{displayText}</span>
+      if (isForeignKey && value.id) {
+        // Convert snake_case field name to PascalCase model name (e.g., "course_work" -> "CourseWork")
+        const modelName = field.split('_')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join('')
+        const detailUrl = `/r/${modelName}/${value.id}/view`
+        displayContent = (
+          <a href={detailUrl} className="font-bold hover:underline">
+            {displayText}
+          </a>
+        )
+      }
+      
       return (
-        <div key={field} className="py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:py-5">
-          <dt className="text-sm font-medium text-gray-500">
+        <div key={field} className="py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:py-4">
+          <dt className="text-sm font-medium text-gray-500 sm:pt-1.5">
             {field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
           </dt>
-          <dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">
-            {displayText}
+          <dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0 flex justify-between items-center">
+            {displayContent}
+            {fieldConfig && (
+              <Button
+                onClick={() => setIsEditing(true)}
+                size="sm"
+                variant="ghost"
+                className="ml-2"
+                disabled={isEditing}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            )}
           </dd>
         </div>
       )
@@ -295,7 +399,7 @@ export default function RecordDetail({
 
     // Edit mode
     return (
-      <div key={field} className="py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:py-5">
+      <div key={field} className="py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:py-4">
         <Label htmlFor={field} className="text-sm font-medium text-gray-500 sm:pt-1.5">
           {field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
           {fieldConfig.required && <span className="text-red-500 ml-1">*</span>}
@@ -353,7 +457,7 @@ export default function RecordDetail({
 
   return (
     <SidebarProvider>
-      <AppSidebar />
+      <AppSidebar appConfigurations={appConfigurations} />
       <SidebarInset>
         <header className="flex h-14 shrink-0 items-center gap-2">
           <div className="flex flex-1 items-center gap-2 px-3">
@@ -372,52 +476,20 @@ export default function RecordDetail({
               </BreadcrumbList>
             </Breadcrumb>
           </div>
-          <div className="ml-auto px-3">
-            <NavActions deleteUrl={deleteUrl} modelName={modelName} />
+          <div className="ml-auto px-3 flex items-center gap-2">
+            <NavActions 
+              deleteUrl={deleteUrl} 
+              modelName={modelName}
+              groups={detailActions}
+            />
           </div>
         </header>
-        <div className="flex flex-1 flex-col gap-4 px-4 py-10">
+        <div className={`record-detail-content flex flex-1 flex-col gap-4 px-4 py-10 ${isEditing ? 'pb-24' : ''}`}>
           <div className="max-w-4xl">
             {generalError && (
               <Alert variant="destructive" className="mb-4">
                 <AlertDescription>{generalError}</AlertDescription>
               </Alert>
-            )}
-            
-            {/* Edit button at the top */}
-            {hasFormConfig && (
-              <div className="flex justify-end mb-4">
-                {!isEditing ? (
-                  <Button
-                    onClick={() => setIsEditing(true)}
-                    size="sm"
-                    variant="outline"
-                  >
-                    <Pencil className="h-4 w-4 mr-1" />
-                    Edit
-                  </Button>
-                ) : (
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={handleCancel}
-                      size="sm"
-                      variant="outline"
-                      disabled={isSubmitting}
-                    >
-                      <X className="h-4 w-4 mr-1" />
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleSubmit}
-                      size="sm"
-                      disabled={isSubmitting}
-                    >
-                      <Save className="h-4 w-4 mr-1" />
-                      {isSubmitting ? 'Saving...' : 'Save'}
-                    </Button>
-                  </div>
-                )}
-              </div>
             )}
 
             {/* Render all fieldsets */}
@@ -460,14 +532,52 @@ export default function RecordDetail({
                       <h3 className="text-lg font-medium leading-6 text-gray-900">
                         {inline.verbose_name_plural}
                       </h3>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setEditingInline(inline)}
-                      >
-                        <Edit className="h-4 w-4 mr-1" />
-                        Edit
-                      </Button>
+                      {/* Conditionally render button based on relationship type */}
+                      {inline.relationship_type === 'many_to_many' ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEditingInline(inline)}
+                          disabled={isEditing}
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
+                      ) : inline.relationship_type === 'one_to_many' ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            // Derive the parent field name from the model name
+                            // For example: Course -> course, CourseWork -> course_work
+                            const parentFieldName = modelName ? camelToSnakeCase(modelName) : ''
+                            const createUrl = `/m/${inline.model_name}/create`
+                            
+                            setCreateDialogState({
+                              open: true,
+                              modelName: inline.model_name,
+                              createUrl,
+                              parentField: parentFieldName,
+                              parentId: record.id as string
+                            })
+                          }}
+                          disabled={isEditing}
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          New
+                        </Button>
+                      ) : (
+                        // Fallback to Edit button if relationship_type is not set (backward compatibility)
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEditingInline(inline)}
+                          disabled={isEditing}
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
+                      )}
                     </div>
                     <div className="border-t border-gray-200">
                       {inline.items.length > 0 ? (
@@ -491,7 +601,7 @@ export default function RecordDetail({
                             <tbody className="bg-white divide-y divide-gray-200">
                               {inline.items.map((item) => (
                                 <tr key={item.id}>
-                                  {inline.fields.map((field) => {
+                                  {inline.fields.map((field, fieldIndex) => {
                                     const value = item[field]
                                     let displayValue = ''
                                     
@@ -505,9 +615,22 @@ export default function RecordDetail({
                                       displayValue = String(value)
                                     }
                                     
+                                    // Make the first field (usually title/name) or 'object_link' field clickable
+                                    const isClickableField = fieldIndex === 0 || field === 'object_link'
+                                    const detailUrl = `/r/${inline.model_name}/${item.id}/view`
+                                    
                                     return (
                                       <td key={field} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {displayValue}
+                                        {isClickableField && displayValue !== '-' ? (
+                                          <a 
+                                            href={detailUrl}
+                                            className="font-bold hover:underline"
+                                          >
+                                            {displayValue}
+                                          </a>
+                                        ) : (
+                                          displayValue
+                                        )}
                                       </td>
                                     )
                                   })}
@@ -526,42 +649,6 @@ export default function RecordDetail({
                 ))}
               </div>
             )}
-
-            {/* Edit button at the bottom - only show when there are many fields */}
-            {hasFormConfig && fieldsToDisplay.length > 5 && (
-              <div className="flex justify-end mt-6 pt-4 border-t">
-                {!isEditing ? (
-                  <Button
-                    onClick={() => setIsEditing(true)}
-                    size="sm"
-                    variant="outline"
-                  >
-                    <Pencil className="h-4 w-4 mr-1" />
-                    Edit
-                  </Button>
-                ) : (
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={handleCancel}
-                      size="sm"
-                      variant="outline"
-                      disabled={isSubmitting}
-                    >
-                      <X className="h-4 w-4 mr-1" />
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleSubmit}
-                      size="sm"
-                      disabled={isSubmitting}
-                    >
-                      <Save className="h-4 w-4 mr-1" />
-                      {isSubmitting ? 'Saving...' : 'Save'}
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </SidebarInset>
@@ -577,6 +664,44 @@ export default function RecordDetail({
           recordId={record.id as string}
         />
       )}
+      
+      {/* Fixed bottom bar for edit mode */}
+      {hasFormConfig && isEditing && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 shadow-lg z-50">
+          <div className="max-w-4xl mx-auto flex justify-end gap-2">
+            <Button
+              onClick={handleCancel}
+              size="sm"
+              variant="outline"
+              disabled={isSubmitting}
+            >
+              <X className="h-4 w-4 mr-1" />
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              size="sm"
+              disabled={isSubmitting}
+            >
+              <Save className="h-4 w-4 mr-1" />
+              {isSubmitting ? 'Saving...' : 'Save'}
+            </Button>
+          </div>
+        </div>
+      )}
+      
+      {/* Create Record Dialog for one-to-many relationships */}
+      <CreateRecordDialog
+        open={createDialogState.open}
+        onOpenChange={(open) => setCreateDialogState(prev => ({ ...prev, open }))}
+        createUrl={createDialogState.createUrl}
+        modelName={createDialogState.modelName}
+        hiddenFields={{ [createDialogState.parentField]: createDialogState.parentId }}
+        onSuccess={(data) => {
+          // Reload the page to show the new record
+          window.location.reload()
+        }}
+      />
     </SidebarProvider>
   )
 }

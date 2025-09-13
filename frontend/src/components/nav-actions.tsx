@@ -2,11 +2,10 @@
 
 import * as React from "react"
 import {
-  FileText,
-  Link,
   MoreHorizontal,
-  Settings2,
-  Trash2
+  Trash2,
+  Upload,
+  Plus
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -32,6 +31,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { getActionComponent } from "@/components/action-component-registry"
+import { CreateRecordDialog } from "@/components/create-record-dialog"
 
 const defaultGroups = [
   []
@@ -45,6 +46,8 @@ interface NavActionsProps {
     url?: string
     method?: string
     action?: string
+    component?: string
+    props?: Record<string, any>
   }>>
   deleteUrl?: string
   modelName?: string
@@ -54,6 +57,9 @@ export function NavActions({ groups = defaultGroups, deleteUrl, modelName }: Nav
   const [isOpen, setIsOpen] = React.useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
+  const [showComponentDialog, setShowComponentDialog] = React.useState<{component: string, props: any} | null>(null)
+  const [showCreateDialog, setShowCreateDialog] = React.useState(false)
+  const [createUrl, setCreateUrl] = React.useState<string>("")
   
   // Ensure groups is always an array
   const validGroups = Array.isArray(groups) ? groups : defaultGroups
@@ -79,6 +85,17 @@ export function NavActions({ groups = defaultGroups, deleteUrl, modelName }: Nav
     
     return newGroups
   }, [validGroups, deleteUrl, modelName])
+  
+  const handleCreateSuccess = (data: any) => {
+    if (data?.redirect_url) {
+      window.location.href = data.redirect_url
+    } else if (data?.id && modelName) {
+      window.location.href = `/r/${modelName}/${data.id}/view`
+    } else {
+      window.location.reload()
+    }
+    setShowCreateDialog(false)
+  }
   
   const handleDelete = async () => {
     if (!deleteUrl) return
@@ -139,7 +156,7 @@ export function NavActions({ groups = defaultGroups, deleteUrl, modelName }: Nav
           <Button
             variant="ghost"
             size="icon"
-            className="data-[state=open]:bg-accent h-7 w-7"
+            className="data-[state=open]:bg-accent h-7 w-7 border border-gray-200"
           >
             <MoreHorizontal />
           </Button>
@@ -158,7 +175,16 @@ export function NavActions({ groups = defaultGroups, deleteUrl, modelName }: Nav
                         <SidebarMenuItem key={index}>
                           <SidebarMenuButton
                             onClick={async () => {
-                              if (item.action === 'delete') {
+                              if (item.component) {
+                                // Show component-based action in dialog
+                                setIsOpen(false)
+                                setShowComponentDialog({ component: item.component, props: item.props })
+                              } else if (item.action === 'create') {
+                                // Show create form dialog
+                                setIsOpen(false)
+                                setCreateUrl(item.url || '')
+                                setShowCreateDialog(true)
+                              } else if (item.action === 'delete') {
                                 // Show delete confirmation dialog
                                 setIsOpen(false)
                                 setShowDeleteDialog(true)
@@ -188,11 +214,39 @@ export function NavActions({ groups = defaultGroups, deleteUrl, modelName }: Nav
                                   if (response.ok) {
                                     const data = await response.json()
                                     if (data.success) {
-                                      // Check for different ID types and redirect accordingly
-                                      if (data.course_id) {
-                                        window.location.href = `/r/Course/${data.course_id}/view`
-                                      } else if (data.agent_id) {
-                                        window.location.href = `/r/Agent/${data.agent_id}/view`
+                                      // Dynamically determine the ID field and redirect
+                                      // First try to find an ID field based on modelName
+                                      let recordId: string | undefined
+                                      let redirectModelName = modelName
+                                      
+                                      if (modelName) {
+                                        // Try model-specific ID field pattern (e.g., course_id for Course)
+                                        const modelSpecificField = `${modelName.toLowerCase()}_id`
+                                        recordId = data[modelSpecificField]
+                                      }
+                                      
+                                      // If no model-specific field found, try generic 'id' field
+                                      if (!recordId && data.id) {
+                                        recordId = data.id
+                                      }
+                                      
+                                      // If still no ID found, look for any field ending with '_id'
+                                      if (!recordId) {
+                                        const idField = Object.keys(data).find(key => key.endsWith('_id'))
+                                        if (idField) {
+                                          recordId = data[idField]
+                                          // Extract model name from field name if modelName not provided
+                                          if (!redirectModelName) {
+                                            // Convert field like 'course_id' to 'Course'
+                                            const modelFromField = idField.replace('_id', '')
+                                            redirectModelName = modelFromField.charAt(0).toUpperCase() + modelFromField.slice(1)
+                                          }
+                                        }
+                                      }
+                                      
+                                      // Redirect if we found an ID and model name
+                                      if (recordId && redirectModelName) {
+                                        window.location.href = `/r/${redirectModelName}/${recordId}/view`
                                       } else {
                                         // Default: refresh the current page
                                         window.location.reload()
@@ -210,7 +264,10 @@ export function NavActions({ groups = defaultGroups, deleteUrl, modelName }: Nav
                               setIsOpen(false)
                             }}
                           >
-                            {item.icon && <item.icon />} <span>{item.label}</span>
+                            {item.icon && <item.icon />}
+                            {!item.icon && item.component === 'FileUploadButton' && <Upload />}
+                            {!item.icon && item.action === 'create' && <Plus />}
+                            <span>{item.label}</span>
                           </SidebarMenuButton>
                         </SidebarMenuItem>
                       ))}
@@ -250,6 +307,35 @@ export function NavActions({ groups = defaultGroups, deleteUrl, modelName }: Nav
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Component-based Action Dialog */}
+      {showComponentDialog && (
+        <Dialog open={!!showComponentDialog} onOpenChange={(open) => !open && setShowComponentDialog(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Upload File</DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              {(() => {
+                const ActionComponent = getActionComponent(showComponentDialog.component)
+                if (ActionComponent) {
+                  return <ActionComponent props={showComponentDialog.props} />
+                }
+                return <div>Component not found</div>
+              })()}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+      
+      {/* Create Record Dialog */}
+      <CreateRecordDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        createUrl={createUrl}
+        modelName={modelName}
+        onSuccess={handleCreateSuccess}
+      />
     </div>
   )
 }

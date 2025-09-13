@@ -277,7 +277,7 @@ export function InlineEditDialog({
 
         <div className="grid grid-cols-[1fr,auto,1fr] gap-4 flex-1 min-h-0 overflow-hidden">
           {/* Available Items */}
-          <div className="border rounded-lg p-4 flex flex-col min-h-0">
+          <div className="border rounded-lg p-4 flex flex-col min-h-0 overflow-hidden">
             <div className="mb-3">
               <Label>Available {inlineConfig.verbose_name_plural}</Label>
               <div className="relative mt-2">
@@ -290,7 +290,7 @@ export function InlineEditDialog({
                 />
               </div>
             </div>
-            <ScrollArea className="flex-1 border rounded p-2">
+            <ScrollArea className="flex-1 border rounded p-2 overflow-hidden">
               {isLoading ? (
                 <div className="text-center py-4 text-muted-foreground">Loading...</div>
               ) : filteredAvailable.length === 0 ? (
@@ -338,14 +338,14 @@ export function InlineEditDialog({
           </div>
 
           {/* Selected Items */}
-          <div className="border rounded-lg p-4 flex flex-col min-h-0">
+          <div className="border rounded-lg p-4 flex flex-col min-h-0 overflow-hidden">
             <div className="mb-3">
               <Label>Selected {inlineConfig.verbose_name_plural}</Label>
               <div className="text-sm text-muted-foreground mt-1">
                 {selectedItems.length} item{selectedItems.length !== 1 ? 's' : ''} selected
               </div>
             </div>
-            <ScrollArea className="flex-1 border rounded p-2">
+            <ScrollArea className="flex-1 border rounded p-2 overflow-hidden">
               {selectedItems.length === 0 ? (
                 <div className="text-center py-4 text-muted-foreground">
                   No items selected

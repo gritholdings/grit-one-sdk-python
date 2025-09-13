@@ -16,14 +16,44 @@ import {
 
 export function AppLauncher({
   items,
+  onAppChange,
+  initialApp,
 }: {
   items: {
     name: string
     logo: React.ElementType
     href: string
   }[]
+  onAppChange?: (appName: string) => void
+  initialApp?: string
 }) {
-  const [activeItem, setActiveItem] = React.useState(items[0])
+  // Initialize with the provided initial app or fallback to first item
+  const getInitialItem = () => {
+    if (initialApp) {
+      const found = items.find(item => item.name === initialApp)
+      if (found) return found
+    }
+    return items[0]
+  }
+  
+  const [activeItem, setActiveItem] = React.useState(getInitialItem())
+
+  // Update active item when initialApp changes
+  React.useEffect(() => {
+    if (initialApp) {
+      const found = items.find(item => item.name === initialApp)
+      if (found && found !== activeItem) {
+        setActiveItem(found)
+      }
+    }
+  }, [initialApp, items])
+
+  // Notify parent component when active item is set initially
+  React.useEffect(() => {
+    if (activeItem && onAppChange) {
+      onAppChange(activeItem.name)
+    }
+  }, [])
 
   if (!activeItem) {
     return null
@@ -56,6 +86,10 @@ export function AppLauncher({
                 key={item.name}
                 onClick={() => {
                   setActiveItem(item)
+                  // Notify parent component of app change
+                  if (onAppChange) {
+                    onAppChange(item.name)
+                  }
                   if (item.href) {
                     window.location.href = item.href
                   }

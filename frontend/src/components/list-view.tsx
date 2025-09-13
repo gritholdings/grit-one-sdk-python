@@ -175,20 +175,22 @@ interface ListViewProps {
   columns: ColumnConfig[]
   title?: string,
   actions?: NavActionGroup[]
+  appConfigurations?: string | Record<string, any>
 }
 
 export default function ListView({
   data,
   columns,
   title = "All Records",
-  actions = []
+  actions = [],
+  appConfigurations
 }: ListViewProps) {
   // Ensure actions is always an array
   const validActions = actions || []
   const columnDefs = useMemo(() => createColumns(columns), [columns])
   return (
     <SidebarProvider>
-      <AppSidebar />
+      <AppSidebar appConfigurations={appConfigurations} />
       <SidebarInset>
         <header className="flex h-14 shrink-0 items-center gap-2">
           <div className="flex flex-1 items-center gap-2 px-3">

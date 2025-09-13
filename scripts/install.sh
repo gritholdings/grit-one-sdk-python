@@ -15,6 +15,8 @@ npx @tailwindcss/cli -i ./input.css -o ../home/static/home/global.css
 # Check if we're in development mode
 if [ "$DEVELOPMENT_MODE" = "true" ] || [ "$DJANGO_ENV" = "DEV" ]; then
     echo "Starting Vite dev server for hot reload..."
+    # Remove any stale pid file first
+    rm -f vite.pid
     # Start Vite dev server in the background
     npm run dev &
     VITE_PID=$!

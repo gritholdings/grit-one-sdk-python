@@ -14,8 +14,10 @@
          data-prop-fieldsets="{{ fieldsets_json }}"
          data-prop-form="{{ form_data_json }}"
          data-prop-inlines="{{ inlines_json }}"
+         data-prop-detail-actions="{{ detail_actions_json }}"
          data-prop-model-name="{{ model_name }}"
-         data-prop-update-url="{% url model_name_lower|add:'_update' object.id %}">
+         data-prop-update-url="{% url model_name_lower|add:'_update' object.id %}"
+         data-prop-app-configurations="{{ app_metadata_settings_json }}">
              <!-- Skeleton loader -->
     <div class="w-full animate-pulse">
       <div class="space-y-3">

@@ -9,6 +9,8 @@ from django.http import JsonResponse, Http404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
 from django.core.serializers.json import DjangoJSONEncoder
+from app import settings
+from core.utils.case_conversion import convert_keys_to_camel_case
 
 
 def serialize_form_for_react(form_class):
@@ -207,13 +209,86 @@ class MetadataViewGenerator:
             if hasattr(metadata_class, 'list_actions'):
                 actions = metadata_class.list_actions
             
+            # Process actions to handle standardized "new" action
+            processed_actions = []
+            has_new_action = False
+            
+            if actions and isinstance(actions, list):
+                # Check if it's already grouped (list of lists)
+                if actions and isinstance(actions[0], list):
+                    # It's grouped - process each group
+                    for group in actions:
+                        processed_group = []
+                        for action in group:
+                            if isinstance(action, dict):
+                                # Check for standardized "new" action
+                                if action.get('action') == 'new' or action.get('name') == 'new':
+                                    # Replace with standardized create action
+                                    has_new_action = True
+                                    processed_group.append({
+                                        'label': action.get('label', f'New {model_name}'),
+                                        'action': 'create',
+                                        'url': f'/m/{model_name}/create',
+                                        'method': 'GET'
+                                    })
+                                elif action.get('action') != 'create':  # Skip any existing create actions
+                                    processed_group.append(action)
+                            else:
+                                # Handle string actions
+                                if action == 'new':
+                                    has_new_action = True
+                                    processed_group.append({
+                                        'label': f'New {model_name}',
+                                        'action': 'create',
+                                        'url': f'/m/{model_name}/create',
+                                        'method': 'GET'
+                                    })
+                                else:
+                                    processed_group.append(action)
+                        if processed_group:
+                            processed_actions.append(processed_group)
+                else:
+                    # It's a flat list - process it
+                    processed_group = []
+                    for action in actions:
+                        if isinstance(action, dict):
+                            # Check for standardized "new" action
+                            if action.get('action') == 'new' or action.get('name') == 'new':
+                                has_new_action = True
+                                processed_group.append({
+                                    'label': action.get('label', f'New {model_name}'),
+                                    'action': 'create',
+                                    'url': f'/m/{model_name}/create',
+                                    'method': 'GET'
+                                })
+                            elif action.get('action') != 'create':  # Skip any existing create actions
+                                processed_group.append(action)
+                        else:
+                            # Handle string actions
+                            if action == 'new':
+                                has_new_action = True
+                                processed_group.append({
+                                    'label': f'New {model_name}',
+                                    'action': 'create',
+                                    'url': f'/m/{model_name}/create',
+                                    'method': 'GET'
+                                })
+                            else:
+                                processed_group.append(action)
+                    if processed_group:
+                        processed_actions = [processed_group]
+            
+            # Use processed actions or empty list if no actions
+            actions = processed_actions if processed_actions else [[]]
+            
             context = {
                 'items': items_data,  # Pass raw data, template will JSON encode it
                 'columns': json.dumps(columns, cls=DjangoJSONEncoder),
                 'actions': json.dumps(actions, cls=DjangoJSONEncoder),
                 'model_name': model_name,
                 'model_name_lower': model_name_lower,
-                'title': f'{model_name} List'
+                'title': f'{model_name} List',
+                'app_metadata_settings_json': json.dumps(convert_keys_to_camel_case(settings.APP_METADATA_SETTINGS))
             }
             
             # Try to use app-specific template, fall back to generic
@@ -274,13 +349,21 @@ class MetadataViewGenerator:
             # Get the object with ownership check
             if hasattr(model, 'owned'):
                 # Use owned manager
-                obj = get_object_or_404(model.owned.filter(owner=request.user), id=object_id)
-            elif hasattr(model, 'owner'):
-                # Filter by owner field
-                obj = get_object_or_404(model, id=object_id, owner=request.user)
+                if hasattr(model.owned, 'for_user'):
+                    # Special case for models with for_user method
+                    queryset = model.owned.for_user(request.user.id)
+                    obj = get_object_or_404(queryset, id=object_id)
+                else:
+                    obj = get_object_or_404(model.owned.filter(owner=request.user), id=object_id)
             else:
-                # No ownership - just get the object
-                obj = get_object_or_404(model, id=object_id)
+                # Check if the model has an owner field
+                has_owner_field = any(f.name == 'owner' for f in model._meta.fields)
+                if has_owner_field:
+                    # Filter by owner field
+                    obj = get_object_or_404(model, id=object_id, owner=request.user)
+                else:
+                    # No ownership - just get the object
+                    obj = get_object_or_404(model, id=object_id)
             
             # Prepare data for the template
             obj_data = {
@@ -336,6 +419,13 @@ class MetadataViewGenerator:
                         # Try to get the field value from various sources
                         field_value = None
                         
+                        # First check if it's in metadata (for metadata fields)
+                        if hasattr(obj, 'metadata') and isinstance(obj.metadata, dict):
+                            if field_name in obj.metadata:
+                                field_value = obj.metadata.get(field_name)
+                                obj_data[field_name] = field_value if field_value is not None else ''
+                                continue
+                        
                         # Check if it's a property or method on the model instance
                         if hasattr(obj, field_name):
                             attr = getattr(type(obj), field_name, None)
@@ -352,11 +442,15 @@ class MetadataViewGenerator:
                                         field_value = None
                                 else:
                                     field_value = value
-                        
-                        # If not found and object has metadata, check in metadata JSONField
-                        if field_value is None and hasattr(obj, 'metadata') and obj.metadata:
-                            if isinstance(obj.metadata, dict) and field_name in obj.metadata:
-                                field_value = obj.metadata.get(field_name)
+                        # Check if it's a method on the metadata class
+                        elif hasattr(metadata_class, field_name):
+                            metadata_instance = metadata_class()
+                            method = getattr(metadata_instance, field_name)
+                            if callable(method):
+                                try:
+                                    field_value = method(obj)
+                                except:
+                                    field_value = None
                         
                         # Add the field to obj_data
                         # Always add the field, even if it's None or empty string
@@ -383,6 +477,33 @@ class MetadataViewGenerator:
             if hasattr(metadata_class, 'form') and metadata_class.form:
                 form_data = serialize_form_for_react(metadata_class.form)
             
+            # Process detail_actions with component-based approach
+            detail_actions = []
+            if hasattr(metadata_class, 'detail_actions') and metadata_class.detail_actions:
+                for action_group in metadata_class.detail_actions:
+                    processed_group = []
+                    for action in action_group:
+                        # Process action with URL substitution for {id} and {field_name} patterns
+                        action_copy = action.copy()
+                        
+                        # Process component props if they exist
+                        if 'props' in action_copy:
+                            props_copy = action_copy['props'].copy()
+                            # Substitute placeholders in props
+                            for key, value in props_copy.items():
+                                if isinstance(value, str):
+                                    # Replace {id} with actual object ID
+                                    value = value.replace('{id}', str(obj.id))
+                                    # Replace {field_name} with actual field values
+                                    for field_name in model._meta.fields:
+                                        field_value = getattr(obj, field_name.name, '')
+                                        value = value.replace(f'{{{field_name.name}}}', str(field_value))
+                                    props_copy[key] = value
+                            action_copy['props'] = props_copy
+                        
+                        processed_group.append(action_copy)
+                    detail_actions.append(processed_group)
+            
             # Process inline configurations
             inlines_data = []
             if hasattr(metadata_class, 'inlines') and metadata_class.inlines:
@@ -400,38 +521,60 @@ class MetadataViewGenerator:
                     # Initialize inline items
                     inline_items = []
                     
-                    # Check if this is a through model for ManyToMany
+                    # Determine the relationship type using Django field introspection
+                    relationship_type = None
                     is_through_model = False
                     parent_field = None
                     
-                    # First check for direct foreign key field
-                    fk_field = None
-                    for field in inline_model._meta.fields:
-                        if field.related_model == model:
-                            fk_field = field.name
-                            break
-                    
-                    # If no direct FK, check if it's a through model for M2M
-                    if not fk_field:
-                        # Check if this model has two FKs (typical for through models)
-                        fk_fields = [f for f in inline_model._meta.fields if f.many_to_one]
-                        if len(fk_fields) >= 2:
-                            # Find the FK that points to our parent model
-                            for field in fk_fields:
+                    # First check if this inline model is a through model for a ManyToMany field
+                    for m2m_field in model._meta.many_to_many:
+                        if m2m_field.remote_field.through == inline_model:
+                            # This is a through model for a ManyToMany relationship
+                            relationship_type = "many_to_many"
+                            is_through_model = True
+                            # Find the field that points back to the parent model
+                            for field in inline_model._meta.fields:
                                 if field.related_model == model:
                                     parent_field = field.name
-                                    is_through_model = True
                                     break
+                            break
+                    
+                    # If not a through model, check for direct foreign key field
+                    if not relationship_type:
+                        fk_field = None
+                        for field in inline_model._meta.fields:
+                            if field.related_model == model:
+                                fk_field = field.name
+                                # This is a ForeignKey relationship (OneToMany from parent's perspective)
+                                relationship_type = "one_to_many"
+                                break
+                    else:
+                        # For backward compatibility, set fk_field for through models
+                        fk_field = None
                     
                     # Fetch related objects based on the relationship type
                     if fk_field:
                         # Direct foreign key relationship
                         filter_kwargs = {fk_field: obj}
-                        related_objects = inline_model.objects.filter(**filter_kwargs)
+                        # Check if the model has an objects manager
+                        if hasattr(inline_model, 'objects'):
+                            related_objects = inline_model.objects.filter(**filter_kwargs)
+                        elif hasattr(inline_model, 'owned'):
+                            # Use owned manager if available
+                            related_objects = inline_model.owned.filter(**filter_kwargs)
+                        else:
+                            related_objects = []
                     elif is_through_model and parent_field:
                         # Through model for ManyToMany
                         filter_kwargs = {parent_field: obj}
-                        related_objects = inline_model.objects.filter(**filter_kwargs)
+                        # Check if the model has an objects manager
+                        if hasattr(inline_model, 'objects'):
+                            related_objects = inline_model.objects.filter(**filter_kwargs)
+                        elif hasattr(inline_model, 'owned'):
+                            # Use owned manager if available
+                            related_objects = inline_model.owned.filter(**filter_kwargs)
+                        else:
+                            related_objects = []
                     else:
                         # No relationship found, skip this inline
                         related_objects = []
@@ -473,7 +616,8 @@ class MetadataViewGenerator:
                         'fields': inline_fields,
                         'readonly_fields': getattr(inline_class, 'readonly_fields', []),
                         'can_delete': getattr(inline_class, 'can_delete', True),
-                        'items': inline_items
+                        'items': inline_items,
+                        'relationship_type': relationship_type  # Add the relationship type for frontend UI
                     }
                     
                     inlines_data.append(inline_config)
@@ -486,11 +630,14 @@ class MetadataViewGenerator:
                 'fieldsets_json': json.dumps(fieldsets, cls=DjangoJSONEncoder),  # Also provide JSON version
                 'form_data': form_data,  # Pass as Python dict
                 'form_data_json': json.dumps(form_data, cls=DjangoJSONEncoder),  # Also provide JSON version
+                'detail_actions': detail_actions,  # Pass detail actions as Python list
+                'detail_actions_json': json.dumps(detail_actions, cls=DjangoJSONEncoder),  # Also provide JSON version
                 'inlines': inlines_data,  # Pass inline data as Python list
                 'inlines_json': json.dumps(inlines_data, cls=DjangoJSONEncoder),  # Also provide JSON version
                 'model_name': model_name,
                 'model_name_lower': model_name_lower,
                 'title': f'{model_name} Detail',
+                'app_metadata_settings_json': json.dumps(convert_keys_to_camel_case(settings.APP_METADATA_SETTINGS)),
                 # Add model-specific context for app templates
                 f'{model_name_lower}': obj,
                 f'{model_name_lower}_dict': json.dumps(obj_data, cls=DjangoJSONEncoder),
@@ -529,6 +676,188 @@ class MetadataViewGenerator:
         return detail_view
     
     @staticmethod
+    def create_create_view(model, metadata_class):
+        """
+        Create a generic create view for a model (AJAX-based).
+        
+        Args:
+            model: The Django model class
+            metadata_class: The metadata configuration class
+            
+        Returns:
+            A view function for creating new model instances via AJAX
+        """
+        @login_required
+        @require_http_methods(["GET", "POST"])
+        def create_view(request):
+            # Get the model name
+            model_name = model.__name__
+            
+            # Handle GET request - return form metadata
+            if request.method == 'GET':
+                # Get the form class from metadata if available
+                form_class = getattr(metadata_class, 'form', None)
+                
+                # Fallback to trying to import form by convention
+                if not form_class:
+                    try:
+                        forms_module = __import__(f'{model._meta.app_label}.forms', fromlist=[f'{model_name}Form'])
+                        form_class = getattr(forms_module, f'{model_name}Form', None)
+                    except (ImportError, AttributeError):
+                        pass
+                
+                # Generate form fields metadata
+                form_fields = []
+                if form_class:
+                    # Create a dummy form instance to inspect fields
+                    dummy_form = form_class()
+                    for field_name, field in dummy_form.fields.items():
+                        field_info = {
+                            'name': field_name,
+                            'label': field.label or field_name.replace('_', ' ').title(),
+                            'required': field.required,
+                            'type': 'text'  # Default type
+                        }
+                        
+                        # Map Django field types to HTML input types
+                        from django.forms import Textarea, EmailField, URLField, IntegerField, DecimalField, DateField, DateTimeField, BooleanField, ChoiceField, Select
+                        if isinstance(field.widget, Textarea):
+                            field_info['type'] = 'textarea'
+                        elif isinstance(field.widget, Select) or isinstance(field, ChoiceField):
+                            field_info['type'] = 'select'
+                            # Add choices for select fields
+                            if hasattr(field, 'choices'):
+                                field_info['choices'] = [
+                                    {'value': str(choice[0]), 'label': str(choice[1])}
+                                    for choice in field.choices
+                                ]
+                        elif isinstance(field, EmailField):
+                            field_info['type'] = 'email'
+                        elif isinstance(field, URLField):
+                            field_info['type'] = 'url'
+                        elif isinstance(field, (IntegerField, DecimalField)):
+                            field_info['type'] = 'number'
+                        elif isinstance(field, DateField):
+                            field_info['type'] = 'date'
+                        elif isinstance(field, DateTimeField):
+                            field_info['type'] = 'datetime-local'
+                        elif isinstance(field, BooleanField):
+                            field_info['type'] = 'checkbox'
+                        
+                        # Get default value if available
+                        if field.initial is not None:
+                            field_info['default'] = field.initial
+                        
+                        form_fields.append(field_info)
+                else:
+                    # Default fields if no form class
+                    form_fields = [
+                        {'name': 'name', 'label': 'Name', 'type': 'text', 'required': True}
+                    ]
+                    
+                    # Add description field if model has it
+                    if hasattr(model, 'description'):
+                        form_fields.append({'name': 'description', 'label': 'Description', 'type': 'textarea', 'required': False})
+                
+                return JsonResponse({
+                    'form_fields': form_fields,
+                    'model_name': model_name
+                })
+            
+            # Handle POST request - create the record
+            # Get the form class from metadata if available
+            form_class = getattr(metadata_class, 'form', None)
+            
+            # Fallback to trying to import form by convention
+            if not form_class:
+                try:
+                    forms_module = __import__(f'{model._meta.app_label}.forms', fromlist=[f'{model_name}Form'])
+                    form_class = getattr(forms_module, f'{model_name}Form', None)
+                except (ImportError, AttributeError):
+                    pass
+            
+            if form_class:
+                # Prepare POST data for form
+                post_data = request.POST.copy()
+                
+                # Debug logging
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"CREATE VIEW DEBUG - POST data received: {dict(post_data)}")
+                logger.error(f"CREATE VIEW DEBUG - Form class: {form_class.__name__}")
+                
+                # Check if this form uses MetadataMixin
+                if hasattr(form_class, 'metadata_fields'):
+                    logger.error(f"CREATE VIEW DEBUG - Form has metadata_fields: {form_class.metadata_fields}")
+                    
+                    # Remove corrupted metadata field if it's '[object Object]'
+                    if 'metadata' in post_data and post_data['metadata'] == '[object Object]':
+                        del post_data['metadata']
+                        logger.error("CREATE VIEW DEBUG - Removed corrupted metadata field '[object Object]'")
+                    
+                    # Initialize empty metadata if not present
+                    if 'metadata' not in post_data:
+                        import json
+                        post_data['metadata'] = json.dumps({})
+                        logger.error(f"CREATE VIEW DEBUG - Added empty metadata to POST: {post_data['metadata']}")
+                
+                # Create new instance using the form
+                form = form_class(post_data)
+                
+                # Set owner if the model has an owner field
+                if hasattr(model, 'owner') and hasattr(form.instance, 'owner'):
+                    form.instance.owner = request.user
+                
+                if form.is_valid():
+                    obj = form.save()
+                    return JsonResponse({
+                        'success': True, 
+                        'message': f'{model_name} created successfully',
+                        'id': str(obj.id) if hasattr(obj, 'id') else None
+                    })
+                else:
+                    logger.error(f"CREATE VIEW DEBUG - Form errors: {form.errors}")
+                    logger.error(f"CREATE VIEW DEBUG - Form data after init: {form.data}")
+                    # Include debug info in response for browser console
+                    debug_info = {
+                        'post_data_received': dict(post_data),
+                        'form_errors': dict(form.errors),
+                        'form_class': form_class.__name__,
+                        'metadata_fields': getattr(form_class, 'metadata_fields', None),
+                    }
+                    return JsonResponse({
+                        'success': False, 
+                        'errors': form.errors,
+                        'debug': debug_info
+                    }, status=400)
+            else:
+                # Direct creation without form
+                obj = model()
+                
+                # Set owner if the model has an owner field
+                if hasattr(obj, 'owner'):
+                    obj.owner = request.user
+                
+                # Set fields from POST data
+                for field_name, value in request.POST.items():
+                    if hasattr(obj, field_name) and field_name not in ['id', 'owner', 'created_at', 'updated_at']:
+                        setattr(obj, field_name, value)
+                
+                try:
+                    obj.save()
+                    return JsonResponse({
+                        'success': True, 
+                        'message': f'{model_name} created successfully',
+                        'id': str(obj.id) if hasattr(obj, 'id') else None
+                    })
+                except Exception as e:
+                    return JsonResponse({'success': False, 'error': str(e)}, status=400)
+        
+        # Set a meaningful name for the view function
+        create_view.__name__ = f'{model.__name__.lower()}_create'
+        return create_view
+    
+    @staticmethod
     def create_update_view(model, metadata_class):
         """
         Create a generic update view for a model (AJAX-based).
@@ -556,7 +885,18 @@ class MetadataViewGenerator:
             # Get the object with ownership check
             if hasattr(model, 'owned'):
                 try:
-                    obj = model.owned.filter(owner=request.user).get(id=object_id)
+                    # Use the owned manager's for_user method if available
+                    if hasattr(model.owned, 'for_user'):
+                        queryset = model.owned.for_user(request.user.id)
+                        obj = queryset.get(id=object_id)
+                    else:
+                        # Check if the model has an owner field before filtering
+                        has_owner_field = any(f.name == 'owner' for f in model._meta.fields)
+                        if has_owner_field:
+                            obj = model.owned.filter(owner=request.user).get(id=object_id)
+                        else:
+                            # Just get the object without owner filtering
+                            obj = model.owned.get(id=object_id)
                 except model.DoesNotExist:
                     return JsonResponse({'error': f'{model_name} not found'}, status=404)
             elif hasattr(model, 'owner'):
@@ -586,27 +926,16 @@ class MetadataViewGenerator:
                 # If the form has metadata_fields, we need to handle them specially
                 post_data = request.POST.copy()
                 
-                # Debug logging
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.error(f"UPDATE VIEW DEBUG - POST data received: {dict(post_data)}")
-                logger.error(f"UPDATE VIEW DEBUG - Form class: {form_class.__name__}")
-                
                 # Check if this form uses MetadataMixin
                 if hasattr(form_class, 'metadata_fields'):
-                    logger.error(f"UPDATE VIEW DEBUG - Form has metadata_fields: {form_class.metadata_fields}")
-                    
                     # Remove corrupted metadata field if it's '[object Object]'
                     if 'metadata' in post_data and post_data['metadata'] == '[object Object]':
                         del post_data['metadata']
-                        logger.error("UPDATE VIEW DEBUG - Removed corrupted metadata field '[object Object]'")
                     
                     # Add the current metadata to POST data if not present
                     if 'metadata' not in post_data and hasattr(obj, 'metadata'):
-                        import json
                         current_metadata = obj.metadata if obj.metadata else {}
                         post_data['metadata'] = json.dumps(current_metadata)
-                        logger.error(f"UPDATE VIEW DEBUG - Added metadata to POST: {post_data['metadata']}")
                 
                 # Use the form for validation and saving
                 form = form_class(post_data, instance=obj)
@@ -614,8 +943,6 @@ class MetadataViewGenerator:
                     form.save()
                     return JsonResponse({'success': True, 'message': f'{model_name} updated successfully'})
                 else:
-                    logger.error(f"UPDATE VIEW DEBUG - Form errors: {form.errors}")
-                    logger.error(f"UPDATE VIEW DEBUG - Form data after init: {form.data}")
                     # Include debug info in response for browser console
                     debug_info = {
                         'post_data_received': dict(post_data),

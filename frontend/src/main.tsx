@@ -7,45 +7,33 @@ import App from './App.tsx'
 async function loadComponent(componentName: string) {
   // For Vite, we need to use glob imports with eager loading for production builds
   const components = {
-    // Import all components from app_frontend components
-    ...import.meta.glob('../app_frontend/src/components/*.tsx', { eager: true }),
-    // Import all components from app_frontend showcases
-    ...import.meta.glob('../app_frontend/src/components/showcases/*.tsx', { eager: true }),
-    // Import all components from frontend showcases
-    ...import.meta.glob('./components/showcases/*.tsx', { eager: true }),
-    // Import all components from ui
-    ...import.meta.glob('./components/ui/*.tsx', { eager: true }),
-    // Import all components from root components
-    ...import.meta.glob('./components/*.tsx', { eager: true })
+    // Import all components from app_frontend recursively
+    ...import.meta.glob('../app_frontend/src/components/**/*.tsx', { eager: true }),
+    // Import all components from frontend recursively
+    ...import.meta.glob('./components/**/*.tsx', { eager: true })
   }
   
-  // Convert component name to kebab-case for showcases
+  // Convert component name to kebab-case for matching
   // AppCountButton -> app-count-button
   const kebabName = componentName
     .replace(/([a-z])([A-Z])/g, '$1-$2')
     .replace(/([A-Z])([A-Z][a-z])/g, '$1-$2')
     .toLowerCase()
   
-  // Try different paths
-  const possiblePaths = [
-    `../app_frontend/src/components/${kebabName}.tsx`,
-    `../app_frontend/src/components/showcases/${kebabName}.tsx`,
-    `../app_frontend/src/components/showcases/app-count-button.tsx`, // Special case for AppCountButton
-    `./components/ui/${componentName.toLowerCase()}.tsx`,
-    `./components/showcases/${kebabName}.tsx`,
-    `./components/showcases/app-count-button.tsx`, // Special case for AppCountButton in frontend
-    `./components/${componentName}.tsx`,
-    `./components/${kebabName}.tsx`,
-    `./components/record-detail.tsx` // Special case for RecordDetail
-  ]
-  
-  for (const path of possiblePaths) {
-    if (components[path]) {
+  // Search through all imported components for matching names
+  for (const [path, module] of Object.entries(components)) {
+    // Extract filename without extension
+    const fileName = path.split('/').pop()?.replace('.tsx', '') || ''
+    
+    // Check if filename matches any of our naming conventions
+    if (fileName === componentName || 
+        fileName === kebabName || 
+        fileName === componentName.toLowerCase()) {
       try {
         // With eager loading, modules are already loaded
-        const module = components[path] as any
+        const mod = module as any
         // Try to find the component by name first, then default export
-        const component = module[componentName] || module.default || module['default']
+        const component = mod[componentName] || mod.default || mod['default']
         if (component) {
           return component
         }
@@ -59,12 +47,20 @@ async function loadComponent(componentName: string) {
   return null
 }
 
+// Track mounted components to prevent duplicate mounting
+const mountedComponents = new WeakSet<Element>()
+
 // Function to mount React components based on data-react-component attribute
 async function mountComponents() {
   // Find all elements with data-react-component attribute
   const componentElements = document.querySelectorAll('[data-react-component]')
   
   for (const element of componentElements) {
+    // Skip if already mounted
+    if (mountedComponents.has(element)) {
+      continue
+    }
+    
     const componentName = element.getAttribute('data-react-component')
     
     if (!componentName) {
@@ -113,6 +109,9 @@ async function mountComponents() {
       }
     })
     
+    // Mark as mounted before creating root to prevent race conditions
+    mountedComponents.add(element)
+    
     // Create root and render component
     const root = createRoot(element as HTMLElement)
     root.render(
@@ -122,6 +121,15 @@ async function mountComponents() {
     )
   }
 }
+
+// Expose mountComponents globally for dynamic content
+declare global {
+  interface Window {
+    mountReactComponents: () => Promise<void>
+  }
+}
+
+window.mountReactComponents = mountComponents
 
 // Mount components when DOM is loaded
 if (document.readyState === 'loading') {
