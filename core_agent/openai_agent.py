@@ -48,6 +48,10 @@ MODEL_CONFIG = {
     "o3": {
         "price_per_1m_tokens_input": 2,
         "price_per_1m_tokens_output": 8,
+    },
+    "gpt-5": {
+        "price_per_1m_tokens_input": 1.25,
+        "price_per_1m_tokens_output": 10.00,
     }
 }
 

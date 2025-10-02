@@ -2,6 +2,7 @@ import uuid
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 
+
 class CustomUserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
         """Create and save a regular user with the given email and password."""
@@ -23,6 +24,8 @@ class CustomUserManager(BaseUserManager):
 class CustomUser(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(default=uuid.uuid4, unique=True, primary_key=True)
     email = models.EmailField(verbose_name='email address', unique=True)
+    is_email_verified =  models.BooleanField(default=False)
+    email_verification_sent_at = models.DateTimeField(null=True, blank=True)
     first_name = models.CharField(max_length=255, blank=True)
     last_name = models.CharField(max_length=255, blank=True)
     is_active = models.BooleanField(default=True)

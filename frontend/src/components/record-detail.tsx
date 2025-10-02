@@ -178,16 +178,38 @@ export default function RecordDetail({
 
       // Prepare form data
       const formDataToSend = new FormData()
+
       Object.keys(form).forEach(field => {
         const value = formData[field]
+
         if (value !== undefined && value !== null) {
+          // Handle ManyToMany fields (usually arrays)
+          if (Array.isArray(value)) {
+            // For ManyToMany fields, Django expects multiple values with the same field name
+            // or nothing if the array is empty
+            if (value.length > 0) {
+              value.forEach(item => {
+                if (typeof item === 'object' && 'id' in item) {
+                  formDataToSend.append(field, String(item.id))
+                } else {
+                  formDataToSend.append(field, String(item))
+                }
+              })
+            }
+            // For empty arrays, don't send anything for ManyToMany fields
+            // Django will interpret this as clearing the field
+          }
           // Handle foreign key objects - send just the ID
-          if (typeof value === 'object' && 'id' in value) {
+          else if (typeof value === 'object' && 'id' in value) {
             formDataToSend.append(field, String(value.id))
-          } else if (typeof value === 'object') {
-            // Handle JSON fields like metadata - serialize as JSON string
+          }
+          // Handle JSON fields that are objects but not foreign keys
+          else if (typeof value === 'object' && field === 'metadata') {
+            // The metadata field is typically a JSON field in Django
             formDataToSend.append(field, JSON.stringify(value))
-          } else {
+          }
+          // Handle regular fields
+          else {
             formDataToSend.append(field, String(value))
           }
         }
@@ -209,6 +231,34 @@ export default function RecordDetail({
         body: formDataToSend,
         credentials: 'same-origin'
       })
+
+      // Handle non-OK responses
+      if (!response.ok) {
+        // Try to parse error response
+        let errorDetail = null
+        try {
+          errorDetail = await response.json()
+        } catch {
+          throw new Error(`Server error ${response.status}: ${response.statusText}`)
+        }
+
+        // Handle the error response
+        if (errorDetail) {
+          if (errorDetail.errors) {
+            if (errorDetail.errors.__all__) {
+              setGeneralError(errorDetail.errors.__all__.join(' '))
+            }
+            setErrors(errorDetail.errors)
+          } else if (errorDetail.detail) {
+            setGeneralError(errorDetail.detail)
+          } else if (errorDetail.message) {
+            setGeneralError(errorDetail.message)
+          } else {
+            setGeneralError(`Server error: ${JSON.stringify(errorDetail)}`)
+          }
+        }
+        return
+      }
 
       const result = await response.json()
 

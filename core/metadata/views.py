@@ -13,10 +13,15 @@ from app import settings
 from core.utils.case_conversion import convert_keys_to_camel_case
 
 
-def serialize_form_for_react(form_class):
+def serialize_form_for_react(form_class, user=None, instance=None):
     """
     Serialize a Django form class into React component format.
-    
+
+    Args:
+        form_class: The form class to serialize
+        user: Optional user for context-aware filtering
+        instance: Optional instance for editing forms
+
     Returns dict mapping field names to FieldConfig objects with:
     - widget: "TextInput" | "Textarea" | "Select"
     - help_text: optional help text
@@ -25,12 +30,23 @@ def serialize_form_for_react(form_class):
     """
     if not form_class:
         return {}
-    
+
     try:
-        form_instance = form_class()
+        # Build form kwargs with optional user and instance
+        form_kwargs = {}
+        if instance:
+            form_kwargs['instance'] = instance
+        if user:
+            form_kwargs['user'] = user
+
+        form_instance = form_class(**form_kwargs)
     except Exception:
-        # If form can't be instantiated without arguments, return empty
-        return {}
+        # If form can't be instantiated with these arguments, try without them
+        try:
+            form_instance = form_class()
+        except Exception:
+            # If form still can't be instantiated, return empty
+            return {}
     
     form_data = {}
     
@@ -117,7 +133,11 @@ class MetadataViewGenerator:
                     queryset = model.owned.for_user(request.user.id)
                 else:
                     # Generic owned filtering
-                    queryset = model.owned.filter(owner=request.user)
+                    # Use for_user method if available (e.g., CourseWork)
+                    if hasattr(model.owned, 'for_user'):
+                        queryset = model.owned.for_user(request.user.id)
+                    else:
+                        queryset = model.owned.filter(owner=request.user)
             elif hasattr(model, 'objects'):
                 # Try to filter by owner if the field exists
                 if hasattr(model, 'owner'):
@@ -354,7 +374,11 @@ class MetadataViewGenerator:
                     queryset = model.owned.for_user(request.user.id)
                     obj = get_object_or_404(queryset, id=object_id)
                 else:
-                    obj = get_object_or_404(model.owned.filter(owner=request.user), id=object_id)
+                    # Use for_user method if available (e.g., CourseWork)
+                    if hasattr(model.owned, 'for_user'):
+                        obj = get_object_or_404(model.owned.for_user(request.user.id), id=object_id)
+                    else:
+                        obj = get_object_or_404(model.owned.filter(owner=request.user), id=object_id)
             else:
                 # Check if the model has an owner field
                 has_owner_field = any(f.name == 'owner' for f in model._meta.fields)
@@ -475,7 +499,11 @@ class MetadataViewGenerator:
             # Serialize form if available
             form_data = {}
             if hasattr(metadata_class, 'form') and metadata_class.form:
-                form_data = serialize_form_for_react(metadata_class.form)
+                form_data = serialize_form_for_react(
+                    metadata_class.form,
+                    user=request.user,
+                    instance=obj
+                )
             
             # Process detail_actions with component-based approach
             detail_actions = []
@@ -710,7 +738,12 @@ class MetadataViewGenerator:
                 form_fields = []
                 if form_class:
                     # Create a dummy form instance to inspect fields
-                    dummy_form = form_class()
+                    # Try to pass user for context-aware filtering
+                    try:
+                        dummy_form = form_class(user=request.user)
+                    except TypeError:
+                        # Form doesn't accept user parameter, use without it
+                        dummy_form = form_class()
                     for field_name, field in dummy_form.fields.items():
                         field_info = {
                             'name': field_name,
@@ -802,7 +835,12 @@ class MetadataViewGenerator:
                         logger.error(f"CREATE VIEW DEBUG - Added empty metadata to POST: {post_data['metadata']}")
                 
                 # Create new instance using the form
-                form = form_class(post_data)
+                # Try to pass user for context-aware filtering
+                try:
+                    form = form_class(post_data, user=request.user)
+                except TypeError:
+                    # Form doesn't accept user parameter, use without it
+                    form = form_class(post_data)
                 
                 # Set owner if the model has an owner field
                 if hasattr(model, 'owner') and hasattr(form.instance, 'owner'):
@@ -893,7 +931,11 @@ class MetadataViewGenerator:
                         # Check if the model has an owner field before filtering
                         has_owner_field = any(f.name == 'owner' for f in model._meta.fields)
                         if has_owner_field:
-                            obj = model.owned.filter(owner=request.user).get(id=object_id)
+                            # Use for_user method if available (e.g., CourseWork)
+                            if hasattr(model.owned, 'for_user'):
+                                obj = model.owned.for_user(request.user.id).get(id=object_id)
+                            else:
+                                obj = model.owned.filter(owner=request.user).get(id=object_id)
                         else:
                             # Just get the object without owner filtering
                             obj = model.owned.get(id=object_id)
@@ -1007,7 +1049,11 @@ class MetadataViewGenerator:
             # Get the object with ownership check
             if hasattr(model, 'owned'):
                 try:
-                    obj = model.owned.filter(owner=request.user).get(id=object_id)
+                    # Use for_user method if available (e.g., CourseWork)
+                    if hasattr(model.owned, 'for_user'):
+                        obj = model.owned.for_user(request.user.id).get(id=object_id)
+                    else:
+                        obj = model.owned.filter(owner=request.user).get(id=object_id)
                 except model.DoesNotExist:
                     return JsonResponse({'error': f'{model_name} not found'}, status=404)
             elif hasattr(model, 'owner'):
@@ -1160,7 +1206,11 @@ class MetadataViewGenerator:
             # Get the object with ownership check
             if hasattr(model, 'owned'):
                 try:
-                    obj = model.owned.filter(owner=request.user).get(id=object_id)
+                    # Use for_user method if available (e.g., CourseWork)
+                    if hasattr(model.owned, 'for_user'):
+                        obj = model.owned.for_user(request.user.id).get(id=object_id)
+                    else:
+                        obj = model.owned.filter(owner=request.user).get(id=object_id)
                 except model.DoesNotExist:
                     return JsonResponse({'error': f'{model_name} not found'}, status=404)
             elif hasattr(model, 'owner'):
@@ -1256,7 +1306,11 @@ class MetadataViewGenerator:
             # Get the object with ownership check
             if hasattr(model, 'owned'):
                 try:
-                    obj = model.owned.filter(owner=request.user).get(id=object_id)
+                    # Use for_user method if available (e.g., CourseWork)
+                    if hasattr(model.owned, 'for_user'):
+                        obj = model.owned.for_user(request.user.id).get(id=object_id)
+                    else:
+                        obj = model.owned.filter(owner=request.user).get(id=object_id)
                 except model.DoesNotExist:
                     return JsonResponse({'error': f'{model_name} not found'}, status=404)
             elif hasattr(model, 'owner'):

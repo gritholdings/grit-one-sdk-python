@@ -16,7 +16,6 @@ langchain-openai
 langchain-anthropic
 langchain_community
 langchain_chroma
-sentence_transformers
 pypdf
 asyncio
 boto3

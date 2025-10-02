@@ -2,8 +2,8 @@ import os
 import json
 import app.settings
 from app.settings import DOMAIN_NAME
+from core.core_settings import core_settings
 
-SUBDOMAIN_NAME: str = getattr(app.settings, 'SUBDOMAIN_NAME', 'dev')
 PLATFORM_NAME: str = getattr(app.settings, 'PLATFORM_NAME', 'platform')
 
 
@@ -34,7 +34,7 @@ def get_base_url() -> str:
     if DJANGO_ENV != 'PROD':
         base_url = "http://127.0.0.1:8000"
     else:
-        base_url = f"https://{SUBDOMAIN_NAME}.{DOMAIN_NAME}"
+        base_url = f"https://{core_settings.SUBDOMAIN_NAME}.{DOMAIN_NAME}"
     return base_url
 
 def get_platform_url() -> str:

@@ -1,13 +1,13 @@
 from django.urls import path
 from django.contrib.auth.views import (
     PasswordResetDoneView,
-    PasswordResetConfirmView,
     PasswordResetCompleteView
 )
 from django.utils.module_loading import import_string
 from .views import (
      custom_logout_view, is_authenticated, signup,
-     CustomPasswordResetView, CustomPasswordResetConfirmView
+     CustomPasswordResetView, CustomPasswordResetConfirmView,
+     verify_email, send_verification_email_view, verification_email_sent
 )
 from .settings import auth_settings
 
@@ -29,4 +29,15 @@ urlpatterns = [
     path('password-reset-complete/',
          PasswordResetCompleteView.as_view(template_name='customauth/password_reset_complete.html'),
          name='password_reset_complete'),
+
+    # Email verification URLs
+    path('verify-email/<uidb64>/<token>/',
+         verify_email,
+         name='verify_email'),
+    path('send-verification-email/',
+         send_verification_email_view,
+         name='send_verification_email'),
+    path('verification-email-sent/',
+         verification_email_sent,
+         name='verification_email_sent'),
 ]

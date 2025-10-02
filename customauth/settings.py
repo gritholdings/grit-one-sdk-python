@@ -1,3 +1,4 @@
+from typing import Literal
 from core.core_base_settings import BaseSettings
 
 
@@ -6,6 +7,9 @@ class AuthSettings(BaseSettings):
     SETTINGS_KEY = 'AUTH_SETTINGS'
 
     LOGIN_VIEW: str = 'customauth.views.custom_login_view'
+    EMAIL_VERIFICATION: Literal['mandatory', 'optional', 'skip'] = 'optional'
+    EMAIL_VERIFICATION_EXPIRY_HOURS: int = 48
+    EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS: int = 60  # Cooldown period in seconds
 
 
 auth_settings: AuthSettings = AuthSettings()

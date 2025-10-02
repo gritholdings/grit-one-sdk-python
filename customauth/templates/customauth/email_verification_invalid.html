@@ -1,0 +1,47 @@
+{% extends 'base_generic.html' %}
+{% load app_header %}
+{% block nav %}
+{% home_header %}
+{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-md mx-auto">
+        <div class="bg-red-50 border border-red-200 rounded-lg p-6">
+            <h2 class="text-2xl font-semibold text-red-800 mb-4">Verification Failed</h2>
+
+            <p class="text-red-700 mb-4">
+                The verification link is invalid or has expired.
+            </p>
+
+            <p class="text-gray-700 mb-6">
+                This can happen if:
+            </p>
+
+            <ul class="list-disc list-inside text-gray-600 space-y-2 mb-6">
+                <li>The link has expired</li>
+                <li>You've already verified your email</li>
+                <li>The link was copied incorrectly</li>
+            </ul>
+
+            {% if user.is_authenticated and not user.is_email_verified %}
+            <div class="mt-6">
+                <a href="{% url 'send_verification_email' %}"
+                   class="inline-block bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition-colors">
+                    Resend New Verification Email
+                </a>
+            </div>
+            {% elif not user.is_authenticated %}
+            <div class="mt-6">
+                <p class="text-gray-600 mb-4">Please log in to request a new verification email.</p>
+                <a href="{% url 'login' %}"
+                   class="inline-block bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition-colors">
+                    Log In
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block footer %}
+{% endblock %}

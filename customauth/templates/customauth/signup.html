@@ -1,15 +1,9 @@
+{% extends 'base_generic.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="en" class="h-full">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sign Up</title>
-  <link rel="stylesheet" href="{% static 'home/global.css' %}">
-</head>
-<body class="bg-gray-100 flex h-full items-center py-16">
-  <main class="w-full max-w-28 mx-auto p-6" style="max-width:28rem">
-    <div class="mt-7 bg-white border border-gray-200 rounded-xl shadow-sm">
+{% block content %}
+<div class="min-h-screen flex items-center justify-center px-4 bg-gray-50">
+  <div class="w-full max-w-md">
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm">
       <div class="p-8 sm:p-7">
         <div class="text-center">
           <h1 class="text-xl font-semibold mb-1 text-center">Sign Up</h1>
@@ -48,6 +42,8 @@
         Back to homepage
       </a>
     </p>
-  </main>
-</body>
-</html>
+  </div>
+</div>
+{% endblock %}
+{% block footer %}
+{% endblock %}

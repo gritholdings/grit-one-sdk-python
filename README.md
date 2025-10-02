@@ -6,8 +6,8 @@ Development preview available at: https://dev.meetgrit.com/
 ## System Overview
 
 This SDK consists of two separate applications working in tandem:
-1. Backend Application (This Repository)
-1. Frontend Application ([Separate Repository](https://github.com/gritholdings/grit-web-sdk-ts))
+1. Complete Application (This Repository)
+1. Optional Separate Web App Application ([Separate Repository](https://github.com/gritholdings/grit-web-sdk-ts))
 
 ## Core Backend Features
 

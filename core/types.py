@@ -2,6 +2,10 @@ from typing import TypedDict, List
 from typing_extensions import NotRequired
 
 
+class CoreSettingsTypedDict(TypedDict):
+    SUBDOMAIN_NAME: NotRequired[str]
+
+
 class NavItemTypedDict(TypedDict):
     title: str
     url: str
