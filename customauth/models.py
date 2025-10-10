@@ -21,6 +21,7 @@ class CustomUserManager(BaseUserManager):
         extra_fields.setdefault('is_active', True)
         return self.create_user(email, password, **extra_fields)
 
+
 class CustomUser(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(default=uuid.uuid4, unique=True, primary_key=True)
     email = models.EmailField(verbose_name='email address', unique=True)
@@ -31,6 +32,9 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     metadata = models.JSONField(default=dict, blank=True, null=True)
+    profile = models.ForeignKey( 'Profile',
+        on_delete=models.DO_NOTHING, related_name='users',
+        null=True, blank=True)
 
     objects = CustomUserManager()
 
@@ -49,3 +53,14 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         if self.metadata is None:
             self.metadata = {}
         super().save(*args, **kwargs)
+
+
+class Profile(models.Model):
+    id = models.UUIDField(default=uuid.uuid4, unique=True, primary_key=True)
+    name = models.CharField(max_length=255)
+    metadata = models.JSONField(default=dict, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name

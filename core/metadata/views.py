@@ -10,7 +10,8 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
 from django.core.serializers.json import DjangoJSONEncoder
 from app import settings
-from core.utils.case_conversion import convert_keys_to_camel_case
+from core.utils.case_conversion import convert_keys_to_camel_case, resolve_urls_in_app_metadata
+from core.utils.permissions import filter_app_metadata_by_user_groups, check_profile_permission, check_group_permission
 
 
 def serialize_form_for_react(form_class, user=None, instance=None):
@@ -121,10 +122,26 @@ class MetadataViewGenerator:
         """
         @login_required
         def list_view(request):
-            # Get the model name
+            # Check view permission using OR logic across three permission layers
+            # Superusers bypass permission checks
+            app_label = model._meta.app_label
             model_name = model.__name__
             model_name_lower = model_name.lower()
-            
+            permission = f'{app_label}.view_{model_name_lower}'
+
+            # Skip permission checks for superusers
+            if not request.user.is_superuser:
+                # Check all three permission layers (OR logic)
+                django_granted = request.user.has_perm(permission)
+                groups_granted = check_group_permission(request.user, model_name_lower, settings.APP_METADATA_SETTINGS)
+                profiles_granted = check_profile_permission(request.user, model_name_lower, 'allow_read', settings.APP_METADATA_SETTINGS)
+
+                # Use OR logic: if ANY permission check passes, grant access
+                if not (django_granted or groups_granted or profiles_granted):
+                    # All three checks failed - deny access
+                    raise Http404()
+
+            # Get the model name (already defined above)
             # Check if model has an 'owned' manager for user-specific filtering
             if hasattr(model, 'owned'):
                 # Use the owned manager to get user-specific objects
@@ -301,6 +318,9 @@ class MetadataViewGenerator:
             # Use processed actions or empty list if no actions
             actions = processed_actions if processed_actions else [[]]
             
+            # Filter app metadata based on user's group permissions
+            filtered_settings = filter_app_metadata_by_user_groups(settings.APP_METADATA_SETTINGS, request.user)
+
             context = {
                 'items': items_data,  # Pass raw data, template will JSON encode it
                 'columns': json.dumps(columns, cls=DjangoJSONEncoder),
@@ -308,7 +328,7 @@ class MetadataViewGenerator:
                 'model_name': model_name,
                 'model_name_lower': model_name_lower,
                 'title': f'{model_name} List',
-                'app_metadata_settings_json': json.dumps(convert_keys_to_camel_case(settings.APP_METADATA_SETTINGS))
+                'app_metadata_settings_json': json.dumps(convert_keys_to_camel_case(resolve_urls_in_app_metadata(filtered_settings)))
             }
             
             # Try to use app-specific template, fall back to generic
@@ -334,9 +354,11 @@ class MetadataViewGenerator:
             # If we had a rendering error (not just missing templates), raise it
             if last_error:
                 raise last_error
-            
-            # If no template found, return JSON response
-            return JsonResponse({'items': items_data}, encoder=DjangoJSONEncoder)
+
+            # If no template found, raise an error
+            raise TemplateDoesNotExist(
+                f"No template found for {model_name_lower} list view. Tried: {', '.join(template_names)}"
+            )
         
         # Set a meaningful name for the view function
         list_view.__name__ = f'{model.__name__.lower()}_listview'
@@ -360,7 +382,22 @@ class MetadataViewGenerator:
             model_name = model.__name__
             model_name_lower = model_name.lower()
             id_param = f'{model_name_lower}_id'
-            
+            app_label = model._meta.app_label
+            permission = f'{app_label}.view_{model_name_lower}'
+
+            # Check view permission using OR logic across three permission layers
+            # Superusers bypass permission checks
+            if not request.user.is_superuser:
+                # Check all three permission layers (OR logic)
+                django_granted = request.user.has_perm(permission)
+                groups_granted = check_group_permission(request.user, model_name_lower, settings.APP_METADATA_SETTINGS)
+                profiles_granted = check_profile_permission(request.user, model_name_lower, 'allow_read', settings.APP_METADATA_SETTINGS)
+
+                # Use OR logic: if ANY permission check passes, grant access
+                if not (django_granted or groups_granted or profiles_granted):
+                    # All three checks failed - deny access
+                    raise Http404()
+
             # Get the object ID from kwargs
             object_id = kwargs.get(id_param)
             if not object_id:
@@ -665,7 +702,7 @@ class MetadataViewGenerator:
                 'model_name': model_name,
                 'model_name_lower': model_name_lower,
                 'title': f'{model_name} Detail',
-                'app_metadata_settings_json': json.dumps(convert_keys_to_camel_case(settings.APP_METADATA_SETTINGS)),
+                'app_metadata_settings_json': json.dumps(convert_keys_to_camel_case(resolve_urls_in_app_metadata(settings.APP_METADATA_SETTINGS))),
                 # Add model-specific context for app templates
                 f'{model_name_lower}': obj,
                 f'{model_name_lower}_dict': json.dumps(obj_data, cls=DjangoJSONEncoder),
@@ -720,7 +757,23 @@ class MetadataViewGenerator:
         def create_view(request):
             # Get the model name
             model_name = model.__name__
-            
+            model_name_lower = model_name.lower()
+            app_label = model._meta.app_label
+            permission = f'{app_label}.add_{model_name_lower}'
+
+            # Check create permission using OR logic across three permission layers
+            # Superusers bypass permission checks
+            if not request.user.is_superuser:
+                # Check all three permission layers (OR logic)
+                django_granted = request.user.has_perm(permission)
+                groups_granted = check_group_permission(request.user, model_name_lower, settings.APP_METADATA_SETTINGS)
+                profiles_granted = check_profile_permission(request.user, model_name_lower, 'allow_create', settings.APP_METADATA_SETTINGS)
+
+                # Use OR logic: if ANY permission check passes, grant access
+                if not (django_granted or groups_granted or profiles_granted):
+                    # All three checks failed - deny access
+                    raise Http404()
+
             # Handle GET request - return form metadata
             if request.method == 'GET':
                 # Get the form class from metadata if available
@@ -914,7 +967,22 @@ class MetadataViewGenerator:
             model_name = model.__name__
             model_name_lower = model_name.lower()
             id_param = f'{model_name_lower}_id'
-            
+            app_label = model._meta.app_label
+            permission = f'{app_label}.change_{model_name_lower}'
+
+            # Check edit permission using OR logic across three permission layers
+            # Superusers bypass permission checks
+            if not request.user.is_superuser:
+                # Check all three permission layers (OR logic)
+                django_granted = request.user.has_perm(permission)
+                groups_granted = check_group_permission(request.user, model_name_lower, settings.APP_METADATA_SETTINGS)
+                profiles_granted = check_profile_permission(request.user, model_name_lower, 'allow_edit', settings.APP_METADATA_SETTINGS)
+
+                # Use OR logic: if ANY permission check passes, grant access
+                if not (django_granted or groups_granted or profiles_granted):
+                    # All three checks failed - deny access
+                    raise Http404()
+
             # Get the object ID from kwargs
             object_id = kwargs.get(id_param)
             if not object_id:
@@ -1297,7 +1365,22 @@ class MetadataViewGenerator:
             model_name = model.__name__
             model_name_lower = model_name.lower()
             id_param = f'{model_name_lower}_id'
-            
+            app_label = model._meta.app_label
+            permission = f'{app_label}.delete_{model_name_lower}'
+
+            # Check delete permission using OR logic across three permission layers
+            # Superusers bypass permission checks
+            if not request.user.is_superuser:
+                # Check all three permission layers (OR logic)
+                django_granted = request.user.has_perm(permission)
+                groups_granted = check_group_permission(request.user, model_name_lower, settings.APP_METADATA_SETTINGS)
+                profiles_granted = check_profile_permission(request.user, model_name_lower, 'allow_delete', settings.APP_METADATA_SETTINGS)
+
+                # Use OR logic: if ANY permission check passes, grant access
+                if not (django_granted or groups_granted or profiles_granted):
+                    # All three checks failed - deny access
+                    raise Http404()
+
             # Get the object ID from kwargs
             object_id = kwargs.get(id_param)
             if not object_id:
