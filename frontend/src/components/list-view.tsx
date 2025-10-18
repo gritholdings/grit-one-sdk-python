@@ -1,4 +1,4 @@
-import { AppSidebar } from "@app_frontend/components/app-sidebar"
+import { AppSidebar } from "@/components/app-sidebar"
 import { NavActions } from "@/components/nav-actions"
 import {
   Breadcrumb,
@@ -153,6 +153,21 @@ function createColumns(columnsConfig: ColumnConfig[]): ColumnDef<Record<string, 
       } else {
         column.cell = ({ row }) => {
           const value = row.getValue(config.fieldName || config.id || "")
+
+          // Format datetime values
+          if (value && typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
+            const date = new Date(value)
+            const formatted = new Intl.DateTimeFormat('en-US', {
+              month: '2-digit',
+              day: '2-digit',
+              year: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true
+            }).format(date)
+            return <div className={config.align === "right" ? "text-right" : ""}>{formatted}</div>
+          }
+
           return <div className={config.align === "right" ? "text-right" : ""}>{String(value)}</div>
         }
       }
@@ -213,7 +228,7 @@ export default function ListView({
             <NavActions groups={validActions} />
           </div>
         </header>
-        <div className="flex flex-1 flex-col gap-4 px-4 py-10">
+        <div className="flex flex-1 flex-col gap-4 px-4 py-10 min-w-0 overflow-x-hidden">
             <DataTable columns={columnDefs} data={data} />
         </div>
       </SidebarInset>

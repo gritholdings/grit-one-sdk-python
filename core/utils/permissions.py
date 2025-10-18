@@ -38,9 +38,11 @@ def filter_app_metadata_by_user_groups(settings: Dict, user) -> Dict:
         receive metadata for resources they can access, not just have them
         hidden client-side.
     """
-    # If no settings or no GROUPS config, return original settings
+    # If no settings or no GROUPS config, return empty apps (secure by default)
     if not settings or 'GROUPS' not in settings:
-        return settings
+        filtered = deepcopy(settings) if settings else {}
+        filtered['APPS'] = {}
+        return filtered
 
     # Superusers bypass all filtering
     if hasattr(user, 'is_superuser') and user.is_superuser:
@@ -65,15 +67,15 @@ def filter_app_metadata_by_user_groups(settings: Dict, user) -> Dict:
         group_config = groups_config.get(group_name, {})
 
         # Collect visible apps for this group
-        app_visibility = group_config.get('app_visibility', {})
-        for app_key, visibility in app_visibility.items():
-            if visibility == 'visible':
+        app_visibilities = group_config.get('app_visibilities', {})
+        for app_key, visibility in app_visibilities.items():
+            if visibility.get('visible'):
                 visible_apps.add(app_key)
 
         # Collect visible tabs for this group
-        tab_visibility = group_config.get('tab_visibility', {})
-        for tab_key, visibility in tab_visibility.items():
-            if visibility == 'visible':
+        tab_visibilities = group_config.get('tab_visibilities', {})
+        for tab_key, visibility in tab_visibilities.items():
+            if visibility.get('visibility') == 'visible':
                 visible_tabs.add(tab_key)
 
     # Deep copy to avoid mutating original settings
@@ -97,6 +99,159 @@ def filter_app_metadata_by_user_groups(settings: Dict, user) -> Dict:
     filtered['APPS'] = filtered_apps
 
     return filtered
+
+
+def filter_app_metadata_by_user_profile(settings: Dict, user) -> Dict:
+    """
+    Filter APP_METADATA_SETTINGS based on user's profile permissions.
+
+    This function applies profile-based visibility rules to apps and tabs,
+    ensuring users only receive configuration data they're authorized to see.
+
+    Args:
+        settings: The APP_METADATA_SETTINGS dictionary with structure:
+            {
+                'APPS': {app_key: {label, icon, tabs: [tab_keys]}},
+                'MODELS': {model_key: {label, icon, ...}},
+                'TABS': {tab_key: {label, url_name, icon}},
+                'PROFILES': {
+                    profile_name: {
+                        'app_visibilities': {app_key: {'visible': bool}},
+                        'tab_visibilities': {tab_key: {'visibility': 'visible'|'hidden'}},
+                        'model_permissions': {...}
+                    }
+                }
+            }
+        user: Django User object with profile relationship and is_superuser attribute
+
+    Returns:
+        Filtered settings dictionary with same structure, containing only
+        apps and tabs visible to the user based on their profile configuration.
+        Superusers bypass filtering and receive all settings.
+
+    Security Note:
+        This implements the principle of least privilege - users should only
+        receive metadata for resources they can access, not just have them
+        hidden client-side.
+    """
+    # If no settings or no PROFILES config, return original settings
+    if not settings or 'PROFILES' not in settings:
+        return settings
+
+    # Superusers bypass all filtering
+    if hasattr(user, 'is_superuser') and user.is_superuser:
+        return settings
+
+    # Check if user has a profile assigned
+    if not hasattr(user, 'profile') or not user.profile:
+        # No profile assigned - return settings unchanged (allow other permission layers)
+        return settings
+
+    # Get the user's profile name
+    profile = user.profile
+    profile_name = profile.name if hasattr(profile, 'name') else None
+
+    if not profile_name:
+        # Profile exists but has no name - return settings unchanged
+        return settings
+
+    # Get profile configuration
+    profiles_config = settings.get('PROFILES', {})
+    profile_config = profiles_config.get(profile_name, {})
+
+    # If profile has no visibility configuration, return original settings
+    if 'app_visibilities' not in profile_config and 'tab_visibilities' not in profile_config:
+        return settings
+
+    # Aggregate visible apps and tabs from profile
+    visible_apps: Set[str] = set()
+    visible_tabs: Set[str] = set()
+
+    # Collect visible apps for this profile
+    app_visibilities = profile_config.get('app_visibilities', {})
+    for app_key, visibility in app_visibilities.items():
+        if visibility.get('visible'):
+            visible_apps.add(app_key)
+
+    # Collect visible tabs for this profile
+    tab_visibilities = profile_config.get('tab_visibilities', {})
+    for tab_key, visibility in tab_visibilities.items():
+        if visibility.get('visibility') == 'visible':
+            visible_tabs.add(tab_key)
+
+    # Deep copy to avoid mutating original settings
+    filtered = deepcopy(settings)
+
+    # Filter APPS
+    filtered_apps = {}
+    for app_key, app_config in settings.get('APPS', {}).items():
+        # Only include app if it's in visible_apps
+        if app_key in visible_apps:
+            # Filter the tabs within this app
+            original_tabs = app_config.get('tabs', [])
+            filtered_tabs = [tab for tab in original_tabs if tab in visible_tabs]
+
+            # Only include app if it has at least one visible tab
+            if filtered_tabs:
+                app_config_copy = deepcopy(app_config)
+                app_config_copy['tabs'] = filtered_tabs
+                filtered_apps[app_key] = app_config_copy
+
+    filtered['APPS'] = filtered_apps
+
+    return filtered
+
+
+def merge_filtered_settings(group_filtered: Dict, profile_filtered: Dict, original: Dict) -> Dict:
+    """
+    Merge visibility-filtered settings from groups and profiles using OR logic.
+
+    If either filter grants access to an app/tab, it should be included in the result.
+    This implements the additive OR semantics: access is granted if ANY permission layer allows it.
+
+    Args:
+        group_filtered: Settings filtered by user's groups
+        profile_filtered: Settings filtered by user's profile
+        original: Original unfiltered settings (for reference)
+
+    Returns:
+        Merged settings with apps/tabs visible from EITHER groups OR profiles
+    """
+    # Start with a deep copy of the original structure
+    merged = deepcopy(original)
+
+    # Collect all visible apps from both filters
+    visible_apps: Set[str] = set()
+    visible_tabs: Set[str] = set()
+
+    # Add apps/tabs from group filter
+    for app_key in group_filtered.get('APPS', {}).keys():
+        visible_apps.add(app_key)
+        for tab in group_filtered['APPS'][app_key].get('tabs', []):
+            visible_tabs.add(tab)
+
+    # Add apps/tabs from profile filter (OR logic)
+    for app_key in profile_filtered.get('APPS', {}).keys():
+        visible_apps.add(app_key)
+        for tab in profile_filtered['APPS'][app_key].get('tabs', []):
+            visible_tabs.add(tab)
+
+    # Build final filtered APPS with merged visibility
+    merged_apps = {}
+    for app_key in visible_apps:
+        if app_key in original.get('APPS', {}):
+            app_config = deepcopy(original['APPS'][app_key])
+            # Filter tabs to only those visible from either source
+            original_tabs = app_config.get('tabs', [])
+            app_visible_tabs = [tab for tab in original_tabs if tab in visible_tabs]
+
+            if app_visible_tabs:
+                app_config['tabs'] = app_visible_tabs
+                merged_apps[app_key] = app_config
+
+    merged['APPS'] = merged_apps
+
+    return merged
 
 
 def check_group_permission(
@@ -150,12 +305,12 @@ def check_group_permission(
 
     for group_name in user_group_names:
         group_config = groups_config.get(group_name, {})
-        app_visibility = group_config.get('app_visibility', {})
-        tab_visibility = group_config.get('tab_visibility', {})
+        app_visibilities = group_config.get('app_visibilities', {})
+        tab_visibilities = group_config.get('tab_visibilities', {})
 
         # Check if this group grants visibility to both the app and tab
-        app_visible = app_visibility.get(app_key) == 'visible'
-        tab_visible = tab_visibility.get(tab_key) == 'visible'
+        app_visible = app_visibilities.get(app_key, {}).get('visible', False)
+        tab_visible = tab_visibilities.get(tab_key, {}).get('visibility') == 'visible'
 
         if app_visible and tab_visible:
             # This group grants access - return True (OR logic)
@@ -192,6 +347,82 @@ def _find_app_and_tab_for_model(model_name_lower: str, app_metadata: Dict) -> tu
     return None, None
 
 
+def check_profile_visibility(
+    user,
+    model_name: str,
+    settings: Dict
+) -> bool:
+    """
+    Check if a user has profile-based visibility access to a model.
+
+    This function checks if the user's profile grants visibility to the
+    app and tab containing the specified model via app_visibilities and tab_visibilities.
+
+    Args:
+        user: Django User object with profile relationship and is_superuser attribute
+        model_name: The model name (lowercase) to check visibility for (e.g., 'post', 'course')
+        settings: The APP_METADATA_SETTINGS dictionary with PROFILES configuration
+
+    Returns:
+        True if user has visibility via profile, False otherwise
+
+    Security Note:
+        - Superusers bypass all permission checks
+        - Users without profiles return False (to allow other permission checks via OR logic)
+        - Returns False instead of raising Http404 to allow OR-based permission checking
+    """
+    # Superusers bypass all permission checks
+    if hasattr(user, 'is_superuser') and user.is_superuser:
+        return True
+
+    # If no PROFILES configuration exists, deny access
+    if not settings or 'PROFILES' not in settings:
+        return False
+
+    # Check if user has a profile assigned
+    if not hasattr(user, 'profile') or not user.profile:
+        # No profile assigned - deny access
+        return False
+
+    # Get the user's profile name
+    profile = user.profile
+    profile_name = profile.name if hasattr(profile, 'name') else None
+
+    if not profile_name:
+        # Profile exists but has no name - deny access
+        return False
+
+    # Get profile configuration
+    profiles_config = settings.get('PROFILES', {})
+    profile_config = profiles_config.get(profile_name, {})
+
+    # If profile has no visibility configuration, deny access
+    if 'app_visibilities' not in profile_config and 'tab_visibilities' not in profile_config:
+        return False
+
+    # Find which app and tab this model belongs to
+    app_key, tab_key = _find_app_and_tab_for_model(model_name, settings)
+
+    if not app_key or not tab_key:
+        # Model not in APP_METADATA_SETTINGS - deny access
+        return False
+
+    # Check if this profile grants visibility to both the app and tab
+    app_visibilities = profile_config.get('app_visibilities', {})
+    tab_visibilities = profile_config.get('tab_visibilities', {})
+
+    # Check if this profile grants visibility to both the app and tab
+    app_visible = app_visibilities.get(app_key, {}).get('visible', False)
+    tab_visible = tab_visibilities.get(tab_key, {}).get('visibility') == 'visible'
+
+    if app_visible and tab_visible:
+        # This profile grants access via visibility
+        return True
+
+    # Profile does not grant visibility access
+    return False
+
+
 def check_profile_permission(
     user,
     model_name: str,
@@ -212,11 +443,13 @@ def check_profile_permission(
             {
                 'PROFILES': {
                     'profile_name': {
-                        'model_name': {
-                            'allow_create': bool,
-                            'allow_read': bool,
-                            'allow_edit': bool,
-                            'allow_delete': bool
+                        'model_permissions': {
+                            'model_name': {
+                                'allow_create': bool,
+                                'allow_read': bool,
+                                'allow_edit': bool,
+                                'allow_delete': bool
+                            }
                         }
                     }
                 }
@@ -262,13 +495,16 @@ def check_profile_permission(
     # Get the profile's configuration
     profile_config = profiles_config[profile_name]
 
+    # Get the model_permissions nested dictionary
+    model_permissions_dict = profile_config.get('model_permissions', {})
+
     # Check if this model is configured for this profile
-    if model_name not in profile_config:
+    if model_name not in model_permissions_dict:
         # Model not configured for this profile - deny access
         return False
 
     # Get the model's permission configuration
-    model_permissions = profile_config[model_name]
+    model_permissions = model_permissions_dict[model_name]
 
     # Check the specific permission (defaults to False if not specified)
     has_permission = model_permissions.get(permission_type, False)

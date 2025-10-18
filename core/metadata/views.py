@@ -10,8 +10,14 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
 from django.core.serializers.json import DjangoJSONEncoder
 from app import settings
-from core.utils.case_conversion import convert_keys_to_camel_case, resolve_urls_in_app_metadata
-from core.utils.permissions import filter_app_metadata_by_user_groups, check_profile_permission, check_group_permission
+from core.utils.case_conversion import convert_keys_to_camel_case, resolve_urls_in_app_metadata, camel_to_snake
+from core.utils.permissions import (
+    filter_app_metadata_by_user_groups,
+    filter_app_metadata_by_user_profile,
+    merge_filtered_settings,
+    check_profile_permission,
+    check_group_permission
+)
 
 
 def serialize_form_for_react(form_class, user=None, instance=None):
@@ -126,7 +132,7 @@ class MetadataViewGenerator:
             # Superusers bypass permission checks
             app_label = model._meta.app_label
             model_name = model.__name__
-            model_name_lower = model_name.lower()
+            model_name_lower = camel_to_snake(model_name)
             permission = f'{app_label}.view_{model_name_lower}'
 
             # Skip permission checks for superusers
@@ -318,8 +324,10 @@ class MetadataViewGenerator:
             # Use processed actions or empty list if no actions
             actions = processed_actions if processed_actions else [[]]
             
-            # Filter app metadata based on user's group permissions
-            filtered_settings = filter_app_metadata_by_user_groups(settings.APP_METADATA_SETTINGS, request.user)
+            # Filter app metadata based on user's group and profile permissions (OR logic)
+            group_filtered = filter_app_metadata_by_user_groups(settings.APP_METADATA_SETTINGS, request.user)
+            profile_filtered = filter_app_metadata_by_user_profile(settings.APP_METADATA_SETTINGS, request.user)
+            filtered_settings = merge_filtered_settings(group_filtered, profile_filtered, settings.APP_METADATA_SETTINGS)
 
             context = {
                 'items': items_data,  # Pass raw data, template will JSON encode it
@@ -380,7 +388,7 @@ class MetadataViewGenerator:
         def detail_view(request, **kwargs):
             # Get the model name and ID parameter
             model_name = model.__name__
-            model_name_lower = model_name.lower()
+            model_name_lower = camel_to_snake(model_name)
             id_param = f'{model_name_lower}_id'
             app_label = model._meta.app_label
             permission = f'{app_label}.view_{model_name_lower}'
@@ -541,7 +549,12 @@ class MetadataViewGenerator:
                     user=request.user,
                     instance=obj
                 )
-            
+
+            # Filter app metadata based on user's group and profile permissions (OR logic)
+            group_filtered = filter_app_metadata_by_user_groups(settings.APP_METADATA_SETTINGS, request.user)
+            profile_filtered = filter_app_metadata_by_user_profile(settings.APP_METADATA_SETTINGS, request.user)
+            filtered_settings = merge_filtered_settings(group_filtered, profile_filtered, settings.APP_METADATA_SETTINGS)
+
             # Process detail_actions with component-based approach
             detail_actions = []
             if hasattr(metadata_class, 'detail_actions') and metadata_class.detail_actions:
@@ -702,7 +715,7 @@ class MetadataViewGenerator:
                 'model_name': model_name,
                 'model_name_lower': model_name_lower,
                 'title': f'{model_name} Detail',
-                'app_metadata_settings_json': json.dumps(convert_keys_to_camel_case(resolve_urls_in_app_metadata(settings.APP_METADATA_SETTINGS))),
+                'app_metadata_settings_json': json.dumps(convert_keys_to_camel_case(resolve_urls_in_app_metadata(filtered_settings))),
                 # Add model-specific context for app templates
                 f'{model_name_lower}': obj,
                 f'{model_name_lower}_dict': json.dumps(obj_data, cls=DjangoJSONEncoder),
@@ -757,7 +770,7 @@ class MetadataViewGenerator:
         def create_view(request):
             # Get the model name
             model_name = model.__name__
-            model_name_lower = model_name.lower()
+            model_name_lower = camel_to_snake(model_name)
             app_label = model._meta.app_label
             permission = f'{app_label}.add_{model_name_lower}'
 
@@ -965,7 +978,7 @@ class MetadataViewGenerator:
         def update_view(request, **kwargs):
             # Get the model name and ID parameter
             model_name = model.__name__
-            model_name_lower = model_name.lower()
+            model_name_lower = camel_to_snake(model_name)
             id_param = f'{model_name_lower}_id'
             app_label = model._meta.app_label
             permission = f'{app_label}.change_{model_name_lower}'
@@ -1102,7 +1115,7 @@ class MetadataViewGenerator:
             
             # Get the model name and ID parameter
             model_name = model.__name__
-            model_name_lower = model_name.lower()
+            model_name_lower = camel_to_snake(model_name)
             id_param = f'{model_name_lower}_id'
             inline_model_name = kwargs.get('inline_model')
             
@@ -1262,7 +1275,7 @@ class MetadataViewGenerator:
             
             # Get the model name and ID parameter
             model_name = model.__name__
-            model_name_lower = model_name.lower()
+            model_name_lower = camel_to_snake(model_name)
             id_param = f'{model_name_lower}_id'
             inline_type = kwargs.get('inline_type')
             
@@ -1363,7 +1376,7 @@ class MetadataViewGenerator:
         def delete_view(request, **kwargs):
             # Get the model name and ID parameter
             model_name = model.__name__
-            model_name_lower = model_name.lower()
+            model_name_lower = camel_to_snake(model_name)
             id_param = f'{model_name_lower}_id'
             app_label = model._meta.app_label
             permission = f'{app_label}.delete_{model_name_lower}'

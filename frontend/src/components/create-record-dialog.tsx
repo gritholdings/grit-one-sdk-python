@@ -148,8 +148,11 @@ export function CreateRecordDialog({
       
       const formDataToSend = new FormData()
       Object.keys(formData).forEach(key => {
-        if (formData[key] !== null && formData[key] !== undefined) {
-          formDataToSend.append(key, formData[key])
+        const value = formData[key]
+        // Skip null, undefined, and empty strings to avoid UUID validation errors
+        // for optional fields like ManyToMany relationships
+        if (value !== null && value !== undefined && value !== '') {
+          formDataToSend.append(key, value)
         }
       })
       

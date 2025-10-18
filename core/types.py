@@ -24,21 +24,35 @@ class TabConfigTypedDict(TypedDict):
     icon: str
 
 
+class VisibilityItemTypedDict(TypedDict):
+    visible: bool
+
+
+class TabVisibilityItemTypedDict(TypedDict):
+    visibility: Literal['visible', 'hidden']
+
+
 class VisibilityConfigTypedDict(TypedDict):
-    app_visibility: NotRequired[Dict[str, Literal['visible', 'hidden']]]
-    tab_visibility: NotRequired[Dict[str, Literal['visible', 'hidden']]]
+    app_visibilities: NotRequired[Dict[str, VisibilityItemTypedDict]]
+    tab_visibilities: NotRequired[Dict[str, TabVisibilityItemTypedDict]]
 
 
-class ProfileConfigTypedDict(TypedDict):
+class ModelPermissionsTypedDict(TypedDict):
     allow_create: NotRequired[bool]
     allow_read: NotRequired[bool]
     allow_edit: NotRequired[bool]
     allow_delete: NotRequired[bool]
 
 
+class ProfileConfigTypedDict(TypedDict):
+    app_visibilities: NotRequired[Dict[str, VisibilityItemTypedDict]]
+    tab_visibilities: NotRequired[Dict[str, TabVisibilityItemTypedDict]]
+    model_permissions: NotRequired[Dict[str, ModelPermissionsTypedDict]]
+
+
 class AppMetadataSettingsTypedDict(TypedDict):
-    APPS: Dict[str, AppConfigTypedDict]
-    MODELS: Dict[str, Dict[str, str]]
-    TABS: Dict[str, TabConfigTypedDict]
-    GROUPS: Dict[str, VisibilityConfigTypedDict]
-    PROFILES: Dict[str, Dict[str, ProfileConfigTypedDict]]
+    APPS: NotRequired[Dict[str, AppConfigTypedDict]]
+    MODELS: NotRequired[Dict[str, Dict[str, str]]]
+    TABS: NotRequired[Dict[str, TabConfigTypedDict]]
+    GROUPS: NotRequired[Dict[str, VisibilityConfigTypedDict]]
+    PROFILES: NotRequired[Dict[str, ProfileConfigTypedDict]]

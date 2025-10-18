@@ -63,13 +63,14 @@ class MetadataRegistry:
         """
         from django.urls import path
         from .views import MetadataViewGenerator
-        
+        from core.utils.case_conversion import camel_to_snake
+
         patterns = []
         view_generator = MetadataViewGenerator()
-        
+
         for model_class, metadata_class in self._registry.items():
             model_name = model_class.__name__
-            model_name_lower = model_name.lower()
+            model_name_lower = camel_to_snake(model_name)
             
             # Generate list view URL
             list_view = view_generator.create_list_view(model_class, metadata_class)

@@ -71,7 +71,7 @@ def get_record_usage_function():
 
 
 class BaseOpenAIAgent:
-    def __init__(self, config: Optional[AgentConfig] = None, handoff_context: Optional[dict] = None):
+    def __init__(self, config: Optional[AgentConfig] = None, handoff_context: Optional[dict] = None, **kwargs):
         """Regular synchronous __init__ method"""
         self._config = config
         self._initialized = False
@@ -82,6 +82,7 @@ class BaseOpenAIAgent:
         self.current_agent = None  # Placeholder for current agent instance
         self.agent_instance = None  # The Django Agent model instance
         self.handoff_context = handoff_context  # Store handoff context if provided
+        # Accept but don't use additional kwargs to allow subclasses to extend
     
     async def initialize(self):
         """

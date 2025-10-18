@@ -2,7 +2,7 @@
  * RecordDetail component displays and edits a record's details.
  * Widgets: TextInput, Textarea, Select
  */
-import { AppSidebar } from "@app_frontend/components/app-sidebar"
+import { AppSidebar } from "@/components/app-sidebar"
 import { NavActions } from "@/components/nav-actions"
 import { CreateRecordDialog } from "@/components/create-record-dialog"
 import {
@@ -384,7 +384,7 @@ export default function RecordDetail({
 
     if (!isEditing || !fieldConfig) {
       // Read-only mode
-      
+
       // Special handling for HTML with React components
       if (isHtmlWithReactComponent) {
         return (
@@ -398,12 +398,25 @@ export default function RecordDetail({
           </div>
         )
       }
-      
+
       // For Select widgets, show the label instead of the value
       let displayText = displayValue || '-'
       if (fieldConfig?.widget === 'Select' && fieldConfig.choices && displayValue) {
         const choice = fieldConfig.choices.find(c => c.value === displayValue)
         displayText = choice ? choice.label : displayValue
+      }
+
+      // Format datetime values
+      if (displayValue && typeof displayValue === 'string' && displayValue.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
+        const date = new Date(displayValue)
+        displayText = new Intl.DateTimeFormat('en-US', {
+          month: '2-digit',
+          day: '2-digit',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        }).format(date)
       }
       
       // Check if this is a foreign key field (has id and name properties)
@@ -654,7 +667,7 @@ export default function RecordDetail({
                                   {inline.fields.map((field, fieldIndex) => {
                                     const value = item[field]
                                     let displayValue = ''
-                                    
+
                                     if (value === null || value === undefined) {
                                       displayValue = '-'
                                     } else if (typeof value === 'object' && 'name' in value) {
@@ -664,7 +677,20 @@ export default function RecordDetail({
                                     } else {
                                       displayValue = String(value)
                                     }
-                                    
+
+                                    // Format datetime values
+                                    if (displayValue && displayValue !== '-' && displayValue.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
+                                      const date = new Date(displayValue)
+                                      displayValue = new Intl.DateTimeFormat('en-US', {
+                                        month: '2-digit',
+                                        day: '2-digit',
+                                        year: 'numeric',
+                                        hour: 'numeric',
+                                        minute: '2-digit',
+                                        hour12: true
+                                      }).format(date)
+                                    }
+
                                     // Make the first field (usually title/name) or 'object_link' field clickable
                                     const isClickableField = fieldIndex === 0 || field === 'object_link'
                                     const detailUrl = `/r/${inline.model_name}/${item.id}/view`

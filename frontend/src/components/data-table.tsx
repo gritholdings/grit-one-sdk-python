@@ -166,7 +166,7 @@ export function DataTable<TData, TValue>({
   })
 
   return (
-    <div className="w-full">
+    <div className="w-full min-w-0 overflow-x-hidden">
       <div className="flex items-center py-4">
         {/* <Input
           placeholder="Filter emails..."

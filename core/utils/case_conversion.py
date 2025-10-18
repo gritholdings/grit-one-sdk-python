@@ -4,10 +4,27 @@ Used for serializing Python data structures to JavaScript-friendly format.
 """
 import logging
 import copy
+import re
 from typing import Any, Dict, List, Union
 from django.urls import reverse, NoReverseMatch
 
 logger = logging.getLogger(__name__)
+
+
+def camel_to_snake(camel_str: str) -> str:
+    """
+    Convert CamelCase or camelCase string to snake_case.
+
+    Examples:
+        CourseWork -> course_work
+        NavItems -> nav_items
+        appMetadataSettings -> app_metadata_settings
+    """
+    # Insert underscore before uppercase letters (except at the start)
+    snake_str = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', camel_str)
+    # Handle sequences of uppercase letters (e.g., HTTPResponse -> http_response)
+    snake_str = re.sub('([a-z0-9])([A-Z])', r'\1_\2', snake_str)
+    return snake_str.lower()
 
 
 def snake_to_camel(snake_str: str) -> str:
