@@ -18,6 +18,7 @@ class AgentConfig:
     knowledge_bases: Optional[List[str]] = field(default_factory=list)
     record_usage_for_payment: bool = True
     suggested_messages: Optional[List[str]] = field(default_factory=list)
+    reasoning_effort: Optional[str] = None
 
 
 @dataclass

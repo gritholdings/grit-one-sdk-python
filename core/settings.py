@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 from app.settings import DOMAIN_NAME, AWS_RDS_ENDPOINT
 from .utils.env_config import load_credential, get_django_env
+from .core_settings import core_settings
 
 # Basics
 
@@ -193,11 +194,10 @@ else:
 DEFAULT_FROM_EMAIL = 'support@' + DOMAIN_NAME
 
 # Internationalization
-# https://docs.djangoproject.com/en/5.0/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = core_settings.TIME_ZONE
 
 USE_I18N = True
 
@@ -205,7 +205,6 @@ USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.0/howto/static-files/
 
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
@@ -220,7 +219,6 @@ STORAGES = {
 }
 
 # Default primary key field type
-# https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

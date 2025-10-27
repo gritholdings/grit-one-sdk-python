@@ -4,6 +4,7 @@ from typing_extensions import NotRequired
 
 class CoreSettingsTypedDict(TypedDict):
     SUBDOMAIN_NAME: NotRequired[str]
+    TIME_ZONE: NotRequired[str]
 
 
 class TabTypedDict(TypedDict):

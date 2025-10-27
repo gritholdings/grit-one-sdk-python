@@ -1,8 +1,9 @@
 import uuid
 import importlib
-from datetime import date
 from django.db import models
 from django.apps import apps
+from django.template import Template, Context
+from django.utils import timezone
 from pydantic import BaseModel
 from core_agent.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
 from customauth.models import CustomUser
@@ -150,10 +151,10 @@ class AgentManager(models.Manager):
     def get_sub_agents(self, agent_id: str) -> models.QuerySet:
         """
         Returns sub-agents of the specified agent.
-        
+
         Args:
             agent_id: The ID of the parent agent
-            
+
         Returns:
             QuerySet of Agent objects that are sub-agents
         """
@@ -162,23 +163,34 @@ class AgentManager(models.Manager):
             return parent_agent.sub_agents.all()
         except self.model.DoesNotExist:
             return self.none()
-    
-    def get_formatted_prompt_template(self, agent_id: str) -> str:
+
+    def get_formatted_prompt_template(self, agent_id: str, context: dict) -> str:
         """
         Returns the formatted prompt template for the specified agent.
-        
+
         Args:
             agent_id: The ID of the agent
-            
+            context: Additional context dict to merge with default context
+
         Returns:
             Formatted prompt template string
         """
-        today_date = date.today().strftime('%Y-%m-%d')
         agent = self.get(id=agent_id)
-        formatted_prompt_template = agent.system_prompt.format(
-            today_date=today_date,
-            recommended_prompt_prefix=RECOMMENDED_PROMPT_PREFIX
-        )
+        timezone_now = timezone.now()
+        context_dict = {
+            'current_datetime': timezone_now.strftime('%Y-%m-%d %H:%M:%S'),
+            'current_date': timezone_now.strftime('%Y-%m-%d'),
+            'recommended_prompt_prefix': RECOMMENDED_PROMPT_PREFIX,
+        }
+
+        # Merge incoming context with our context_dict
+        # Incoming context values will override defaults if keys conflict
+        if context:
+            context_dict.update(context)
+
+        context_obj = Context(context_dict)
+        template = Template(agent.system_prompt)
+        formatted_prompt_template = template.render(context_obj)
 
         # Prepare handoff instructions if sub-agents exist
         handoff_instructions = ""
@@ -264,7 +276,7 @@ class Agent(models.Model):
                                     blank=True, null=True)
     # metadata fields:
     # 'model_name', 'suggested_messages', 'overview_html', 'enable_web_search',
-    # 'enable_knowledge_base', 'knowledge_base_id'
+    # 'enable_knowledge_base', 'knowledge_base_id', 'reasoning_effort'
     metadata = models.JSONField(blank=True, null=True)
     owner = models.ForeignKey(CustomUser, on_delete=models.DO_NOTHING, blank=True, null=True)
 
@@ -275,15 +287,16 @@ class Agent(models.Model):
         return AgentConfig(
             id=str(self.id),
             label=self.name,
-            description=self.metadata.get('description', ''),
-            agent_class=self.metadata.get('agent_class', ''),
+            description=self.metadata.get('description', '') if self.metadata else '',
+            agent_class=self.metadata.get('agent_class', '') if self.metadata else '',
             prompt_template=self.system_prompt,
-            overview_html=self.metadata.get('overview_html', ''),
-            model_name=self.metadata.get('model_name', ''),
-            enable_web_search=self.metadata.get('enable_web_search', False),
-            enable_knowledge_base=self.metadata.get('enable_knowledge_base', False),
+            overview_html=self.metadata.get('overview_html', '') if self.metadata else '',
+            model_name=self.metadata.get('model_name', '') if self.metadata else '',
+            enable_web_search=self.metadata.get('enable_web_search', False) if self.metadata else False,
+            enable_knowledge_base=self.metadata.get('enable_knowledge_base', False) if self.metadata else False,
             knowledge_bases=list(self.knowledge_bases.all().values()),
-            suggested_messages=self.metadata.get('suggested_messages', []),
+            suggested_messages=self.metadata.get('suggested_messages', []) if self.metadata else [],
+            reasoning_effort=self.metadata.get('reasoning_effort') if self.metadata else None,
         )
 
     def __str__(self):

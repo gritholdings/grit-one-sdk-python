@@ -12,6 +12,7 @@ from django.apps import apps
 from agents import Runner, WebSearchTool, ModelSettings
 from agents import Agent as OpenAIAgent
 from openai.types.responses import ResponseTextDeltaEvent
+from openai.types.shared import Reasoning
 from core_agent.dataclasses import AgentConfig
 from core_agent.models import Agent
 from core_agent.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX, prompt_with_handoff_instructions
@@ -78,7 +79,11 @@ class BaseOpenAIAgent:
         # Don't initialize async components here
         self.memory_store_service = None
         self.kb_vectorstore_service = None
-        self.config = None  # Will be properly set in initialize()
+        # Set config immediately for synchronous access (e.g., in preview views)
+        # This will be validated/updated in initialize() for async flows
+        self.config = config if config is not None else self.get_agent_config()
+        if self.config is None:
+            raise ValueError("Agent configuration is not initialized")
         self.current_agent = None  # Placeholder for current agent instance
         self.agent_instance = None  # The Django Agent model instance
         self.handoff_context = handoff_context  # Store handoff context if provided
@@ -122,10 +127,15 @@ class BaseOpenAIAgent:
         thread_id = str(uuid.uuid4())
         return thread_id
 
+    def get_agent_instructions_context(self) -> dict:
+        return {}
+
     def get_agent_instructions(self) -> str:
         """Override this method to provide a custom agent prompt
         """
-        return Agent.objects.get_formatted_prompt_template(self.config.id)
+        # Get the context from the overridable method
+        context = self.get_agent_instructions_context()
+        return Agent.objects.get_formatted_prompt_template(self.config.id, context)
 
     def create_agent(self):
         instructions = self.get_agent_instructions()
@@ -142,13 +152,19 @@ class BaseOpenAIAgent:
             # Create OpenAI Agent instances for each sub-agent
             sub_agent_config = Agent.objects.get_agent_config(sub_agent.id)
             sub_agent_instance = None
+            # Build model settings with reasoning if specified
+            model_settings_kwargs = {"max_tokens": 16000}
+            if sub_agent_config.reasoning_effort:
+                model_settings_kwargs["reasoning"] = Reasoning(effort=sub_agent_config.reasoning_effort)
+
             sub_agent_instance = OpenAIAgent(
-                name=sub_agent_config.label, 
-                instructions=Agent.objects.get_formatted_prompt_template(sub_agent.id),
+                name=sub_agent_config.label,
+                instructions=Agent.objects.get_formatted_prompt_template(sub_agent.id,
+                                                self.get_agent_instructions_context()),
                 model=sub_agent_config.model_name,
                 # tools=tools, assuming sub-agents do not have their own tools for now
                 # handoffs=handoff_agents,  # Assume there are no sub agents for sub-agents for now
-                model_settings=ModelSettings(max_tokens=16000)
+                model_settings=ModelSettings(**model_settings_kwargs)
             )
             handoff_agents.append(sub_agent_instance)
         
@@ -156,13 +172,19 @@ class BaseOpenAIAgent:
         self.agent_instance = Agent.objects.get(id=self.config.id)
             
         model_name = self.config.model_name or DEFAULT_MODEL_NAME
+
+        # Build model settings with reasoning if specified
+        model_settings_kwargs = {"max_tokens": 16000}
+        if self.config.reasoning_effort:
+            model_settings_kwargs["reasoning"] = Reasoning(effort=self.config.reasoning_effort)
+
         created_agent = OpenAIAgent(
-            name=self.config.label, 
+            name=self.config.label,
             instructions=instructions,
-            model=model_name, 
+            model=model_name,
             tools=tools,
             handoffs=handoff_agents,  # Add handoffs parameter
-            model_settings=ModelSettings(max_tokens=16000)
+            model_settings=ModelSettings(**model_settings_kwargs)
         )
         return created_agent
     
