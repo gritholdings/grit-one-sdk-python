@@ -2,7 +2,7 @@
 
 ## Getting Started
 
-- [Development preview](https://dev.meetgrit.com/)
+- [Live Demo](https://dev.meetgrit.com/)
 - [Installation](https://www.meetgrit.com/docs/installation/)
 
 ## Custom Software Development
