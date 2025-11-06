@@ -57,3 +57,24 @@ function TooltipContent({
 }
 
 export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider }
+
+export const BetterTooltip = ({
+  content,
+  children,
+  align = 'center',
+  side = 'top',
+  ...props
+}: React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Root> & {
+  content: React.ReactElement | string;
+  align?: 'center' | 'end' | 'start';
+  side?: 'top' | 'right' | 'bottom' | 'left';
+}) => {
+  return (
+    <TooltipProvider delayDuration={0}>
+      <TooltipPrimitive.Root {...props}>
+        <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
+        <TooltipContent align={align} side={side}>{content}</TooltipContent>
+      </TooltipPrimitive.Root>
+    </TooltipProvider>
+  );
+};

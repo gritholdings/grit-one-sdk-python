@@ -1,0 +1,17 @@
+{% extends 'base_page.html' %}
+{% load app_header %}
+{% load vite_tags %}
+{% block extra_head %}
+{% vite_assets %}
+{% endblock %}
+{% block nav %}
+{% app_header %}
+{% endblock %}
+{% block content %}
+    <div
+        id="app-chat-root"
+        data-react-component="AppChat"
+        data-prop-thread-id="{{ thread_id }}"
+        class="h-full"
+    ></div>
+{% endblock %}

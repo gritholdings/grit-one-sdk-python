@@ -21,6 +21,10 @@ interface AppLayoutProps {
   children: ReactNode
   /** Optional app configurations to pass to the sidebar */
   appConfigurations?: string | Record<string, any>
+  /** Optional custom sidebar component to replace the default AppSidebar */
+  customSidebar?: ReactNode
+  /** Optional className for the content area */
+  contentClassName?: string
 }
 
 /**
@@ -41,10 +45,10 @@ interface AppLayoutProps {
  * }
  * ```
  */
-export default function AppLayout({ title, children, appConfigurations }: AppLayoutProps) {
+export default function AppLayout({ title, children, appConfigurations, customSidebar, contentClassName }: AppLayoutProps) {
   return (
     <SidebarProvider>
-      <AppSidebar appConfigurations={appConfigurations} />
+      {customSidebar || <AppSidebar appConfigurations={appConfigurations} />}
       <SidebarInset>
         <header className="flex h-14 shrink-0 items-center gap-2">
           <div className="flex flex-1 items-center gap-2 px-3">
@@ -67,7 +71,7 @@ export default function AppLayout({ title, children, appConfigurations }: AppLay
             <NavActions />
           </div>
         </header>
-        <div className="flex flex-1 flex-col gap-4 px-4 py-10">
+        <div className={contentClassName || "flex flex-1 flex-col gap-4 px-4 py-10"}>
           {children}
         </div>
       </SidebarInset>

@@ -6,6 +6,8 @@ from .settings import agent_settings
 
 
 urlpatterns = [
+    path('chat/', core_agent_views.chat_view, name='agent_chat_new'),
+    path('chat/c/<str:thread_id>', core_agent_views.chat_view, name='agent_chat'),
     path('api/threads/create', core_agent_views.create_thread, name='create_thread'),
     path('api/threads/', core_agent_views.thread_detail, name='thread_detail'),
     path('api/files/upload', core_agent_aviews.upload_files, name='upload_files'),

@@ -2,6 +2,8 @@ import uuid
 from asgiref.sync import sync_to_async
 from django.http import JsonResponse, HttpRequest, StreamingHttpResponse
 from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
@@ -271,6 +273,18 @@ def threads_list(request: HttpRequest) -> Response:
         {'memories': memories},
         status=status.HTTP_200_OK
     )
+
+
+@login_required
+def chat_view(request, thread_id=None):
+    """
+    Renders the chat interface for a specific thread or new chat.
+    Mounts the AppChat React component via data-react-component.
+    If thread_id is None, the React component will create a new thread.
+    """
+    return render(request, 'agent/chat.html', {
+        'thread_id': thread_id or '',
+    })
 
 
 @staff_member_required

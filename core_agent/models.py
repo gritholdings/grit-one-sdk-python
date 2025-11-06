@@ -176,7 +176,7 @@ class AgentManager(models.Manager):
             Formatted prompt template string
         """
         agent = self.get(id=agent_id)
-        timezone_now = timezone.now()
+        timezone_now = timezone.localtime(timezone.now())
         context_dict = {
             'current_datetime': timezone_now.strftime('%Y-%m-%d %H:%M:%S'),
             'current_date': timezone_now.strftime('%Y-%m-%d'),

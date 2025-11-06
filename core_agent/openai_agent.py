@@ -296,15 +296,12 @@ class BaseOpenAIAgent:
         pass
 
     def on_agent_end(self, user_id: str, thread_id: str, new_message: str, final_output: str):
-        # After finished streaming, save the memory
+        # After finished streaming, save the assistant's response
+        # Note: User message is already persisted at the start of process_chat to prevent race conditions
         namespace_for_memory = ("memories", user_id)
-        # Store user message in new structured format
-        self.memory_store_service.upsert_memory(
-            namespace_for_memory, thread_id, 'conversation_history', 
-            {"role": "user", "content": new_message})
         # Store assistant message in new structured format
         self.memory_store_service.upsert_memory(
-            namespace_for_memory, thread_id, 'conversation_history', 
+            namespace_for_memory, thread_id, 'conversation_history',
             {"role": "assistant", "content": final_output})
         self.memory_store_service.close()
     
@@ -379,6 +376,14 @@ class BaseOpenAIAgent:
                 return
             record_usage = await sync_to_async(get_record_usage_function)()
         if data_type == "text":
+            # Persist user message immediately to prevent race condition with message loading
+            # This ensures the message is in the database before streaming begins
+            namespace_for_memory = ("memories", user_id)
+            await sync_to_async(self.memory_store_service.upsert_memory)(
+                namespace_for_memory, thread_id, 'conversation_history',
+                {"role": "user", "content": new_message}
+            )
+
             openai_agent = await sync_to_async(self.create_agent)()
             messages = await sync_to_async(self.build_messages)(user_id=user_id, thread_id=thread_id, new_message=new_message)
             result = Runner.run_streamed(openai_agent, input=messages)
@@ -469,18 +474,23 @@ class BaseOpenAIAgent:
                 base64_image = await sync_to_async(pdf_page_to_base64)(pdf_path=new_message, page_number=page_index)
                 # Store as structured data with metadata
                 if file_metadata and 'filename' in file_metadata:
+                    # Enhance metadata with page count information
+                    enhanced_metadata = {
+                        **file_metadata,
+                        'pageCount': f"{page_count} page{'s' if page_count > 1 else ''}"
+                    }
                     # Store with new structure including metadata
                     memory_entry = {
                         "role": "user_image",
                         "content": f"data:image/jpeg;base64,{base64_image}",
-                        "metadata": file_metadata
+                        "metadata": enhanced_metadata
                     }
                     await sync_to_async(self.memory_store_service.upsert_memory)(
                         namespace_for_memory, thread_id, 'conversation_history', memory_entry)
                 else:
                     # Backward compatible format
                     await sync_to_async(self.memory_store_service.upsert_memory)(
-                        namespace_for_memory, thread_id, 'conversation_history', 
+                        namespace_for_memory, thread_id, 'conversation_history',
                         f'user_image,data:image/jpeg;base64,{base64_image}')
             await sync_to_async(self.memory_store_service.close)()
         else:
