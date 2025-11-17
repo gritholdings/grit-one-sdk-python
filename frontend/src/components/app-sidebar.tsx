@@ -71,13 +71,14 @@ function transformAppSettings(settings: any, iconMap: Record<string, any>): any[
       const tabConfig = tabs[camelKey]
 
       if (modelConfig) {
-        // It's a model - create list view link
-        // Use PascalCase for the model name in URL (e.g., 'course_work' -> 'CourseWork')
+        // It's a model - use URL from backend (app-prefixed) or construct legacy format as fallback
         const modelName = toPascalCase(tabKey)
         const title = modelConfig.pluralLabel || modelConfig.label || modelName
+        // Prefer the URL provided by the backend (which includes app prefix)
+        const url = modelConfig.url || `/m/${modelName}/list`
         return {
           title,
-          url: `/m/${modelName}/list`,
+          url,
           icon: iconMap[modelConfig.icon] || Icons.FileText
         }
       } else if (tabConfig) {
@@ -103,6 +104,7 @@ function transformAppSettings(settings: any, iconMap: Record<string, any>): any[
 
     return {
       name: appConfig.label || appKey,
+      key: appKey,  // Store the original snake_case key for URL matching
       logo: iconMap[appConfig.icon] || Icons.FileText,
       url: mainUrl,
       navItems

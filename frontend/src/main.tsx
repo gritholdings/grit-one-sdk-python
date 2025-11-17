@@ -12,7 +12,9 @@ async function loadComponent(componentName: string) {
     // Import all components from frontend recursively
     ...import.meta.glob('./components/**/*.tsx', { eager: true }),
     // Import chat components
-    ...import.meta.glob('./chat/**/*.tsx', { eager: true })
+    ...import.meta.glob('./chat/**/*.tsx', { eager: true }),
+    // Import assistant components
+    ...import.meta.glob('./assistant/**/*.tsx', { eager: true })
   }
   
   // Convert component name to kebab-case for matching

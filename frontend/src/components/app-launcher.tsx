@@ -73,7 +73,7 @@ export function AppLauncher({
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-64 rounded-lg"
+            className="app-launcher w-64 rounded-lg"
             align="start"
             side="bottom"
             sideOffset={4}

@@ -137,21 +137,35 @@ class BaseOpenAIAgent:
         context = self.get_agent_instructions_context()
         return Agent.objects.get_formatted_prompt_template(self.config.id, context)
 
-    def create_agent(self):
-        instructions = self.get_agent_instructions()
+    def _build_tools(self):
+        """
+        Build the list of tools for this agent.
+        Override this method in subclasses to add custom tools.
+
+        Returns:
+            list: List of tool instances to be used by the agent
+        """
         tools = []
         if self.config.enable_web_search:
             tools.append(WebSearchTool())
-        
+        return tools
+
+    def _build_handoff_agents(self):
+        """
+        Create handoff agents from configured sub-agents.
+
+        Returns:
+            list: List of OpenAI Agent instances for handoffs
+        """
         # Get sub-agents configuration from the agent's metadata if available
         sub_agents = Agent.objects.get_sub_agents(self.config.id)
-        
+
         # Create handoff agents for the SDK
         handoff_agents = []
         for sub_agent in sub_agents:
             # Create OpenAI Agent instances for each sub-agent
             sub_agent_config = Agent.objects.get_agent_config(sub_agent.id)
-            sub_agent_instance = None
+
             # Build model settings with reasoning if specified
             model_settings_kwargs = {"max_tokens": 16000}
             if sub_agent_config.reasoning_effort:
@@ -167,24 +181,44 @@ class BaseOpenAIAgent:
                 model_settings=ModelSettings(**model_settings_kwargs)
             )
             handoff_agents.append(sub_agent_instance)
-        
-        # Store the agent instance reference
-        self.agent_instance = Agent.objects.get(id=self.config.id)
-            
-        model_name = self.config.model_name or DEFAULT_MODEL_NAME
 
-        # Build model settings with reasoning if specified
+        return handoff_agents
+
+    def _build_model_settings(self):
+        """
+        Build ModelSettings with reasoning effort if configured.
+
+        Returns:
+            ModelSettings: Configured model settings instance
+        """
         model_settings_kwargs = {"max_tokens": 16000}
         if self.config.reasoning_effort:
             model_settings_kwargs["reasoning"] = Reasoning(effort=self.config.reasoning_effort)
+        return ModelSettings(**model_settings_kwargs)
+
+    def create_agent(self):
+        """
+        Create and configure an OpenAI agent instance.
+
+        Returns:
+            OpenAIAgent: Configured agent ready for use
+        """
+        instructions = self.get_agent_instructions()
+        tools = self._build_tools()
+        handoff_agents = self._build_handoff_agents()
+
+        # Store the agent instance reference
+        self.agent_instance = Agent.objects.get(id=self.config.id)
+
+        model_name = self.config.model_name or DEFAULT_MODEL_NAME
 
         created_agent = OpenAIAgent(
             name=self.config.label,
             instructions=instructions,
             model=model_name,
             tools=tools,
-            handoffs=handoff_agents,  # Add handoffs parameter
-            model_settings=ModelSettings(**model_settings_kwargs)
+            handoffs=handoff_agents,
+            model_settings=self._build_model_settings()
         )
         return created_agent
     
@@ -335,10 +369,14 @@ class BaseOpenAIAgent:
         # Get the agent class and instantiate it
         agent_class_str = agent_instance.metadata.get('agent_class', 'core_agent.openai_agent.BaseOpenAIAgent')
         agent_class = await sync_to_async(Agent.objects.get_agent_class)(agent_class_str)
-        
+
         # Create the sub-agent instance with config from the agent
         agent_config = await sync_to_async(agent_instance.get_config)()
-        sub_agent = agent_class(config=agent_config)
+        # Propagate request context if available (needed for MCP queries)
+        kwargs = {}
+        if hasattr(self, 'request') and self.request:
+            kwargs['request'] = self.request
+        sub_agent = agent_class(config=agent_config, **kwargs)
         
         # Initialize the sub-agent
         await sub_agent.initialize()
@@ -495,3 +533,142 @@ class BaseOpenAIAgent:
             await sync_to_async(self.memory_store_service.close)()
         else:
             raise ValueError(f"Unsupported data type: {data_type}")
+
+
+class BaseOpenAIUserModeAgent(BaseOpenAIAgent):
+    """
+    OpenAI Agent with MCP (Model Context Protocol) database querying capabilities.
+
+    This agent extends BaseOpenAIAgent by adding the ability to query Django models
+    that are registered with MCP and have a .user_mode manager.
+
+    The MCP integration is opt-in - only this class gets MCP tools by default.
+    BaseOpenAIAgent continues to work without any MCP functionality.
+    """
+
+    def __init__(self, config: Optional[AgentConfig] = None, handoff_context: Optional[dict] = None, **kwargs):
+        """Initialize with request context for MCP queries."""
+        super().__init__(config, handoff_context, **kwargs)
+        # Store request for MCP toolset instantiation
+        # This will be set when the agent is used in a request context
+        self.request = kwargs.get('request', None)
+
+    def _build_tools(self):
+        """
+        Build tools list with MCP query capability.
+
+        Extends parent's tool list by adding MCP database querying for models
+        registered with user_mode managers.
+
+        Returns:
+            list: Base tools plus MCP query tool if applicable
+        """
+        from agents import function_tool
+        from core_agent.mcp_server import mcp_registry
+
+        # Get base tools (web search, etc.) from parent
+        tools = super()._build_tools()
+
+        # Add MCP query tool if there are models with user_mode managers
+        models_with_user_mode = mcp_registry.get_models_with_user_mode()
+
+        if models_with_user_mode:
+            # Build list of available models for the tool description
+            model_names = [model.__name__ for model in models_with_user_mode]
+            model_list_str = ", ".join(model_names)
+
+            # Create the MCP query tool with request context
+            request = self.request
+
+            @function_tool(
+                name_override="mcp_query",
+                description_override=f"""Query Django database models through MCP (Model Context Protocol).
+
+Available models: {model_list_str}
+Available operations: list, retrieve, search
+
+This tool allows querying registered Django models with read-only access.
+Only models with user_mode managers are accessible.
+
+Examples:
+- List records: mcp_query(model_name="Account", operation="list", params={{"limit": 10}})
+- Retrieve by ID: mcp_query(model_name="Account", operation="retrieve", params={{"pk": "uuid-here"}})
+- Search records: mcp_query(model_name="Account", operation="search", params={{"query": "search term", "limit": 20}})
+
+The params argument is optional and varies by operation:
+- list: {{"filters": {{"field__lookup": "value"}}, "limit": 50}}
+- retrieve: {{"pk": "record-id"}}
+- search: {{"query": "search text", "search_fields": ["field1", "field2"], "limit": 20}}
+""",
+                strict_mode=False  # Disable strict mode for flexible params dict
+            )
+            async def mcp_query(model_name: str, operation: str, params: Optional[dict] = None):
+                """
+                Query Django models through MCP.
+
+                Args:
+                    model_name: Name of the model to query (e.g., "Account", "Agent")
+                    operation: Operation to perform ("list", "retrieve", "search")
+                    params: Optional parameters dictionary for the operation
+
+                Returns:
+                    Query results as a JSON-serializable dictionary
+                """
+                # Validate operation
+                valid_operations = ['list', 'retrieve', 'search']
+                if operation not in valid_operations:
+                    return f"Error: Invalid operation '{operation}'. Must be one of: {', '.join(valid_operations)}"
+
+                # Get the toolset for this model (registry lookup is sync, so wrap it)
+                toolset_class, model_class = await sync_to_async(mcp_registry.get_by_name)(model_name)
+
+                if not toolset_class:
+                    available_models_list = await sync_to_async(mcp_registry.get_models_with_user_mode)()
+                    available_models = ", ".join([m.__name__ for m in available_models_list])
+                    return f"Error: Model '{model_name}' is not registered for MCP access. Available models: {available_models}"
+
+                # Check if model has user_mode manager
+                if not hasattr(model_class, 'user_mode'):
+                    return f"Error: Model '{model_name}' does not have a user_mode manager and cannot be queried through this agent."
+
+                # Validate that request context is available
+                if not request:
+                    return "Error: No request context available. MCP queries require authentication."
+
+                # Instantiate the toolset with request context (sync operation)
+                toolset = await sync_to_async(toolset_class)(request=request)
+
+                # Prepare params
+                if params is None:
+                    params = {}
+
+                # Execute the operation (wrap database operations in sync_to_async)
+                try:
+                    if operation == 'list':
+                        filters = params.get('filters')
+                        limit = params.get('limit')
+                        result = await sync_to_async(toolset.list)(filters=filters, limit=limit)
+                    elif operation == 'retrieve':
+                        pk = params.get('pk')
+                        if not pk:
+                            return "Error: 'pk' parameter is required for retrieve operation"
+                        result = await sync_to_async(toolset.retrieve)(pk=pk)
+                    elif operation == 'search':
+                        query = params.get('query')
+                        if not query:
+                            return "Error: 'query' parameter is required for search operation"
+                        search_fields = params.get('search_fields')
+                        limit = params.get('limit')
+                        result = await sync_to_async(toolset.search)(query=query, search_fields=search_fields, limit=limit)
+
+                    # Convert result to JSON string for LLM
+                    import json
+                    return json.dumps(result, indent=2, default=str)
+
+                except Exception as e:
+                    logger.error(f"MCP query error: {str(e)}")
+                    return f"Error executing {operation} on {model_name}: {str(e)}"
+
+            tools.append(mcp_query)
+
+        return tools

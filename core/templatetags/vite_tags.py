@@ -1,11 +1,64 @@
 import json
 import os
+import logging
 from django import template
 from django.conf import settings
 from django.utils.safestring import mark_safe
 from django.templatetags.static import static
 
+logger = logging.getLogger(__name__)
 register = template.Library()
+
+
+def is_vite_dev_server_running():
+    """
+    Check if Vite dev server is actually running and healthy.
+    Returns True if server is confirmed running, False otherwise.
+
+    This performs a robust check:
+    1. Verifies vite.pid file exists
+    2. Reads the PID and confirms the process is alive
+    3. Falls back gracefully if PID is stale
+    """
+    pid_file_path = os.path.join(settings.BASE_DIR, 'frontend', 'vite.pid')
+
+    # First check: Does PID file exist?
+    if not os.path.exists(pid_file_path):
+        return False
+
+    try:
+        # Second check: Read PID and verify process is alive
+        with open(pid_file_path, 'r', encoding='utf-8') as f:
+            pid_str = f.read().strip()
+
+        if not pid_str:
+            logger.warning("vite.pid file exists but is empty - removing stale file")
+            os.remove(pid_file_path)
+            return False
+
+        pid = int(pid_str)
+
+        # Third check: Is the process actually running?
+        # os.kill with signal 0 doesn't actually kill, just checks if process exists
+        try:
+            os.kill(pid, 0)
+            # Process exists and we have permission to signal it
+            return True
+        except OSError:
+            # Process doesn't exist - stale PID file
+            logger.warning(
+                "Vite PID file exists but process %d is not running. "
+                "Removing stale vite.pid file. Vite may have crashed.",
+                pid
+            )
+            os.remove(pid_file_path)
+            return False
+
+    except (ValueError, IOError) as e:
+        logger.error("Error checking Vite dev server status: %s", e)
+        # If we can't read/parse the PID file, assume dev server is not running
+        return False
+
 
 @register.simple_tag
 def vite_assets():
@@ -13,9 +66,9 @@ def vite_assets():
     # Check if Vite dev server is running (development mode with hot reload)
     # DJANGO_ENV=PROD should always use production build
     vite_dev_mode = (
-        os.environ.get('DJANGO_ENV') != 'PROD' and 
-        (os.environ.get('DEVELOPMENT_MODE') == 'true' or 
-         (settings.DEBUG and os.path.exists(os.path.join(settings.BASE_DIR, 'frontend', 'vite.pid'))))
+        os.environ.get('DJANGO_ENV') != 'PROD' and
+        (os.environ.get('DEVELOPMENT_MODE') == 'true' or
+         (settings.DEBUG and is_vite_dev_server_running()))
     )
     
     if vite_dev_mode:
@@ -23,13 +76,13 @@ def vite_assets():
         vite_server = 'http://localhost:5173'
         tags = [
             # React Refresh preamble must come first
-            f'<script type="module">',
+            '<script type="module">',
             f'import RefreshRuntime from "{vite_server}/@react-refresh"',
-            f'RefreshRuntime.injectIntoGlobalHook(window)',
-            f'window.$RefreshReg$ = () => {{}}',
-            f'window.$RefreshSig$ = () => (type) => type',
-            f'window.__vite_plugin_react_preamble_installed__ = true',
-            f'</script>',
+            'RefreshRuntime.injectIntoGlobalHook(window)',
+            'window.$RefreshReg$ = () => {}',
+            'window.$RefreshSig$ = () => (type) => type',
+            'window.__vite_plugin_react_preamble_installed__ = true',
+            '</script>',
             f'<script type="module" src="{vite_server}/@vite/client"></script>',
             f'<script type="module" src="{vite_server}/src/main.tsx"></script>'
         ]
@@ -46,8 +99,8 @@ def vite_assets():
     
     if not os.path.exists(manifest_path):
         return ''
-    
-    with open(manifest_path, 'r') as f:
+
+    with open(manifest_path, 'r', encoding='utf-8') as f:
         manifest = json.load(f)
     
     # Get the main entry file

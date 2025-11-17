@@ -65,7 +65,7 @@ async def threads_runs(request: HttpRequest):
                 status=status.HTTP_404_NOT_FOUND
             )
         # Must use create because there is async in init
-        chat_agent = await agent_class.create(config=agent_config)
+        chat_agent = await agent_class.create(config=agent_config, request=request)
         
         # Create an async generator to stream responses
         async def token_generator():
@@ -143,7 +143,7 @@ async def upload_files(request: HttpRequest) -> Response:
                 {'error': f'Model class for {model_id} not found.'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        chat_agent = await sync_to_async(agent_class)(config=agent_config)
+        chat_agent = await sync_to_async(agent_class)(config=agent_config, request=request)
         async def token_generator():
             try:
                 async for token in chat_agent.process_chat(

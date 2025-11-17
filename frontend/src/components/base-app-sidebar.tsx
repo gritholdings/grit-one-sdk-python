@@ -13,6 +13,7 @@ import { detectAppFromURL } from "@/utils/app-detection"
 
 export type AppConfiguration = {
   name: string
+  key?: string  // Optional: The snake_case app identifier used in URLs (e.g., "agent_studio")
   logo: React.ElementType
   url: string
   navItems: {

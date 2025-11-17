@@ -18,6 +18,7 @@ urlpatterns = [
     path('onboarding/<int:step>/', home_views.onboarding, name='onboarding'),
     path('onboarding/save/', home_views.save_onboarding_progress, name='save_onboarding_progress'),
     path('profile/', home_views.profile, name='profile'),
+    path('app/<str:app_name>/', core_views.app_specific_view, name='app_specific'),
     path('app/', core_views.app_view, name='app'),
     path('', auth_redirect('app', 'home'), name='index'),
     path('', include('app.urls')),

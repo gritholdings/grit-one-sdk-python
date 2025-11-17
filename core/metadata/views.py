@@ -1448,3 +1448,77 @@ class MetadataViewGenerator:
         # Set a meaningful name for the view function
         delete_view.__name__ = f'{model.__name__.lower()}_delete'
         return delete_view
+
+
+class LegacyRedirectView:
+    """
+    View that redirects legacy URLs (without app prefix) to new app-prefixed URLs.
+
+    This enables backwards compatibility while migrating to the new URL structure.
+    Legacy format: /m/Model/list or /r/Model/{id}/view
+    New format: /app/{app_name}/m/Model/list or /app/{app_name}/r/Model/{id}/view
+    """
+
+    def __init__(self, app_name, model_name, pattern_type):
+        """
+        Initialize the redirect view.
+
+        Args:
+            app_name: The app this model belongs to (e.g., 'classroom', 'cms')
+            model_name: The model name (e.g., 'Course', 'Post')
+            pattern_type: Type of URL pattern ('list', 'detail', 'create', 'update',
+                         'inline_update', 'available_items', 'delete')
+        """
+        self.app_name = app_name
+        self.model_name = model_name
+        self.pattern_type = pattern_type
+
+    @classmethod
+    def as_view(cls, **initkwargs):
+        """
+        Return a view function that redirects to the new app-prefixed URL.
+        """
+        def view(request, **kwargs):
+            from django.http import HttpResponseRedirect
+
+            # Get instance parameters
+            app_name = initkwargs.get('app_name')
+            model_name = initkwargs.get('model_name')
+            pattern_type = initkwargs.get('pattern_type')
+
+            # Build the new URL based on pattern type
+            if pattern_type == 'list':
+                new_url = f'/app/{app_name}/m/{model_name}/list'
+            elif pattern_type == 'detail':
+                record_id = kwargs.get(f'{camel_to_snake(model_name)}_id')
+                new_url = f'/app/{app_name}/r/{model_name}/{record_id}/view'
+            elif pattern_type == 'create':
+                new_url = f'/app/{app_name}/m/{model_name}/create'
+            elif pattern_type == 'update':
+                record_id = kwargs.get(f'{camel_to_snake(model_name)}_id')
+                new_url = f'/app/{app_name}/r/{model_name}/{record_id}/update'
+            elif pattern_type == 'inline_update':
+                record_id = kwargs.get(f'{camel_to_snake(model_name)}_id')
+                inline_model = kwargs.get('inline_model')
+                new_url = f'/app/{app_name}/r/{model_name}/{record_id}/inline/{inline_model}/update'
+            elif pattern_type == 'available_items':
+                record_id = kwargs.get(f'{camel_to_snake(model_name)}_id')
+                inline_type = kwargs.get('inline_type')
+                new_url = f'/app/{app_name}/r/{model_name}/{record_id}/available_{inline_type}/'
+            elif pattern_type == 'delete':
+                record_id = kwargs.get(f'{camel_to_snake(model_name)}_id')
+                new_url = f'/app/{app_name}/r/{model_name}/{record_id}/delete'
+            else:
+                # Fallback - shouldn't happen
+                new_url = f'/app/{app_name}/m/{model_name}/list'
+
+            # Preserve query string if present
+            if request.GET:
+                from urllib.parse import urlencode
+                query_string = urlencode(request.GET)
+                new_url = f'{new_url}?{query_string}'
+
+            # Use 302 (temporary) redirect for flexibility
+            return HttpResponseRedirect(new_url)
+
+        return view

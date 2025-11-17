@@ -314,6 +314,7 @@ export function NavActions({ groups = defaultGroups, deleteUrl, modelName }: Nav
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Upload File</DialogTitle>
+              <DialogDescription>Select a file to upload</DialogDescription>
             </DialogHeader>
             <div className="py-4">
               {(() => {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import type { Message, CreateMessage } from '../types';
 import { baseUrl, getCookie } from '../lib/api-client';
 
@@ -15,15 +15,11 @@ export function useChat({
   modelId: string;
   ensureThreadExists: () => Promise<string>;
 }) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isPendingMessage, setIsPendingMessage] = useState(false);
   const [streamingData, setStreamingData] = useState<any>(null);
-
-  useEffect(() => {
-    setMessages(initialMessages);
-  }, [initialMessages]);
 
   const append = useCallback(async (message: CreateMessage) => {
     try {

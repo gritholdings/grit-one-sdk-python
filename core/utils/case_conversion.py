@@ -62,24 +62,54 @@ def resolve_urls_in_app_metadata(settings: Dict[str, Any]) -> Dict[str, Any]:
     """
     Resolve URL names to actual URL paths in APP_METADATA_SETTINGS.
 
-    This function processes the TABS section of APP_METADATA_SETTINGS and converts
-    'url_name' fields (URL identifiers) to 'url' fields (actual URL paths)
-    using reverse() function.
+    This function processes the TABS and APPS sections of APP_METADATA_SETTINGS:
+    - For TABS with 'url_name': converts to 'url' using reverse()
+    - For APPS with model-based tabs: generates app-prefixed URLs (/app/{app_name}/m/{Model}/list)
 
     Example:
         Input:  {'url_name': 'showcases_monte_carlo'}
         Output: {'url': '/showcases/monte-carlo/'}
 
+        Input:  app 'classroom' with tab 'course'
+        Output: {'url': '/app/classroom/m/Course/list'}
+
     Args:
         settings: The APP_METADATA_SETTINGS dictionary
 
     Returns:
-        A deep copy of settings with 'url_name' resolved to 'url' paths
+        A deep copy of settings with resolved URL paths
     """
     # Deep copy to avoid modifying the original settings
     resolved_settings = copy.deepcopy(settings)
 
-    # Process TABS section if it exists
+    # Get references to APPS, MODELS, and TABS
+    apps_config = resolved_settings.get('APPS', {})
+    models_config = resolved_settings.get('MODELS', {})
+    tabs_config = resolved_settings.get('TABS', {})
+
+    # Process each app and its tabs
+    for app_key, app_config in apps_config.items():
+        tabs = app_config.get('tabs', [])
+
+        for tab_key in tabs:
+            # Check if this tab is a model (exists in MODELS config)
+            if tab_key in models_config:
+                # This is a model-based tab - generate app-prefixed URL
+                # Convert tab_key (snake_case) to ModelName (PascalCase)
+                model_name = ''.join(word.capitalize() for word in tab_key.split('_'))
+                # Generate the new app-prefixed URL
+                app_prefixed_url = f'/app/{app_key}/m/{model_name}/list'
+
+                # Store the URL in the MODELS config for this model
+                if tab_key not in resolved_settings.get('MODELS', {}):
+                    resolved_settings.setdefault('MODELS', {})[tab_key] = {}
+                resolved_settings['MODELS'][tab_key]['url'] = app_prefixed_url
+
+                logger.debug(
+                    f"Generated app-prefixed URL '{app_prefixed_url}' for model '{tab_key}' in app '{app_key}'"
+                )
+
+    # Process TABS section for custom (non-model) tabs
     if 'TABS' in resolved_settings and isinstance(resolved_settings['TABS'], dict):
         for tab_key, tab_config in resolved_settings['TABS'].items():
             if isinstance(tab_config, dict) and 'url_name' in tab_config:

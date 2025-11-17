@@ -26,6 +26,56 @@ def custom_csrf_failure_view(request, reason=""):
     return redirect("login")
 
 
+def _resolve_tab_url(tab_key, app_metadata_settings):
+    """
+    Resolve a tab key to its corresponding URL.
+
+    Args:
+        tab_key: The tab identifier (e.g., 'course', 'agent', 'tools')
+        app_metadata_settings: The APP_METADATA_SETTINGS configuration dict
+
+    Returns:
+        URL string if tab can be resolved, None otherwise
+    """
+    models_config = app_metadata_settings.get('MODELS', {})
+    tabs_config = app_metadata_settings.get('TABS', {})
+
+    # First check if it's a model (models have list URLs at /m/{ModelName}/list)
+    if tab_key in models_config:
+        # Convert snake_case to PascalCase for model name
+        model_name = ''.join(word.capitalize() for word in tab_key.split('_'))
+        return f'/m/{model_name}/list'
+
+    # Then check if it's a custom tab with a URL
+    elif tab_key in tabs_config:
+        url_name = tabs_config[tab_key].get('url_name', '')
+        if url_name:
+            # Construct the URL based on common patterns
+            return f'/{url_name}/'
+
+    # Tab not found in either models or tabs config
+    return None
+
+
+def _find_first_accessible_tab(user, tabs, app_metadata_settings):
+    """
+    Find the first accessible tab URL for a given user.
+
+    Args:
+        user: Django User object
+        tabs: List of tab keys to check
+        app_metadata_settings: The APP_METADATA_SETTINGS configuration dict
+
+    Returns:
+        URL string of first accessible tab, or None if none found
+    """
+    for tab_key in tabs:
+        url = _resolve_tab_url(tab_key, app_metadata_settings)
+        if url and _check_url_access(user, url):
+            return url
+    return None
+
+
 @login_required
 def app_view(request):
     """
@@ -40,39 +90,51 @@ def app_view(request):
     # Get APP_METADATA_SETTINGS
     app_metadata_settings = getattr(settings, 'APP_METADATA_SETTINGS', {})
     apps = app_metadata_settings.get('APPS', {})
-    models_config = app_metadata_settings.get('MODELS', {})
-    tabs_config = app_metadata_settings.get('TABS', {})
 
     # Iterate through all apps and their tabs
     for app_key, app_config in apps.items():
         tabs = app_config.get('tabs', [])
+        first_accessible_url = _find_first_accessible_tab(request.user, tabs, app_metadata_settings)
 
-        for tab_key in tabs:
-            # Determine the URL for this tab
-            # First check if it's a model (models have list URLs at /m/{ModelName}/list)
-            if tab_key in models_config:
-                # Convert snake_case to PascalCase for model name
-                model_name = ''.join(word.capitalize() for word in tab_key.split('_'))
-                url = f'/m/{model_name}/list'
-            # Then check if it's a custom tab with a URL
-            elif tab_key in tabs_config:
-                url_name = tabs_config[tab_key].get('url_name', '')
-                if url_name:
-                    # For now, we'll construct the URL based on common patterns
-                    # In a real implementation, you might want to use reverse() here
-                    # But since we're checking accessibility via resolution, we need the path
-                    url = f'/{url_name}/'
-                else:
-                    continue
-            else:
-                # Tab not found in either models or tabs config
-                continue
-
-            # Check if user has access to this URL
-            if _check_url_access(request.user, url):
-                return redirect(url)
+        if first_accessible_url:
+            return redirect(first_accessible_url)
 
     # No accessible URLs found - redirect to profile as default
+    return redirect("profile")
+
+
+@login_required
+def app_specific_view(request, app_name):
+    """
+    App-specific landing page that redirects to the first accessible tab within a specific app.
+
+    Args:
+        request: Django request object
+        app_name: The app key from APP_METADATA_SETTINGS (e.g., 'classroom', 'sales')
+
+    Returns:
+        Redirect to first accessible tab in the app, or 404 if app not found.
+        If no tabs are accessible, redirects to profile page.
+    """
+    # Get APP_METADATA_SETTINGS
+    app_metadata_settings = getattr(settings, 'APP_METADATA_SETTINGS', {})
+    apps = app_metadata_settings.get('APPS', {})
+
+    # Validate app exists
+    if app_name not in apps:
+        raise Http404(f"App '{app_name}' not found in APP_METADATA_SETTINGS")
+
+    # Get app configuration and tabs
+    app_config = apps[app_name]
+    tabs = app_config.get('tabs', [])
+
+    # Find first accessible tab
+    first_accessible_url = _find_first_accessible_tab(request.user, tabs, app_metadata_settings)
+
+    if first_accessible_url:
+        return redirect(first_accessible_url)
+
+    # No accessible tabs in this app - redirect to profile as default
     return redirect("profile")
 
 
