@@ -5,7 +5,6 @@ import type { User, Message } from './types';
 import AppLayout from '@/components/app-layout';
 import { AppSidebar } from './components/app-sidebar';
 import { Chat } from './components/chat';
-import { useDebugLoading } from '@/hooks/use-debug-loading';
 
 interface AppChatProps {
   threadId?: string;
@@ -13,7 +12,7 @@ interface AppChatProps {
 
 export default function AppChat({ threadId: initialThreadId }: AppChatProps) {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useDebugLoading(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [currentThreadId, setCurrentThreadId] = useState<string>(initialThreadId || '');
   const [initialMessages, setInitialMessages] = useState<Message[] | null>(null);
   const skipNextReloadRef = useRef(false);

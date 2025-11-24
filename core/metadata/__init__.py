@@ -171,7 +171,7 @@ class MetadataRegistry:
                 # List view
                 patterns.append(
                     path(
-                        f'app/{app_name}/m/{model_name}/list',
+                        f'app/{app_name}/m/{model_name_lower}/list',
                         list_view,
                         name=f'{model_name_lower}_listview{url_suffix}'
                     )
@@ -180,7 +180,7 @@ class MetadataRegistry:
                 # Detail view
                 patterns.append(
                     path(
-                        f'app/{app_name}/r/{model_name}/<uuid:{model_name_lower}_id>/view',
+                        f'app/{app_name}/r/{model_name_lower}/<uuid:{model_name_lower}_id>/view',
                         detail_view,
                         name=f'{model_name_lower}_detailview{url_suffix}'
                     )
@@ -189,7 +189,7 @@ class MetadataRegistry:
                 # Create view
                 patterns.append(
                     path(
-                        f'app/{app_name}/m/{model_name}/create',
+                        f'app/{app_name}/m/{model_name_lower}/create',
                         create_view,
                         name=f'{model_name_lower}_create{url_suffix}'
                     )
@@ -198,7 +198,7 @@ class MetadataRegistry:
                 # Update view
                 patterns.append(
                     path(
-                        f'app/{app_name}/r/{model_name}/<uuid:{model_name_lower}_id>/update',
+                        f'app/{app_name}/r/{model_name_lower}/<uuid:{model_name_lower}_id>/update',
                         update_view,
                         name=f'{model_name_lower}_update{url_suffix}'
                     )
@@ -207,7 +207,7 @@ class MetadataRegistry:
                 # Inline update view
                 patterns.append(
                     path(
-                        f'app/{app_name}/r/{model_name}/<uuid:{model_name_lower}_id>/inline/<str:inline_model>/update',
+                        f'app/{app_name}/r/{model_name_lower}/<uuid:{model_name_lower}_id>/inline/<str:inline_model>/update',
                         inline_update_view,
                         name=f'{model_name_lower}_inline_update{url_suffix}'
                     )
@@ -216,7 +216,7 @@ class MetadataRegistry:
                 # Available items view
                 patterns.append(
                     path(
-                        f'app/{app_name}/r/{model_name}/<uuid:{model_name_lower}_id>/available_<str:inline_type>/',
+                        f'app/{app_name}/r/{model_name_lower}/<uuid:{model_name_lower}_id>/available_<str:inline_type>/',
                         available_items_view,
                         name=f'{model_name_lower}_available_items{url_suffix}'
                     )
@@ -225,7 +225,7 @@ class MetadataRegistry:
                 # Delete view
                 patterns.append(
                     path(
-                        f'app/{app_name}/r/{model_name}/<uuid:{model_name_lower}_id>/delete',
+                        f'app/{app_name}/r/{model_name_lower}/<uuid:{model_name_lower}_id>/delete',
                         delete_view,
                         name=f'{model_name_lower}_delete{url_suffix}'
                     )
@@ -240,10 +240,10 @@ class MetadataRegistry:
             # List view redirect
             patterns.append(
                 path(
-                    f'm/{model_name}/list',
+                    f'm/{model_name_lower}/list',
                     LegacyRedirectView.as_view(
                         app_name=primary_app,
-                        model_name=model_name,
+                        model_name=model_name_lower,
                         pattern_type='list'
                     ),
                     name=f'{model_name_lower}_listview_legacy'
@@ -253,10 +253,10 @@ class MetadataRegistry:
             # Detail view redirect
             patterns.append(
                 path(
-                    f'r/{model_name}/<uuid:{model_name_lower}_id>/view',
+                    f'r/{model_name_lower}/<uuid:{model_name_lower}_id>/view',
                     LegacyRedirectView.as_view(
                         app_name=primary_app,
-                        model_name=model_name,
+                        model_name=model_name_lower,
                         pattern_type='detail'
                     ),
                     name=f'{model_name_lower}_detailview_legacy'
@@ -266,10 +266,10 @@ class MetadataRegistry:
             # Create view redirect
             patterns.append(
                 path(
-                    f'm/{model_name}/create',
+                    f'm/{model_name_lower}/create',
                     LegacyRedirectView.as_view(
                         app_name=primary_app,
-                        model_name=model_name,
+                        model_name=model_name_lower,
                         pattern_type='create'
                     ),
                     name=f'{model_name_lower}_create_legacy'
@@ -279,10 +279,10 @@ class MetadataRegistry:
             # Update view redirect
             patterns.append(
                 path(
-                    f'r/{model_name}/<uuid:{model_name_lower}_id>/update',
+                    f'r/{model_name_lower}/<uuid:{model_name_lower}_id>/update',
                     LegacyRedirectView.as_view(
                         app_name=primary_app,
-                        model_name=model_name,
+                        model_name=model_name_lower,
                         pattern_type='update'
                     ),
                     name=f'{model_name_lower}_update_legacy'
@@ -292,10 +292,10 @@ class MetadataRegistry:
             # Inline update view redirect
             patterns.append(
                 path(
-                    f'r/{model_name}/<uuid:{model_name_lower}_id>/inline/<str:inline_model>/update',
+                    f'r/{model_name_lower}/<uuid:{model_name_lower}_id>/inline/<str:inline_model>/update',
                     LegacyRedirectView.as_view(
                         app_name=primary_app,
-                        model_name=model_name,
+                        model_name=model_name_lower,
                         pattern_type='inline_update'
                     ),
                     name=f'{model_name_lower}_inline_update_legacy'
@@ -305,10 +305,10 @@ class MetadataRegistry:
             # Available items view redirect
             patterns.append(
                 path(
-                    f'r/{model_name}/<uuid:{model_name_lower}_id>/available_<str:inline_type>/',
+                    f'r/{model_name_lower}/<uuid:{model_name_lower}_id>/available_<str:inline_type>/',
                     LegacyRedirectView.as_view(
                         app_name=primary_app,
-                        model_name=model_name,
+                        model_name=model_name_lower,
                         pattern_type='available_items'
                     ),
                     name=f'{model_name_lower}_available_items_legacy'
@@ -318,10 +318,10 @@ class MetadataRegistry:
             # Delete view redirect
             patterns.append(
                 path(
-                    f'r/{model_name}/<uuid:{model_name_lower}_id>/delete',
+                    f'r/{model_name_lower}/<uuid:{model_name_lower}_id>/delete',
                     LegacyRedirectView.as_view(
                         app_name=primary_app,
-                        model_name=model_name,
+                        model_name=model_name_lower,
                         pattern_type='delete'
                     ),
                     name=f'{model_name_lower}_delete_legacy'

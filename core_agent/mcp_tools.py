@@ -1,13 +1,19 @@
 """
 MCP (Model Context Protocol) toolset registrations for chatbot_app.
 
-This module registers models for MCP access, allowing internal AI agents
-to query them through the /agent/mcp endpoint.
+This module contains manual registrations for models that require custom
+query filtering logic beyond what the scoped manager provides.
+
+Models with simple permission logic can rely on auto-discovery via the
+scoped manager convention. Only register models here if they need
+custom get_queryset() implementations.
+
+NOTE: Models with scoped managers are auto-discovered at startup.
+Manual registrations in this file override auto-discovered ones.
 """
 
 from core_agent.mcp_server import mcp_registry, ModelQueryToolset
 from core_agent.models import Agent
-from core_sales.models import Account
 
 
 @mcp_registry.register(Agent)
@@ -60,40 +66,3 @@ class AgentQueryTool(ModelQueryToolset):
             pass
 
         return super().get_queryset().filter(query).distinct()
-
-
-@mcp_registry.register(Account)
-class AccountQueryTool(ModelQueryToolset):
-    """
-    MCP toolset for querying Account records.
-
-    This exposes Account model for read-only queries by AI agents.
-    Filters accounts based on user permissions.
-    """
-
-    model = Account
-
-    def get_queryset(self):
-        """
-        Filter accounts based on user access.
-
-        Returns:
-            - All accounts for superusers
-            - Filtered accounts for regular users (future enhancement)
-
-        For now, returns all accounts for authenticated users.
-        Future versions will add permission-based filtering via user_mode manager.
-        """
-        user = self.request.user
-
-        if user.is_anonymous:
-            # Anonymous users see no accounts
-            return super().get_queryset().none()
-
-        if user.is_superuser:
-            # Superusers see all accounts
-            return super().get_queryset()
-
-        # Regular users see all accounts for now
-        # Future: Filter based on account contacts/permissions
-        return super().get_queryset()

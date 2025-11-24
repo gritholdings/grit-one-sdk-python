@@ -510,3 +510,195 @@ def check_profile_permission(
     has_permission = model_permissions.get(permission_type, False)
 
     return has_permission
+
+
+def get_user_field_permissions(
+    user,
+    model_name: str,
+    settings: Dict
+) -> tuple[Dict[str, Dict[str, bool]], bool]:
+    """
+    Get field-level permissions for a user on a specific model.
+
+    This function retrieves field permissions from the user's profile configuration
+    and returns them in a format convenient for enforcement. Superusers bypass all
+    restrictions and get full access to all fields.
+
+    Args:
+        user: Django User object with profile relationship and is_superuser attribute
+        model_name: The model name (lowercase) to check field permissions for (e.g., 'course')
+        settings: The APP_METADATA_SETTINGS dictionary with structure:
+            {
+                'PROFILES': {
+                    'profile_name': {
+                        'field_permissions': {
+                            'model.field': {
+                                'readable': bool,
+                                'editable': bool
+                            }
+                        }
+                    }
+                }
+            }
+
+    Returns:
+        Tuple of (field_permissions_dict, has_field_permissions_config):
+        - field_permissions_dict: Dictionary mapping field names to their permissions:
+            {
+                'field_name': {'readable': bool, 'editable': bool},
+                ...
+            }
+        - has_field_permissions_config: Boolean indicating if profile has ANY field_permissions
+            configured. This distinguishes between "no config" vs "config exists but field missing".
+
+    Security Note:
+        - Superusers: returns ({}, False) - full access to all fields
+        - No profile/config: returns ({}, False) - full access to all fields
+        - Has config but empty for model: returns ({}, True) - DENY all fields for this model
+        - Has config with fields: returns ({fields}, True) - explicit permissions apply
+
+    Example:
+        >>> perms, has_config = get_user_field_permissions(user, 'course', settings)
+        >>> if has_config and 'name' not in perms:
+        >>>     # Field not in whitelist - deny access
+        >>> elif perms.get('name', {}).get('readable', True):
+        >>>     # Field is readable
+    """
+    # Superusers bypass all field restrictions
+    if hasattr(user, 'is_superuser') and user.is_superuser:
+        return {}, False
+
+    # If no PROFILES configuration exists, no restrictions
+    if not settings or 'PROFILES' not in settings:
+        return {}, False
+
+    # Check if user has a profile assigned
+    if not hasattr(user, 'profile') or not user.profile:
+        # No profile assigned - no restrictions (allow other permission layers)
+        return {}, False
+
+    # Get the user's profile name
+    profile = user.profile
+    profile_name = profile.name if hasattr(profile, 'name') else None
+
+    if not profile_name:
+        # Profile exists but has no name - no restrictions
+        return {}, False
+
+    # Get profile configuration
+    profiles_config = settings.get('PROFILES', {})
+    profile_config = profiles_config.get(profile_name, {})
+
+    # Get field_permissions from profile
+    field_permissions_config = profile_config.get('field_permissions', {})
+
+    if not field_permissions_config:
+        # No field permissions configured - no restrictions
+        return {}, False
+
+    # Profile HAS field_permissions configured - this is important for default behavior
+    # Parse field permissions for this specific model
+    # Format is 'model.field': {'readable': bool, 'editable': bool}
+    model_prefix = f'{model_name}.'
+    field_perms = {}
+
+    for key, perms in field_permissions_config.items():
+        if key.startswith(model_prefix):
+            # Extract field name from 'model.field' format
+            field_name = key[len(model_prefix):]
+            field_perms[field_name] = {
+                'readable': perms.get('readable', True),
+                'editable': perms.get('editable', True)
+            }
+
+    # Return field permissions AND flag indicating config exists
+    # This allows callers to distinguish "no config" from "field not in whitelist"
+    return field_perms, True
+
+
+def check_field_readable(
+    user,
+    model_name: str,
+    field_name: str,
+    settings: Dict
+) -> bool:
+    """
+    Check if a user can read a specific field on a model.
+
+    This is a convenience function that wraps get_user_field_permissions()
+    for simple boolean checks.
+
+    Args:
+        user: Django User object
+        model_name: The model name (lowercase) e.g., 'course'
+        field_name: The field name e.g., 'description'
+        settings: The APP_METADATA_SETTINGS dictionary
+
+    Returns:
+        True if user can read the field, False otherwise
+
+        Behavior:
+        - Superuser or no field_permissions config: returns True (allow all)
+        - Profile has field_permissions but field not listed: returns False (whitelist mode)
+        - Field explicitly listed: returns the configured readable value
+
+    Example:
+        >>> if check_field_readable(user, 'course', 'name', settings):
+        >>>     obj_data['name'] = obj.name
+    """
+    field_perms, has_config = get_user_field_permissions(user, model_name, settings)
+
+    # No config means no restrictions (superuser or no field_permissions)
+    if not has_config:
+        return True
+
+    # Config exists - if field not in whitelist, deny access
+    if field_name not in field_perms:
+        return False
+
+    # Return the explicit readable setting
+    return field_perms[field_name].get('readable', True)
+
+
+def check_field_editable(
+    user,
+    model_name: str,
+    field_name: str,
+    settings: Dict
+) -> bool:
+    """
+    Check if a user can edit a specific field on a model.
+
+    This is a convenience function that wraps get_user_field_permissions()
+    for simple boolean checks.
+
+    Args:
+        user: Django User object
+        model_name: The model name (lowercase) e.g., 'course'
+        field_name: The field name e.g., 'description'
+        settings: The APP_METADATA_SETTINGS dictionary
+
+    Returns:
+        True if user can edit the field, False otherwise
+
+        Behavior:
+        - Superuser or no field_permissions config: returns True (allow all)
+        - Profile has field_permissions but field not listed: returns False (whitelist mode)
+        - Field explicitly listed: returns the configured editable value
+
+    Example:
+        >>> if not check_field_editable(user, 'course', 'status', settings):
+        >>>     return JsonResponse({'error': 'Cannot edit status field'}, status=403)
+    """
+    field_perms, has_config = get_user_field_permissions(user, model_name, settings)
+
+    # No config means no restrictions (superuser or no field_permissions)
+    if not has_config:
+        return True
+
+    # Config exists - if field not in whitelist, deny access
+    if field_name not in field_perms:
+        return False
+
+    # Return the explicit editable setting
+    return field_perms[field_name].get('editable', True)

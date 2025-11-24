@@ -45,10 +45,16 @@ class ModelPermissionsTypedDict(TypedDict):
     allow_delete: NotRequired[bool]
 
 
+class FieldPermissionsTypedDict(TypedDict):
+    readable: NotRequired[bool]
+    editable: NotRequired[bool]
+
+
 class ProfileConfigTypedDict(TypedDict):
     app_visibilities: NotRequired[Dict[str, VisibilityItemTypedDict]]
     tab_visibilities: NotRequired[Dict[str, TabVisibilityItemTypedDict]]
     model_permissions: NotRequired[Dict[str, ModelPermissionsTypedDict]]
+    field_permissions: NotRequired[Dict[str, FieldPermissionsTypedDict]]
 
 
 class AppMetadataSettingsTypedDict(TypedDict):

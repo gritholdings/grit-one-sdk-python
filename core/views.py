@@ -26,13 +26,14 @@ def custom_csrf_failure_view(request, reason=""):
     return redirect("login")
 
 
-def _resolve_tab_url(tab_key, app_metadata_settings):
+def _resolve_tab_url(tab_key, app_metadata_settings, app_name=None):
     """
     Resolve a tab key to its corresponding URL.
 
     Args:
         tab_key: The tab identifier (e.g., 'course', 'agent', 'tools')
         app_metadata_settings: The APP_METADATA_SETTINGS configuration dict
+        app_name: The app context (e.g., 'classroom', 'sales'). Required for model URLs.
 
     Returns:
         URL string if tab can be resolved, None otherwise
@@ -40,11 +41,13 @@ def _resolve_tab_url(tab_key, app_metadata_settings):
     models_config = app_metadata_settings.get('MODELS', {})
     tabs_config = app_metadata_settings.get('TABS', {})
 
-    # First check if it's a model (models have list URLs at /m/{ModelName}/list)
+    # First check if it's a model (models have app-prefixed URLs at /app/{app}/m/{model}/list)
     if tab_key in models_config:
-        # Convert snake_case to PascalCase for model name
-        model_name = ''.join(word.capitalize() for word in tab_key.split('_'))
-        return f'/m/{model_name}/list'
+        if not app_name:
+            # App context is required for model URLs
+            return None
+        # tab_key is already in snake_case, use it directly
+        return f'/app/{app_name}/m/{tab_key}/list'
 
     # Then check if it's a custom tab with a URL
     elif tab_key in tabs_config:
@@ -57,7 +60,7 @@ def _resolve_tab_url(tab_key, app_metadata_settings):
     return None
 
 
-def _find_first_accessible_tab(user, tabs, app_metadata_settings):
+def _find_first_accessible_tab(user, tabs, app_metadata_settings, app_name=None):
     """
     Find the first accessible tab URL for a given user.
 
@@ -65,12 +68,13 @@ def _find_first_accessible_tab(user, tabs, app_metadata_settings):
         user: Django User object
         tabs: List of tab keys to check
         app_metadata_settings: The APP_METADATA_SETTINGS configuration dict
+        app_name: The app context (e.g., 'classroom', 'sales'). Required for model URLs.
 
     Returns:
         URL string of first accessible tab, or None if none found
     """
     for tab_key in tabs:
-        url = _resolve_tab_url(tab_key, app_metadata_settings)
+        url = _resolve_tab_url(tab_key, app_metadata_settings, app_name)
         if url and _check_url_access(user, url):
             return url
     return None
@@ -94,7 +98,7 @@ def app_view(request):
     # Iterate through all apps and their tabs
     for app_key, app_config in apps.items():
         tabs = app_config.get('tabs', [])
-        first_accessible_url = _find_first_accessible_tab(request.user, tabs, app_metadata_settings)
+        first_accessible_url = _find_first_accessible_tab(request.user, tabs, app_metadata_settings, app_key)
 
         if first_accessible_url:
             return redirect(first_accessible_url)
@@ -129,7 +133,7 @@ def app_specific_view(request, app_name):
     tabs = app_config.get('tabs', [])
 
     # Find first accessible tab
-    first_accessible_url = _find_first_accessible_tab(request.user, tabs, app_metadata_settings)
+    first_accessible_url = _find_first_accessible_tab(request.user, tabs, app_metadata_settings, app_name)
 
     if first_accessible_url:
         return redirect(first_accessible_url)
@@ -149,16 +153,25 @@ def _check_url_access(user, url):
     Returns:
         Boolean indicating if user has access
     """
-    # Pattern 1: Model URLs (/m/{ModelName}/list)
+    # Pattern 1: New app-prefixed model URLs (/app/{app_name}/m/{model_name}/list)
+    # model_name is in snake_case (e.g., 'course', 'course_work')
+    new_model_url_pattern = r'^/app/([a-z_]+)/m/([a-z_]+)/list/?$'
+    match = re.match(new_model_url_pattern, url)
+
+    if match:
+        model_name_snake = match.group(2)
+        return _check_model_access(user, model_name_snake)
+
+    # Pattern 2: Legacy model URLs (/m/{ModelName}/list) - for backward compatibility
     # Supports multi-word model names like CourseWork, AgentConfig, etc.
-    model_url_pattern = r'^/m/([A-Z][A-Za-z0-9]*)/list/?$'
-    match = re.match(model_url_pattern, url)
+    legacy_model_url_pattern = r'^/m/([A-Z][A-Za-z0-9]*)/list/?$'
+    match = re.match(legacy_model_url_pattern, url)
 
     if match:
         model_name = match.group(1)
         return _check_model_access(user, model_name)
 
-    # Pattern 2: Custom URLs (everything else)
+    # Pattern 3: Custom URLs (everything else)
     return _check_custom_url_access(user, url)
 
 
@@ -168,7 +181,9 @@ def _check_model_access(user, model_name):
 
     Args:
         user: User object
-        model_name: Name of the model to check (e.g., 'Agent')
+        model_name: Name of the model to check. Can be either:
+                   - PascalCase (e.g., 'Agent', 'CourseWork') from legacy URLs
+                   - snake_case (e.g., 'agent', 'course_work') from new URLs
 
     Returns:
         Boolean indicating if user has access to the model
@@ -176,21 +191,35 @@ def _check_model_access(user, model_name):
     # Get all registered models
     registered_models = metadata.get_registered_models()
 
+    # Determine if model_name is snake_case or PascalCase
+    # snake_case will have underscores or be all lowercase
+    is_snake_case = '_' in model_name or model_name.islower()
+
     # Find the model class by name
     model_class = None
-    for registered_model in registered_models.keys():
-        if registered_model.__name__ == model_name:
-            model_class = registered_model
-            break
+    if is_snake_case:
+        # Convert snake_case to PascalCase to match model class names
+        # e.g., 'course_work' -> 'CourseWork'
+        model_name_pascal = ''.join(word.capitalize() for word in model_name.split('_'))
+        for registered_model in registered_models.keys():
+            if registered_model.__name__ == model_name_pascal:
+                model_class = registered_model
+                break
+        # Use the snake_case name directly for permission checks
+        model_name_snake = model_name
+    else:
+        # PascalCase - use as-is for model lookup
+        for registered_model in registered_models.keys():
+            if registered_model.__name__ == model_name:
+                model_class = registered_model
+                break
+        # Convert PascalCase to snake_case for permission check
+        # e.g., 'CourseWork' -> 'course_work'
+        model_name_snake = camel_to_snake(model_name)
 
     if not model_class:
         # Model not found in registry
         return False
-
-    # Check if user has group permission to access this model
-    # Convert PascalCase model name to snake_case for permission check
-    # e.g., 'CourseWork' -> 'course_work'
-    model_name_snake = camel_to_snake(model_name)
 
     # Get APP_METADATA_SETTINGS for permission checks
     app_metadata_settings = getattr(settings, 'APP_METADATA_SETTINGS', {})

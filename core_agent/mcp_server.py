@@ -322,6 +322,12 @@ class MCPRegistry:
     This follows the same pattern as the metadata registry system.
     Use the decorator pattern to register toolsets for models.
 
+    The registry supports two registration modes:
+    1. Auto-discovery: Models with 'scoped' managers are automatically registered
+    2. Manual registration: Use @mcp_registry.register() decorator for custom toolsets
+
+    Manual registrations override auto-discovered ones, allowing custom behavior.
+
     Example:
         @mcp_registry.register(Account)
         class AccountQueryTool(ModelQueryToolset):
@@ -330,6 +336,7 @@ class MCPRegistry:
 
     def __init__(self):
         self._registry: Dict[Model, type] = {}
+        self._auto_discovered: bool = False
         # Add ModelQueryToolset as an attribute for backward compatibility
         self.ModelQueryToolset = ModelQueryToolset
 
@@ -415,26 +422,103 @@ class MCPRegistry:
 
     def get_models_with_user_mode(self) -> List[type]:
         """
-        Get all registered models that have a user_mode manager.
+        Get all registered models that have a scoped manager.
 
         This is used by BaseOpenAIUserModeAgent to determine which models
         are accessible for querying through MCP tools.
 
         Returns:
-            List of model classes that have a 'user_mode' manager attribute
+            List of model classes that have a 'scoped' manager attribute
         """
-        models_with_user_mode = []
+        models_with_scoped = []
 
         for model_class in self._registry.keys():
-            # Check if the model has a user_mode attribute
-            if hasattr(model_class, 'user_mode'):
-                user_mode_attr = getattr(model_class, 'user_mode')
+            # Check if the model has a scoped attribute
+            if hasattr(model_class, 'scoped'):
+                scoped_attr = getattr(model_class, 'scoped')
                 # Verify it's a manager (not just any attribute)
                 from django.db.models import Manager
-                if isinstance(user_mode_attr, Manager):
-                    models_with_user_mode.append(model_class)
+                if isinstance(scoped_attr, Manager):
+                    models_with_scoped.append(model_class)
 
-        return models_with_user_mode
+        return models_with_scoped
+
+    def register_default(self, model_class: type) -> type:
+        """
+        Register a model with a default ModelQueryToolset.
+
+        This creates a simple toolset class that uses the model's scoped manager
+        for queryset filtering. The toolset will call scoped.for_user(user)
+        to properly filter results based on user permissions.
+
+        Args:
+            model_class: The Django model class to register
+
+        Returns:
+            The created toolset class
+        """
+        # Create a dynamic toolset class for this model
+        def get_user_filtered_queryset(self):
+            """Get queryset filtered by current user via scoped manager."""
+            scoped_manager = getattr(model_class, 'scoped')
+            return scoped_manager.for_user(self.request.user)
+
+        toolset_class = type(
+            f"{model_class.__name__}DefaultQueryTool",
+            (ModelQueryToolset,),
+            {
+                'model': model_class,
+                'get_queryset': get_user_filtered_queryset
+            }
+        )
+
+        # Register it
+        self._registry[model_class] = toolset_class
+        return toolset_class
+
+    def auto_discover(self):
+        """
+        Auto-discover and register all Django models with scoped managers.
+
+        This scans all installed Django apps for models that have a 'scoped'
+        manager attribute. Models are registered with a default toolset unless
+        they're already manually registered.
+
+        Manual registrations always take precedence over auto-discovered ones.
+        This allows models with complex permission logic to have custom toolsets
+        while simple models can rely on auto-discovery.
+
+        This method should be called once during Django's app initialization.
+        """
+        if self._auto_discovered:
+            # Already discovered, don't run again
+            return
+
+        from django.apps import apps
+        from django.db.models import Manager
+
+        discovered_count = 0
+
+        # Iterate through all installed models
+        for model_class in apps.get_models():
+            # Check if model has scoped manager
+            if hasattr(model_class, 'scoped'):
+                scoped_attr = getattr(model_class, 'scoped')
+
+                # Verify it's actually a Manager instance
+                if isinstance(scoped_attr, Manager):
+                    # Only register if not already manually registered
+                    if model_class not in self._registry:
+                        self.register_default(model_class)
+                        discovered_count += 1
+
+        self._auto_discovered = True
+
+        # Log discovery results (optional, can be removed if too verbose)
+        if discovered_count > 0:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.debug(f"MCP auto-discovery: registered {discovered_count} models with scoped managers")
 
 
 # Create global registry instance

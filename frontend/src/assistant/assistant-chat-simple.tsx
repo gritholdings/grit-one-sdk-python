@@ -13,7 +13,6 @@ import { Block } from '@/chat/components/block';
 import type { UIBlock } from '@/chat/components/block';
 import type { ModelOptions } from '@/chat/components/chat';
 import { useWindowSize } from 'usehooks-ts';
-import { useDebugLoading } from '@/hooks/use-debug-loading';
 
 interface AssistantChatSimpleProps {
   onClose?: () => void;
@@ -21,7 +20,7 @@ interface AssistantChatSimpleProps {
 
 export function AssistantChatSimple({ onClose }: AssistantChatSimpleProps) {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useDebugLoading(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [currentThreadId, setCurrentThreadId] = useState<string>('');
   const threadIdRef = useRef<string>(currentThreadId);
   const [attachments, setAttachments] = useState<Array<Attachment>>([]);

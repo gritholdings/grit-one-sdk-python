@@ -95,10 +95,8 @@ def resolve_urls_in_app_metadata(settings: Dict[str, Any]) -> Dict[str, Any]:
             # Check if this tab is a model (exists in MODELS config)
             if tab_key in models_config:
                 # This is a model-based tab - generate app-prefixed URL
-                # Convert tab_key (snake_case) to ModelName (PascalCase)
-                model_name = ''.join(word.capitalize() for word in tab_key.split('_'))
-                # Generate the new app-prefixed URL
-                app_prefixed_url = f'/app/{app_key}/m/{model_name}/list'
+                # tab_key is already in snake_case, use it directly
+                app_prefixed_url = f'/app/{app_key}/m/{tab_key}/list'
 
                 # Store the URL in the MODELS config for this model
                 if tab_key not in resolved_settings.get('MODELS', {}):

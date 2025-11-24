@@ -540,7 +540,7 @@ class BaseOpenAIUserModeAgent(BaseOpenAIAgent):
     OpenAI Agent with MCP (Model Context Protocol) database querying capabilities.
 
     This agent extends BaseOpenAIAgent by adding the ability to query Django models
-    that are registered with MCP and have a .user_mode manager.
+    that are registered with MCP and have a .scoped manager.
 
     The MCP integration is opt-in - only this class gets MCP tools by default.
     BaseOpenAIAgent continues to work without any MCP functionality.
@@ -558,7 +558,7 @@ class BaseOpenAIUserModeAgent(BaseOpenAIAgent):
         Build tools list with MCP query capability.
 
         Extends parent's tool list by adding MCP database querying for models
-        registered with user_mode managers.
+        registered with scoped managers.
 
         Returns:
             list: Base tools plus MCP query tool if applicable
@@ -569,12 +569,12 @@ class BaseOpenAIUserModeAgent(BaseOpenAIAgent):
         # Get base tools (web search, etc.) from parent
         tools = super()._build_tools()
 
-        # Add MCP query tool if there are models with user_mode managers
-        models_with_user_mode = mcp_registry.get_models_with_user_mode()
+        # Add MCP query tool if there are models with scoped managers
+        models_with_scoped = mcp_registry.get_models_with_user_mode()
 
-        if models_with_user_mode:
+        if models_with_scoped:
             # Build list of available models for the tool description
-            model_names = [model.__name__ for model in models_with_user_mode]
+            model_names = [model.__name__ for model in models_with_scoped]
             model_list_str = ", ".join(model_names)
 
             # Create the MCP query tool with request context
@@ -588,7 +588,7 @@ Available models: {model_list_str}
 Available operations: list, retrieve, search
 
 This tool allows querying registered Django models with read-only access.
-Only models with user_mode managers are accessible.
+Only models with scoped managers are accessible.
 
 Examples:
 - List records: mcp_query(model_name="Account", operation="list", params={{"limit": 10}})
@@ -627,9 +627,9 @@ The params argument is optional and varies by operation:
                     available_models = ", ".join([m.__name__ for m in available_models_list])
                     return f"Error: Model '{model_name}' is not registered for MCP access. Available models: {available_models}"
 
-                # Check if model has user_mode manager
-                if not hasattr(model_class, 'user_mode'):
-                    return f"Error: Model '{model_name}' does not have a user_mode manager and cannot be queried through this agent."
+                # Check if model has scoped manager
+                if not hasattr(model_class, 'scoped'):
+                    return f"Error: Model '{model_name}' does not have a scoped manager and cannot be queried through this agent."
 
                 # Validate that request context is available
                 if not request:

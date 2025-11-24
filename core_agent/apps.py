@@ -14,5 +14,9 @@ class AgentsConfig(AppConfig):
         # Import metadata registrations (from chatbot_app)
         from chatbot_app import metadata  # noqa: F401
 
-        # Import MCP toolset registrations
+        # Import manual MCP toolset registrations (for models with custom logic)
         from . import mcp_tools  # noqa: F401
+
+        # Auto-discover and register models with user_mode managers
+        from .mcp_server import mcp_registry
+        mcp_registry.auto_discover()

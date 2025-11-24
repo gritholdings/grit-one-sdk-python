@@ -16,24 +16,89 @@ from core.utils.permissions import (
     filter_app_metadata_by_user_profile,
     merge_filtered_settings,
     check_profile_permission,
-    check_group_permission
+    check_group_permission,
+    get_user_field_permissions,
+    check_field_readable,
+    check_field_editable
 )
 
 
-def serialize_form_for_react(form_class, user=None, instance=None):
+def _get_user_queryset(model, user):
+    """
+    Get queryset filtered by user permissions using available manager.
+
+    This helper method checks for managers in priority order and applies
+    appropriate user-based filtering. It supports both the standardized
+    'scoped' manager and legacy 'owned' manager for backward compatibility.
+
+    Priority order:
+    1. 'scoped' manager with for_user() method (standardized, supports superuser bypass)
+    2. 'owned' manager with for_user() method (legacy)
+    3. 'owned' manager with direct filter
+    4. 'objects' manager with owner field filter
+    5. 'objects' manager returning all records (no filtering)
+
+    Args:
+        model: The Django model class
+        user: The user object (or user ID) for filtering
+
+    Returns:
+        QuerySet filtered appropriately for the user
+
+    Examples:
+        >>> queryset = _get_user_queryset(Account, request.user)
+        >>> # Returns Account.scoped.for_user(request.user) if available
+    """
+    # Priority 1: Check for standardized 'scoped' manager
+    if hasattr(model, 'scoped') and hasattr(model.scoped, 'for_user'):
+        return model.scoped.for_user(user)
+
+    # Priority 2-3: Check for legacy 'owned' manager
+    if hasattr(model, 'owned'):
+        if hasattr(model.owned, 'for_user'):
+            # Use for_user method if available (e.g., Agent, CourseWork)
+            return model.owned.for_user(user.id if hasattr(user, 'id') else user)
+        else:
+            # Fallback to direct filter
+            return model.owned.filter(owner=user)
+
+    # Priority 4-5: Fallback to default 'objects' manager
+    if hasattr(model, 'objects'):
+        # Try to filter by owner if the field exists
+        if hasattr(model, 'owner'):
+            return model.objects.filter(owner=user)
+        else:
+            # No ownership concept - return all
+            return model.objects.all()
+
+    # Edge case: no manager found (should rarely happen)
+    # Return empty queryset instead of empty list to maintain API consistency
+    if hasattr(model, 'objects'):
+        return model.objects.none()
+
+    # Absolute edge case - create a manager on the fly
+    from django.db import models as django_models
+    return django_models.Manager().none()
+
+
+def serialize_form_for_react(form_class, user=None, instance=None, model_name=None):
     """
     Serialize a Django form class into React component format.
 
     Args:
         form_class: The form class to serialize
-        user: Optional user for context-aware filtering
+        user: Optional user for context-aware filtering and field permissions
         instance: Optional instance for editing forms
+        model_name: Optional model name (lowercase) for field permission checks
 
     Returns dict mapping field names to FieldConfig objects with:
     - widget: "TextInput" | "Textarea" | "Select"
     - help_text: optional help text
     - required: boolean
     - choices: for Select widgets
+    - disabled: boolean (True if field is not editable per field permissions)
+
+    Fields with readable=False are excluded entirely from the result.
     """
     if not form_class:
         return {}
@@ -54,13 +119,28 @@ def serialize_form_for_react(form_class, user=None, instance=None):
         except Exception:
             # If form still can't be instantiated, return empty
             return {}
-    
+
+    # Get field permissions if user and model_name provided
+    field_perms = {}
+    has_field_config = False
+    if user and model_name:
+        field_perms, has_field_config = get_user_field_permissions(user, model_name, settings.APP_METADATA_SETTINGS)
+
     form_data = {}
-    
+
     for field_name, field in form_instance.fields.items():
+        # Check field permissions - skip non-readable fields
+        if has_field_config:
+            if field_name not in field_perms:
+                # Field not in whitelist - exclude from form
+                continue
+            if not field_perms[field_name].get('readable', True):
+                # Field is explicitly non-readable - exclude from form
+                continue
+
         # Map Django widgets to React component types
         widget_type = "TextInput"  # default
-        
+
         # Check the widget type
         widget = field.widget
         if isinstance(widget, forms.Textarea):
@@ -75,16 +155,23 @@ def serialize_form_for_react(form_class, user=None, instance=None):
             widget_type = "NumberInput"
         elif isinstance(widget, forms.EmailInput):
             widget_type = "EmailInput"
-        
+
         field_config = {
             "widget": widget_type,
             "required": field.required,
         }
-        
+
+        # Check if field is editable - add disabled flag if not
+        if has_field_config:
+            # Field is in whitelist (already checked above), check if editable
+            if not field_perms[field_name].get('editable', True):
+                # Field is readable but not editable - mark as disabled
+                field_config["disabled"] = True
+
         # Add help text if present
         if field.help_text:
             field_config["help_text"] = str(field.help_text)
-        
+
         # Add choices for choice fields
         if hasattr(field, 'choices') and field.choices:
             field_config["choices"] = [
@@ -92,20 +179,20 @@ def serialize_form_for_react(form_class, user=None, instance=None):
                 for choice in field.choices
                 if choice[0] != ''  # Skip empty choice
             ]
-        
+
         # Add other useful field attributes
         if hasattr(field, 'max_length') and field.max_length:
             field_config["max_length"] = field.max_length
-        
+
         if hasattr(field, 'min_length') and field.min_length:
             field_config["min_length"] = field.min_length
-        
+
         # Add label if different from field name
         if field.label and field.label != field_name.replace('_', ' ').title():
             field_config["label"] = str(field.label)
-        
+
         form_data[field_name] = field_config
-    
+
     return form_data
 
 
@@ -148,28 +235,12 @@ class MetadataViewGenerator:
                     raise Http404()
 
             # Get the model name (already defined above)
-            # Check if model has an 'owned' manager for user-specific filtering
-            if hasattr(model, 'owned'):
-                # Use the owned manager to get user-specific objects
-                if hasattr(model.owned, 'for_user'):
-                    # Special case for Agent model and other owned models
-                    queryset = model.owned.for_user(request.user.id)
-                else:
-                    # Generic owned filtering
-                    # Use for_user method if available (e.g., CourseWork)
-                    if hasattr(model.owned, 'for_user'):
-                        queryset = model.owned.for_user(request.user.id)
-                    else:
-                        queryset = model.owned.filter(owner=request.user)
-            elif hasattr(model, 'objects'):
-                # Try to filter by owner if the field exists
-                if hasattr(model, 'owner'):
-                    queryset = model.objects.filter(owner=request.user)
-                else:
-                    queryset = model.objects.all()
-            else:
-                queryset = []
-            
+            # Get user-specific queryset using helper method
+            queryset = _get_user_queryset(model, request.user)
+
+            # Get field permissions for filtering
+            field_perms, has_field_config = get_user_field_permissions(request.user, model_name_lower, settings.APP_METADATA_SETTINGS)
+
             # Prepare data for the template
             items_data = []
             for item in queryset:
@@ -177,10 +248,19 @@ class MetadataViewGenerator:
                     'id': str(item.id),
                     'name': getattr(item, 'name', str(item)),
                 }
-                
+
                 # Add fields from list_display if specified
                 if hasattr(metadata_class, 'list_display'):
                     for field_name in metadata_class.list_display:
+                        # Check field permission - skip non-readable fields
+                        if has_field_config:
+                            if field_name not in field_perms:
+                                # Field not in whitelist - skip
+                                continue
+                            if not field_perms[field_name].get('readable', True):
+                                # Field explicitly non-readable - skip
+                                continue
+
                         if hasattr(item, field_name):
                             # Check if it's a property first
                             attr = getattr(type(item), field_name, None)
@@ -199,36 +279,55 @@ class MetadataViewGenerator:
                         elif hasattr(item, 'metadata') and item.metadata and field_name in item.metadata:
                             # Field is in metadata JSONField
                             item_dict[field_name] = item.metadata.get(field_name, '')
-                
+
                 # Add metadata fields if present
                 if hasattr(item, 'metadata') and item.metadata:
                     # Check if metadata is a dict
                     if isinstance(item.metadata, dict):
                         for key, value in item.metadata.items():
                             if key not in item_dict:  # Don't override actual fields
+                                # Check field permission before adding
+                                if has_field_config:
+                                    if key not in field_perms:
+                                        # Field not in whitelist - skip
+                                        continue
+                                    if not field_perms[key].get('readable', True):
+                                        # Field explicitly non-readable - skip
+                                        continue
                                 item_dict[key] = value
-                
+
                 items_data.append(item_dict)
-            
+
             # Generate columns configuration from list_display
             columns = []
-            
+
             # Always add a select column first
             columns.append({'type': 'select'})
-            
+
             # Generate columns from list_display if available
             if hasattr(metadata_class, 'list_display') and metadata_class.list_display:
-                for i, field_name in enumerate(metadata_class.list_display):
-                    # Make the first field (usually 'name') a link to the detail view
-                    if i == 0:
+                first_column_added = False
+                for field_name in metadata_class.list_display:
+                    # Check field permission - skip non-readable fields
+                    if has_field_config:
+                        if field_name not in field_perms:
+                            # Field not in whitelist - skip
+                            continue
+                        if not field_perms[field_name].get('readable', True):
+                            # Field explicitly non-readable - skip
+                            continue
+
+                    # Make the first readable field a link to the detail view
+                    if not first_column_added:
                         columns.append({
                             'type': 'link',
                             'fieldName': field_name,
                             'label': field_name.replace('_', ' ').title(),
-                            'href': f'/r/{model_name}/{{id}}/view',
+                            'href': f'/r/{model_name_lower}/{{id}}/view',
                             'linkText': f'{{{field_name}}}',
                             'sortable': True
                         })
+                        first_column_added = True
                     else:
                         # Regular text columns don't need 'type' field
                         columns.append({
@@ -242,7 +341,7 @@ class MetadataViewGenerator:
                     'type': 'link',
                     'fieldName': 'name',
                     'label': 'Name',
-                    'href': f'/r/{model_name}/{{id}}/view',
+                    'href': f'/r/{model_name_lower}/{{id}}/view',
                     'linkText': '{name}',
                     'sortable': True
                 })
@@ -271,7 +370,7 @@ class MetadataViewGenerator:
                                     processed_group.append({
                                         'label': action.get('label', f'New {model_name}'),
                                         'action': 'create',
-                                        'url': f'/m/{model_name}/create',
+                                        'url': f'/m/{model_name_lower}/create',
                                         'method': 'GET'
                                     })
                                 elif action.get('action') != 'create':  # Skip any existing create actions
@@ -283,7 +382,7 @@ class MetadataViewGenerator:
                                     processed_group.append({
                                         'label': f'New {model_name}',
                                         'action': 'create',
-                                        'url': f'/m/{model_name}/create',
+                                        'url': f'/m/{model_name_lower}/create',
                                         'method': 'GET'
                                     })
                                 else:
@@ -301,7 +400,7 @@ class MetadataViewGenerator:
                                 processed_group.append({
                                     'label': action.get('label', f'New {model_name}'),
                                     'action': 'create',
-                                    'url': f'/m/{model_name}/create',
+                                    'url': f'/m/{model_name_lower}/create',
                                     'method': 'GET'
                                 })
                             elif action.get('action') != 'create':  # Skip any existing create actions
@@ -313,7 +412,7 @@ class MetadataViewGenerator:
                                 processed_group.append({
                                     'label': f'New {model_name}',
                                     'action': 'create',
-                                    'url': f'/m/{model_name}/create',
+                                    'url': f'/m/{model_name_lower}/create',
                                     'method': 'GET'
                                 })
                             else:
@@ -411,40 +510,34 @@ class MetadataViewGenerator:
             if not object_id:
                 raise Http404(f"No {model_name} ID provided")
             
-            # Get the object with ownership check
-            if hasattr(model, 'owned'):
-                # Use owned manager
-                if hasattr(model.owned, 'for_user'):
-                    # Special case for models with for_user method
-                    queryset = model.owned.for_user(request.user.id)
-                    obj = get_object_or_404(queryset, id=object_id)
-                else:
-                    # Use for_user method if available (e.g., CourseWork)
-                    if hasattr(model.owned, 'for_user'):
-                        obj = get_object_or_404(model.owned.for_user(request.user.id), id=object_id)
-                    else:
-                        obj = get_object_or_404(model.owned.filter(owner=request.user), id=object_id)
-            else:
-                # Check if the model has an owner field
-                has_owner_field = any(f.name == 'owner' for f in model._meta.fields)
-                if has_owner_field:
-                    # Filter by owner field
-                    obj = get_object_or_404(model, id=object_id, owner=request.user)
-                else:
-                    # No ownership - just get the object
-                    obj = get_object_or_404(model, id=object_id)
-            
+            # Get the object with ownership check using helper method
+            queryset = _get_user_queryset(model, request.user)
+            obj = get_object_or_404(queryset, id=object_id)
+
+            # Get field permissions for filtering
+            field_perms, has_field_config = get_user_field_permissions(request.user, model_name_lower, settings.APP_METADATA_SETTINGS)
+
             # Prepare data for the template
             obj_data = {
                 'id': str(obj.id),
                 'name': getattr(obj, 'name', str(obj)),
             }
-            
+
             # Add all model fields
             for field in model._meta.fields:
                 field_name = field.name
+
+                # Check field permission - skip non-readable fields
+                if has_field_config:
+                    if field_name not in field_perms:
+                        # Field not in whitelist - skip
+                        continue
+                    if not field_perms[field_name].get('readable', True):
+                        # Field explicitly non-readable - skip
+                        continue
+
                 value = getattr(obj, field_name)
-                
+
                 # Handle different field types
                 if value is None:
                     obj_data[field_name] = None
@@ -461,40 +554,59 @@ class MetadataViewGenerator:
                     obj_data[field_name] = value or {}
                 else:
                     obj_data[field_name] = value
-            
+
             # Add many-to-many fields
             for field in model._meta.many_to_many:
                 field_name = field.name
+
+                # Check field permission - skip non-readable fields
+                if has_field_config:
+                    if field_name not in field_perms:
+                        # Field not in whitelist - skip
+                        continue
+                    if not field_perms[field_name].get('readable', True):
+                        # Field explicitly non-readable - skip
+                        continue
+
                 related_objects = getattr(obj, field_name).all()
                 obj_data[field_name] = [
                     {'id': str(item.id), 'name': getattr(item, 'name', str(item))}
                     for item in related_objects
                 ]
-            
+
             # Add metadata fields if present
             if hasattr(obj, 'metadata') and obj.metadata:
                 obj_data['metadata'] = obj.metadata
-            
+
             # Process fieldset fields to ensure all configured fields are included
             if hasattr(metadata_class, 'fieldsets') and metadata_class.fieldsets:
                 for fieldset_name, fieldset_config in metadata_class.fieldsets:
                     field_names = fieldset_config.get('fields', [])
-                    
+
                     for field_name in field_names:
+                        # Check field permission - skip non-readable fields
+                        if has_field_config:
+                            if field_name not in field_perms:
+                                # Field not in whitelist - skip
+                                continue
+                            if not field_perms[field_name].get('readable', True):
+                                # Field explicitly non-readable - skip
+                                continue
+
                         # Skip if field already in obj_data (from model fields)
                         if field_name in obj_data:
                             continue
-                        
+
                         # Try to get the field value from various sources
                         field_value = None
-                        
+
                         # First check if it's in metadata (for metadata fields)
                         if hasattr(obj, 'metadata') and isinstance(obj.metadata, dict):
                             if field_name in obj.metadata:
                                 field_value = obj.metadata.get(field_name)
                                 obj_data[field_name] = field_value if field_value is not None else ''
                                 continue
-                        
+
                         # Check if it's a property or method on the model instance
                         if hasattr(obj, field_name):
                             attr = getattr(type(obj), field_name, None)
@@ -520,7 +632,7 @@ class MetadataViewGenerator:
                                     field_value = method(obj)
                                 except:
                                     field_value = None
-                        
+
                         # Add the field to obj_data
                         # Always add the field, even if it's None or empty string
                         # This ensures metadata fields show up in the form
@@ -547,7 +659,8 @@ class MetadataViewGenerator:
                 form_data = serialize_form_for_react(
                     metadata_class.form,
                     user=request.user,
-                    instance=obj
+                    instance=obj,
+                    model_name=model_name_lower
                 )
 
             # Filter app metadata based on user's group and profile permissions (OR logic)
@@ -789,9 +902,12 @@ class MetadataViewGenerator:
 
             # Handle GET request - return form metadata
             if request.method == 'GET':
+                # Get field permissions
+                field_perms, has_field_config = get_user_field_permissions(request.user, model_name_lower, settings.APP_METADATA_SETTINGS)
+
                 # Get the form class from metadata if available
                 form_class = getattr(metadata_class, 'form', None)
-                
+
                 # Fallback to trying to import form by convention
                 if not form_class:
                     try:
@@ -799,7 +915,7 @@ class MetadataViewGenerator:
                         form_class = getattr(forms_module, f'{model_name}Form', None)
                     except (ImportError, AttributeError):
                         pass
-                
+
                 # Generate form fields metadata
                 form_fields = []
                 if form_class:
@@ -811,13 +927,22 @@ class MetadataViewGenerator:
                         # Form doesn't accept user parameter, use without it
                         dummy_form = form_class()
                     for field_name, field in dummy_form.fields.items():
+                        # Check field permission - only include editable fields in create form
+                        if has_field_config:
+                            if field_name not in field_perms:
+                                # Field not in whitelist - exclude from create form
+                                continue
+                            if not field_perms[field_name].get('editable', True):
+                                # Field explicitly not editable - exclude from create form
+                                continue
+
                         field_info = {
                             'name': field_name,
                             'label': field.label or field_name.replace('_', ' ').title(),
                             'required': field.required,
                             'type': 'text'  # Default type
                         }
-                        
+
                         # Map Django field types to HTML input types
                         from django.forms import Textarea, EmailField, URLField, IntegerField, DecimalField, DateField, DateTimeField, BooleanField, ChoiceField, Select
                         if isinstance(field.widget, Textarea):
@@ -842,11 +967,11 @@ class MetadataViewGenerator:
                             field_info['type'] = 'datetime-local'
                         elif isinstance(field, BooleanField):
                             field_info['type'] = 'checkbox'
-                        
+
                         # Get default value if available
                         if field.initial is not None:
                             field_info['default'] = field.initial
-                        
+
                         form_fields.append(field_info)
                 else:
                     # Default fields if no form class
@@ -864,9 +989,33 @@ class MetadataViewGenerator:
                 })
             
             # Handle POST request - create the record
+            # Get field permissions for validation
+            field_perms, has_field_config = get_user_field_permissions(request.user, model_name_lower, settings.APP_METADATA_SETTINGS)
+
+            # Validate field permissions before processing
+            if has_field_config:
+                forbidden_fields = []
+                for field_name in request.POST.keys():
+                    # Skip CSRF token and other non-field data
+                    if field_name in ['csrfmiddlewaretoken', 'metadata']:
+                        continue
+                    # Check if field is in whitelist and editable
+                    if field_name not in field_perms:
+                        # Field not in whitelist
+                        forbidden_fields.append(field_name)
+                    elif not field_perms[field_name].get('editable', True):
+                        # Field explicitly not editable
+                        forbidden_fields.append(field_name)
+
+                if forbidden_fields:
+                    return JsonResponse({
+                        'success': False,
+                        'error': f'You do not have permission to set the following fields: {", ".join(forbidden_fields)}'
+                    }, status=403)
+
             # Get the form class from metadata if available
             form_class = getattr(metadata_class, 'form', None)
-            
+
             # Fallback to trying to import form by convention
             if not form_class:
                 try:
@@ -874,32 +1023,32 @@ class MetadataViewGenerator:
                     form_class = getattr(forms_module, f'{model_name}Form', None)
                 except (ImportError, AttributeError):
                     pass
-            
+
             if form_class:
                 # Prepare POST data for form
                 post_data = request.POST.copy()
-                
+
                 # Debug logging
                 import logging
                 logger = logging.getLogger(__name__)
                 logger.error(f"CREATE VIEW DEBUG - POST data received: {dict(post_data)}")
                 logger.error(f"CREATE VIEW DEBUG - Form class: {form_class.__name__}")
-                
+
                 # Check if this form uses MetadataMixin
                 if hasattr(form_class, 'metadata_fields'):
                     logger.error(f"CREATE VIEW DEBUG - Form has metadata_fields: {form_class.metadata_fields}")
-                    
+
                     # Remove corrupted metadata field if it's '[object Object]'
                     if 'metadata' in post_data and post_data['metadata'] == '[object Object]':
                         del post_data['metadata']
                         logger.error("CREATE VIEW DEBUG - Removed corrupted metadata field '[object Object]'")
-                    
+
                     # Initialize empty metadata if not present
                     if 'metadata' not in post_data:
                         import json
                         post_data['metadata'] = json.dumps({})
                         logger.error(f"CREATE VIEW DEBUG - Added empty metadata to POST: {post_data['metadata']}")
-                
+
                 # Create new instance using the form
                 # Try to pass user for context-aware filtering
                 try:
@@ -907,11 +1056,11 @@ class MetadataViewGenerator:
                 except TypeError:
                     # Form doesn't accept user parameter, use without it
                     form = form_class(post_data)
-                
+
                 # Set owner if the model has an owner field
                 if hasattr(model, 'owner') and hasattr(form.instance, 'owner'):
                     form.instance.owner = request.user
-                
+
                 if form.is_valid():
                     obj = form.save()
                     return JsonResponse({
@@ -1001,41 +1150,40 @@ class MetadataViewGenerator:
             if not object_id:
                 return JsonResponse({'error': f'No {model_name} ID provided'}, status=400)
             
-            # Get the object with ownership check
-            if hasattr(model, 'owned'):
-                try:
-                    # Use the owned manager's for_user method if available
-                    if hasattr(model.owned, 'for_user'):
-                        queryset = model.owned.for_user(request.user.id)
-                        obj = queryset.get(id=object_id)
-                    else:
-                        # Check if the model has an owner field before filtering
-                        has_owner_field = any(f.name == 'owner' for f in model._meta.fields)
-                        if has_owner_field:
-                            # Use for_user method if available (e.g., CourseWork)
-                            if hasattr(model.owned, 'for_user'):
-                                obj = model.owned.for_user(request.user.id).get(id=object_id)
-                            else:
-                                obj = model.owned.filter(owner=request.user).get(id=object_id)
-                        else:
-                            # Just get the object without owner filtering
-                            obj = model.owned.get(id=object_id)
-                except model.DoesNotExist:
-                    return JsonResponse({'error': f'{model_name} not found'}, status=404)
-            elif hasattr(model, 'owner'):
-                try:
-                    obj = model.objects.get(id=object_id, owner=request.user)
-                except model.DoesNotExist:
-                    return JsonResponse({'error': f'{model_name} not found'}, status=404)
-            else:
-                try:
-                    obj = model.objects.get(id=object_id)
-                except model.DoesNotExist:
-                    return JsonResponse({'error': f'{model_name} not found'}, status=404)
-            
+            # Get the object with ownership check using helper method
+            try:
+                queryset = _get_user_queryset(model, request.user)
+                obj = queryset.get(id=object_id)
+            except model.DoesNotExist:
+                return JsonResponse({'error': f'{model_name} not found'}, status=404)
+
+            # Get field permissions for validation
+            field_perms, has_field_config = get_user_field_permissions(request.user, model_name_lower, settings.APP_METADATA_SETTINGS)
+
+            # Validate field permissions before processing
+            if has_field_config:
+                forbidden_fields = []
+                for field_name in request.POST.keys():
+                    # Skip CSRF token and other non-field data
+                    if field_name in ['csrfmiddlewaretoken', 'metadata']:
+                        continue
+                    # Check if field is in whitelist and editable
+                    if field_name not in field_perms:
+                        # Field not in whitelist
+                        forbidden_fields.append(field_name)
+                    elif not field_perms[field_name].get('editable', True):
+                        # Field explicitly not editable
+                        forbidden_fields.append(field_name)
+
+                if forbidden_fields:
+                    return JsonResponse({
+                        'success': False,
+                        'error': f'You do not have permission to edit the following fields: {", ".join(forbidden_fields)}'
+                    }, status=403)
+
             # Get the form class from metadata if available
             form_class = getattr(metadata_class, 'form', None)
-            
+
             # Fallback to trying to import form by convention
             if not form_class:
                 try:
@@ -1043,23 +1191,23 @@ class MetadataViewGenerator:
                     form_class = getattr(forms_module, f'{model_name}Form', None)
                 except (ImportError, AttributeError):
                     pass
-            
+
             if form_class:
                 # Prepare POST data for form
                 # If the form has metadata_fields, we need to handle them specially
                 post_data = request.POST.copy()
-                
+
                 # Check if this form uses MetadataMixin
                 if hasattr(form_class, 'metadata_fields'):
                     # Remove corrupted metadata field if it's '[object Object]'
                     if 'metadata' in post_data and post_data['metadata'] == '[object Object]':
                         del post_data['metadata']
-                    
+
                     # Add the current metadata to POST data if not present
                     if 'metadata' not in post_data and hasattr(obj, 'metadata'):
                         current_metadata = obj.metadata if obj.metadata else {}
                         post_data['metadata'] = json.dumps(current_metadata)
-                
+
                 # Use the form for validation and saving
                 form = form_class(post_data, instance=obj)
                 if form.is_valid():
@@ -1126,28 +1274,14 @@ class MetadataViewGenerator:
             
             if not inline_model_name:
                 return JsonResponse({'error': 'No inline model specified'}, status=400)
-            
-            # Get the object with ownership check
-            if hasattr(model, 'owned'):
-                try:
-                    # Use for_user method if available (e.g., CourseWork)
-                    if hasattr(model.owned, 'for_user'):
-                        obj = model.owned.for_user(request.user.id).get(id=object_id)
-                    else:
-                        obj = model.owned.filter(owner=request.user).get(id=object_id)
-                except model.DoesNotExist:
-                    return JsonResponse({'error': f'{model_name} not found'}, status=404)
-            elif hasattr(model, 'owner'):
-                try:
-                    obj = model.objects.get(id=object_id, owner=request.user)
-                except model.DoesNotExist:
-                    return JsonResponse({'error': f'{model_name} not found'}, status=404)
-            else:
-                try:
-                    obj = model.objects.get(id=object_id)
-                except model.DoesNotExist:
-                    return JsonResponse({'error': f'{model_name} not found'}, status=404)
-            
+
+            # Get the object with ownership check using helper method
+            try:
+                queryset = _get_user_queryset(model, request.user)
+                obj = queryset.get(id=object_id)
+            except model.DoesNotExist:
+                return JsonResponse({'error': f'{model_name} not found'}, status=404)
+
             # Parse request body
             try:
                 data = json.loads(request.body)
@@ -1283,28 +1417,14 @@ class MetadataViewGenerator:
             object_id = kwargs.get(id_param)
             if not object_id:
                 return JsonResponse({'error': f'No {model_name} ID provided'}, status=400)
-            
-            # Get the object with ownership check
-            if hasattr(model, 'owned'):
-                try:
-                    # Use for_user method if available (e.g., CourseWork)
-                    if hasattr(model.owned, 'for_user'):
-                        obj = model.owned.for_user(request.user.id).get(id=object_id)
-                    else:
-                        obj = model.owned.filter(owner=request.user).get(id=object_id)
-                except model.DoesNotExist:
-                    return JsonResponse({'error': f'{model_name} not found'}, status=404)
-            elif hasattr(model, 'owner'):
-                try:
-                    obj = model.objects.get(id=object_id, owner=request.user)
-                except model.DoesNotExist:
-                    return JsonResponse({'error': f'{model_name} not found'}, status=404)
-            else:
-                try:
-                    obj = model.objects.get(id=object_id)
-                except model.DoesNotExist:
-                    return JsonResponse({'error': f'{model_name} not found'}, status=404)
-            
+
+            # Get the object with ownership check using helper method
+            try:
+                queryset = _get_user_queryset(model, request.user)
+                obj = queryset.get(id=object_id)
+            except model.DoesNotExist:
+                return JsonResponse({'error': f'{model_name} not found'}, status=404)
+
             # Generic handling for any ManyToMany field
             # Try to find the M2M field that matches the inline_type
             m2m_field = None
@@ -1398,28 +1518,14 @@ class MetadataViewGenerator:
             object_id = kwargs.get(id_param)
             if not object_id:
                 return JsonResponse({'error': f'No {model_name} ID provided'}, status=400)
-            
-            # Get the object with ownership check
-            if hasattr(model, 'owned'):
-                try:
-                    # Use for_user method if available (e.g., CourseWork)
-                    if hasattr(model.owned, 'for_user'):
-                        obj = model.owned.for_user(request.user.id).get(id=object_id)
-                    else:
-                        obj = model.owned.filter(owner=request.user).get(id=object_id)
-                except model.DoesNotExist:
-                    return JsonResponse({'error': f'{model_name} not found'}, status=404)
-            elif hasattr(model, 'owner'):
-                try:
-                    obj = model.objects.get(id=object_id, owner=request.user)
-                except model.DoesNotExist:
-                    return JsonResponse({'error': f'{model_name} not found'}, status=404)
-            else:
-                try:
-                    obj = model.objects.get(id=object_id)
-                except model.DoesNotExist:
-                    return JsonResponse({'error': f'{model_name} not found'}, status=404)
-            
+
+            # Get the object with ownership check using helper method
+            try:
+                queryset = _get_user_queryset(model, request.user)
+                obj = queryset.get(id=object_id)
+            except model.DoesNotExist:
+                return JsonResponse({'error': f'{model_name} not found'}, status=404)
+
             # Try to delete the object
             try:
                 # Store the name for the success message
@@ -1430,9 +1536,9 @@ class MetadataViewGenerator:
                 
                 # Return success response with redirect URL
                 return JsonResponse({
-                    'success': True, 
+                    'success': True,
                     'message': f'{model_name} "{obj_name}" deleted successfully',
-                    'redirect_url': f'/m/{model_name}/list'
+                    'redirect_url': f'/m/{model_name_lower}/list'
                 })
             except Exception as e:
                 # Handle any deletion errors (e.g., protected foreign keys)
@@ -1455,8 +1561,10 @@ class LegacyRedirectView:
     View that redirects legacy URLs (without app prefix) to new app-prefixed URLs.
 
     This enables backwards compatibility while migrating to the new URL structure.
-    Legacy format: /m/Model/list or /r/Model/{id}/view
-    New format: /app/{app_name}/m/Model/list or /app/{app_name}/r/Model/{id}/view
+    Legacy format: /m/model_name/list or /r/model_name/{id}/view
+    New format: /app/{app_name}/m/model_name/list or /app/{app_name}/r/model_name/{id}/view
+
+    Note: All URLs use snake_case for model names.
     """
 
     def __init__(self, app_name, model_name, pattern_type):
@@ -1465,7 +1573,7 @@ class LegacyRedirectView:
 
         Args:
             app_name: The app this model belongs to (e.g., 'classroom', 'cms')
-            model_name: The model name (e.g., 'Course', 'Post')
+            model_name: The model name in snake_case (e.g., 'course', 'blog_post')
             pattern_type: Type of URL pattern ('list', 'detail', 'create', 'update',
                          'inline_update', 'available_items', 'delete')
         """
@@ -1487,26 +1595,27 @@ class LegacyRedirectView:
             pattern_type = initkwargs.get('pattern_type')
 
             # Build the new URL based on pattern type
+            # Note: model_name is already in snake_case
             if pattern_type == 'list':
                 new_url = f'/app/{app_name}/m/{model_name}/list'
             elif pattern_type == 'detail':
-                record_id = kwargs.get(f'{camel_to_snake(model_name)}_id')
+                record_id = kwargs.get(f'{model_name}_id')
                 new_url = f'/app/{app_name}/r/{model_name}/{record_id}/view'
             elif pattern_type == 'create':
                 new_url = f'/app/{app_name}/m/{model_name}/create'
             elif pattern_type == 'update':
-                record_id = kwargs.get(f'{camel_to_snake(model_name)}_id')
+                record_id = kwargs.get(f'{model_name}_id')
                 new_url = f'/app/{app_name}/r/{model_name}/{record_id}/update'
             elif pattern_type == 'inline_update':
-                record_id = kwargs.get(f'{camel_to_snake(model_name)}_id')
+                record_id = kwargs.get(f'{model_name}_id')
                 inline_model = kwargs.get('inline_model')
                 new_url = f'/app/{app_name}/r/{model_name}/{record_id}/inline/{inline_model}/update'
             elif pattern_type == 'available_items':
-                record_id = kwargs.get(f'{camel_to_snake(model_name)}_id')
+                record_id = kwargs.get(f'{model_name}_id')
                 inline_type = kwargs.get('inline_type')
                 new_url = f'/app/{app_name}/r/{model_name}/{record_id}/available_{inline_type}/'
             elif pattern_type == 'delete':
-                record_id = kwargs.get(f'{camel_to_snake(model_name)}_id')
+                record_id = kwargs.get(f'{model_name}_id')
                 new_url = f'/app/{app_name}/r/{model_name}/{record_id}/delete'
             else:
                 # Fallback - shouldn't happen

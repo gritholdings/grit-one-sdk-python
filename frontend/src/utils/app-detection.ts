@@ -22,7 +22,7 @@ function snakeToCamel(str: string): string {
 
 /**
  * Detects which app should be active based on the current URL path
- * @param pathname - The current URL pathname (e.g., "/app/classroom/m/Course/list" or legacy "/m/Post/list")
+ * @param pathname - The current URL pathname (e.g., "/app/classroom/m/course/list" or legacy "/m/post/list")
  * @param appConfigurations - Array of app configurations to match against
  * @returns The name of the detected app, or the first app name as fallback
  */
@@ -38,7 +38,7 @@ export function detectAppFromURL(
   // Normalize the pathname to handle trailing slashes
   const normalizedPathname = normalizeURL(pathname)
 
-  // NEW: Check for app-prefixed URLs (e.g., "/app/classroom/m/Course/list")
+  // NEW: Check for app-prefixed URLs (e.g., "/app/classroom/m/course/list")
   const appPrefixMatch = normalizedPathname.match(/^\/app\/([^/]+)/)
   if (appPrefixMatch) {
     const appNameFromUrl = appPrefixMatch[1]  // e.g., "agent_studio" (snake_case from URL)
@@ -73,7 +73,7 @@ export function detectAppFromURL(
   // Check model-based patterns dynamically based on navItems
   for (const app of appConfigurations) {
     // Extract models from navItems URLs
-    // Support both new format ("/app/classroom/m/Post/list") and legacy ("/m/Post/list")
+    // Support both new format ("/app/classroom/m/post/list") and legacy ("/m/post/list")
     const navModels = app.navItems
       ?.map(item => {
         // Try new format first
