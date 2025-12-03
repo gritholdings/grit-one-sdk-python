@@ -12,6 +12,7 @@ from .knowledge_base import KnowledgeBaseClient
 from .models import Agent
 from .store import MemoryStoreService
 from .mcp_server import mcp_registry
+from .settings import agent_settings
 
 
 @api_view(['POST'])
@@ -285,6 +286,7 @@ def chat_view(request, thread_id=None):
     """
     return render(request, 'agent/chat.html', {
         'thread_id': thread_id or '',
+        'disable_attachment_ui_button': agent_settings.DISABLE_ATTACHMENT_UI_BUTTON,
     })
 
 

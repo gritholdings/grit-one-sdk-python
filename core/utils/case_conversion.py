@@ -7,6 +7,7 @@ import copy
 import re
 from typing import Any, Dict, List, Union
 from django.urls import reverse, NoReverseMatch
+from core.types import AppMetadataSettingsTypedDict
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ def convert_keys_to_camel_case(data: Union[Dict, List, Any]) -> Union[Dict, List
         return data
 
 
-def resolve_urls_in_app_metadata(settings: Dict[str, Any]) -> Dict[str, Any]:
+def resolve_urls_in_app_metadata(settings: AppMetadataSettingsTypedDict) -> Dict[str, Any]:
     """
     Resolve URL names to actual URL paths in APP_METADATA_SETTINGS.
 
@@ -91,6 +92,9 @@ def resolve_urls_in_app_metadata(settings: Dict[str, Any]) -> Dict[str, Any]:
     for app_key, app_config in apps_config.items():
         tabs = app_config.get('tabs', [])
 
+        # Initialize tab_urls dict for this app to store app-specific URLs
+        resolved_settings['APPS'][app_key]['tab_urls'] = {}
+
         for tab_key in tabs:
             # Check if this tab is a model (exists in MODELS config)
             if tab_key in models_config:
@@ -98,10 +102,9 @@ def resolve_urls_in_app_metadata(settings: Dict[str, Any]) -> Dict[str, Any]:
                 # tab_key is already in snake_case, use it directly
                 app_prefixed_url = f'/app/{app_key}/m/{tab_key}/list'
 
-                # Store the URL in the MODELS config for this model
-                if tab_key not in resolved_settings.get('MODELS', {}):
-                    resolved_settings.setdefault('MODELS', {})[tab_key] = {}
-                resolved_settings['MODELS'][tab_key]['url'] = app_prefixed_url
+                # Store the URL in the app's tab_urls dict (not globally in MODELS)
+                # This ensures each app has its own URL for shared models
+                resolved_settings['APPS'][app_key]['tab_urls'][tab_key] = app_prefixed_url
 
                 logger.debug(
                     f"Generated app-prefixed URL '{app_prefixed_url}' for model '{tab_key}' in app '{app_key}'"

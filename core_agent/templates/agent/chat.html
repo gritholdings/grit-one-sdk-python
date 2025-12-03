@@ -12,6 +12,7 @@
         id="app-chat-root"
         data-react-component="AppChat"
         data-prop-thread-id="{{ thread_id }}"
+        data-prop-disable-attachment-ui-button="{{ disable_attachment_ui_button|yesno:'true,false' }}"
         class="h-full"
     ></div>
 {% endblock %}

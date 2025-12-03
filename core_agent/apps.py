@@ -11,8 +11,11 @@ class AgentsConfig(AppConfig):
         Import MCP toolsets and metadata when the app is ready.
         This ensures model registrations are loaded at startup.
         """
-        # Import metadata registrations (from chatbot_app)
-        from chatbot_app import metadata  # noqa: F401
+        # Import metadata registrations (from chatbot_app) if available
+        try:
+            from chatbot_app import metadata  # noqa: F401
+        except ImportError:
+            pass  # metadata.py is optional
 
         # Import manual MCP toolset registrations (for models with custom logic)
         from . import mcp_tools  # noqa: F401

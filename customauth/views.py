@@ -72,7 +72,7 @@ def signup(request):
                     'Please use the resend option to get a new verification link.'
                 )
 
-            return redirect('index')
+            return redirect(auth_settings.SIGNUP_REDIRECT_URL)
     else:
         form = SignUpForm()
     return render(request, 'customauth/signup.html', {'form': form})

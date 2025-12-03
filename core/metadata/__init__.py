@@ -20,7 +20,10 @@ class ModelMetadata:
     
     # Inline model configurations (list of inline classes)
     inlines = None
-    
+
+    # Default ordering for list views (tuple of field names, prefix with '-' for descending)
+    ordering = None
+
     def __init__(self):
         """Initialize metadata with default values."""
         if self.inlines is None:

@@ -7,3 +7,4 @@ class AuthSettingsTypedDict(TypedDict):
     EMAIL_VERIFICATION: NotRequired[Literal['mandatory', 'optional', 'skip']]
     EMAIL_VERIFICATION_EXPIRY_HOURS: NotRequired[int]
     EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS: NotRequired[int]
+    SIGNUP_REDIRECT_URL: NotRequired[str]

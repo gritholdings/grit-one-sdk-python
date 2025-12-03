@@ -74,8 +74,9 @@ function transformAppSettings(settings: any, iconMap: Record<string, any>): any[
         // It's a model - use URL from backend (app-prefixed) or construct legacy format as fallback
         const modelName = toPascalCase(tabKey)
         const title = modelConfig.pluralLabel || modelConfig.label || modelName
-        // Prefer the URL provided by the backend (which includes app prefix)
-        const url = modelConfig.url || `/m/${modelName}/list`
+        // Prefer URL from app-specific tabUrls (set by resolve_urls_in_app_metadata),
+        // then model URL, then legacy fallback
+        const url = appConfig.tabUrls?.[camelKey] || modelConfig.url || `/m/${modelName}/list`
         return {
           title,
           url,

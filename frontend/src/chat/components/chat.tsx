@@ -27,10 +27,12 @@ export function Chat({
   id,
   initialMessages,
   onNewThread,
+  disableAttachmentUiButton = false,
 }: {
   id: string;
   initialMessages: Array<Message>;
   onNewThread?: (threadId: string) => void;
+  disableAttachmentUiButton?: boolean;
 }) {
   // Initialize threadIdRef with the passed-in id prop
   const threadIdRef = useRef<string>(id);
@@ -233,6 +235,7 @@ export function Chat({
             ensureThreadExists={ensureThreadExists}
             onFileUploadStart={() => setIsUploadingFile(true)}
             onFileUploadEnd={() => setIsUploadingFile(false)}
+            disableAttachmentUiButton={disableAttachmentUiButton}
           />
         </form>
       </div>
@@ -256,6 +259,7 @@ export function Chat({
             setMessages={setMessages}
             suggestedMessages={selectedModelOptions.suggestedMessages}
             ensureThreadExists={ensureThreadExists}
+            disableAttachmentUiButton={disableAttachmentUiButton}
           />
         )}
       </AnimatePresence>

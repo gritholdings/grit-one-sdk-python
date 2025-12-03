@@ -1,12 +1,14 @@
 """
 Utilities for filtering app metadata based on user permissions.
 """
-from typing import Dict, List, Set, Literal
+from typing import Dict, List, Set, Literal, cast
 from copy import deepcopy
 from django.http import Http404
 
+from core.types import AppMetadataSettingsTypedDict
 
-def filter_app_metadata_by_user_groups(settings: Dict, user) -> Dict:
+
+def filter_app_metadata_by_user_groups(settings: AppMetadataSettingsTypedDict, user) -> AppMetadataSettingsTypedDict:
     """
     Filter APP_METADATA_SETTINGS based on user's group permissions.
 
@@ -40,7 +42,7 @@ def filter_app_metadata_by_user_groups(settings: Dict, user) -> Dict:
     """
     # If no settings or no GROUPS config, return empty apps (secure by default)
     if not settings or 'GROUPS' not in settings:
-        filtered = deepcopy(settings) if settings else {}
+        filtered = cast(AppMetadataSettingsTypedDict, deepcopy(settings) if settings else {})
         filtered['APPS'] = {}
         return filtered
 
@@ -101,7 +103,7 @@ def filter_app_metadata_by_user_groups(settings: Dict, user) -> Dict:
     return filtered
 
 
-def filter_app_metadata_by_user_profile(settings: Dict, user) -> Dict:
+def filter_app_metadata_by_user_profile(settings: AppMetadataSettingsTypedDict, user) -> AppMetadataSettingsTypedDict:
     """
     Filter APP_METADATA_SETTINGS based on user's profile permissions.
 
@@ -202,7 +204,7 @@ def filter_app_metadata_by_user_profile(settings: Dict, user) -> Dict:
     return filtered
 
 
-def merge_filtered_settings(group_filtered: Dict, profile_filtered: Dict, original: Dict) -> Dict:
+def merge_filtered_settings(group_filtered: AppMetadataSettingsTypedDict, profile_filtered: AppMetadataSettingsTypedDict, original: AppMetadataSettingsTypedDict) -> AppMetadataSettingsTypedDict:
     """
     Merge visibility-filtered settings from groups and profiles using OR logic.
 
@@ -237,9 +239,10 @@ def merge_filtered_settings(group_filtered: Dict, profile_filtered: Dict, origin
             visible_tabs.add(tab)
 
     # Build final filtered APPS with merged visibility
+    # Iterate over original APPS to preserve the defined order from APP_METADATA_SETTINGS
     merged_apps = {}
-    for app_key in visible_apps:
-        if app_key in original.get('APPS', {}):
+    for app_key in original.get('APPS', {}).keys():
+        if app_key in visible_apps:
             app_config = deepcopy(original['APPS'][app_key])
             # Filter tabs to only those visible from either source
             original_tabs = app_config.get('tabs', [])
@@ -257,7 +260,7 @@ def merge_filtered_settings(group_filtered: Dict, profile_filtered: Dict, origin
 def check_group_permission(
     user,
     model_name: str,
-    settings: Dict
+    settings: AppMetadataSettingsTypedDict
 ) -> bool:
     """
     Check if a user has group-based permission to access a model.
@@ -320,7 +323,7 @@ def check_group_permission(
     return False
 
 
-def _find_app_and_tab_for_model(model_name_lower: str, app_metadata: Dict) -> tuple:
+def _find_app_and_tab_for_model(model_name_lower: str, app_metadata: AppMetadataSettingsTypedDict) -> tuple:
     """
     Find which app and tab a model belongs to based on APP_METADATA_SETTINGS.
 
@@ -350,7 +353,7 @@ def _find_app_and_tab_for_model(model_name_lower: str, app_metadata: Dict) -> tu
 def check_profile_visibility(
     user,
     model_name: str,
-    settings: Dict
+    settings: AppMetadataSettingsTypedDict
 ) -> bool:
     """
     Check if a user has profile-based visibility access to a model.
@@ -427,7 +430,7 @@ def check_profile_permission(
     user,
     model_name: str,
     permission_type: Literal['allow_create', 'allow_read', 'allow_edit', 'allow_delete'],
-    settings: Dict
+    settings: AppMetadataSettingsTypedDict
 ) -> bool:
     """
     Check if a user has profile-based permission for a specific model operation.
@@ -515,8 +518,8 @@ def check_profile_permission(
 def get_user_field_permissions(
     user,
     model_name: str,
-    settings: Dict
-) -> tuple[Dict[str, Dict[str, bool]], bool]:
+    settings: AppMetadataSettingsTypedDict
+) -> tuple[Dict[str, Dict[str, bool]], bool, bool]:
     """
     Get field-level permissions for a user on a specific model.
 
@@ -531,6 +534,11 @@ def get_user_field_permissions(
             {
                 'PROFILES': {
                     'profile_name': {
+                        'model_permissions': {
+                            'model_name': {
+                                'view_all_fields': bool  # Optional - grants read access to all fields
+                            }
+                        },
                         'field_permissions': {
                             'model.field': {
                                 'readable': bool,
@@ -542,7 +550,7 @@ def get_user_field_permissions(
             }
 
     Returns:
-        Tuple of (field_permissions_dict, has_field_permissions_config):
+        Tuple of (field_permissions_dict, has_field_permissions_config, view_all_fields):
         - field_permissions_dict: Dictionary mapping field names to their permissions:
             {
                 'field_name': {'readable': bool, 'editable': bool},
@@ -550,32 +558,38 @@ def get_user_field_permissions(
             }
         - has_field_permissions_config: Boolean indicating if profile has ANY field_permissions
             configured. This distinguishes between "no config" vs "config exists but field missing".
+        - view_all_fields: Boolean indicating if view_all_fields is enabled for this model.
+            When True, all fields are readable by default unless explicitly overridden in
+            field_permissions.
 
     Security Note:
-        - Superusers: returns ({}, False) - full access to all fields
-        - No profile/config: returns ({}, False) - full access to all fields
-        - Has config but empty for model: returns ({}, True) - DENY all fields for this model
-        - Has config with fields: returns ({fields}, True) - explicit permissions apply
+        - Superusers: returns ({}, False, False) - full access to all fields
+        - No profile/config: returns ({}, False, False) - full access to all fields
+        - Has config but empty for model: returns ({}, True, False) - DENY all fields for this model
+        - Has config with fields: returns ({fields}, True, False) - explicit permissions apply
+        - view_all_fields=True: returns ({fields}, True/False, True) - all fields readable by default
 
     Example:
-        >>> perms, has_config = get_user_field_permissions(user, 'course', settings)
-        >>> if has_config and 'name' not in perms:
+        >>> perms, has_config, view_all = get_user_field_permissions(user, 'course', settings)
+        >>> if view_all and 'name' not in perms:
+        >>>     # view_all_fields enabled and field not explicitly denied - allow read
+        >>> elif has_config and 'name' not in perms:
         >>>     # Field not in whitelist - deny access
         >>> elif perms.get('name', {}).get('readable', True):
         >>>     # Field is readable
     """
     # Superusers bypass all field restrictions
     if hasattr(user, 'is_superuser') and user.is_superuser:
-        return {}, False
+        return {}, False, False
 
     # If no PROFILES configuration exists, no restrictions
     if not settings or 'PROFILES' not in settings:
-        return {}, False
+        return {}, False, False
 
     # Check if user has a profile assigned
     if not hasattr(user, 'profile') or not user.profile:
         # No profile assigned - no restrictions (allow other permission layers)
-        return {}, False
+        return {}, False, False
 
     # Get the user's profile name
     profile = user.profile
@@ -583,18 +597,25 @@ def get_user_field_permissions(
 
     if not profile_name:
         # Profile exists but has no name - no restrictions
-        return {}, False
+        return {}, False, False
 
     # Get profile configuration
     profiles_config = settings.get('PROFILES', {})
     profile_config = profiles_config.get(profile_name, {})
 
+    # Check for view_all_fields in model_permissions
+    model_permissions = profile_config.get('model_permissions', {})
+    model_perms = model_permissions.get(model_name, {})
+    view_all_fields = model_perms.get('view_all_fields', False)
+
     # Get field_permissions from profile
     field_permissions_config = profile_config.get('field_permissions', {})
 
+    # If view_all_fields is True but no field_permissions, return early with view_all_fields flag
     if not field_permissions_config:
-        # No field permissions configured - no restrictions
-        return {}, False
+        # No field permissions configured
+        # If view_all_fields is True, we still want to signal that
+        return {}, False, view_all_fields
 
     # Profile HAS field_permissions configured - this is important for default behavior
     # Parse field permissions for this specific model
@@ -611,16 +632,17 @@ def get_user_field_permissions(
                 'editable': perms.get('editable', True)
             }
 
-    # Return field permissions AND flag indicating config exists
+    # Return field permissions, config flag, AND view_all_fields flag
     # This allows callers to distinguish "no config" from "field not in whitelist"
-    return field_perms, True
+    # and also check if view_all_fields grants default read access
+    return field_perms, True, view_all_fields
 
 
 def check_field_readable(
     user,
     model_name: str,
     field_name: str,
-    settings: Dict
+    settings: AppMetadataSettingsTypedDict
 ) -> bool:
     """
     Check if a user can read a specific field on a model.
@@ -639,6 +661,7 @@ def check_field_readable(
 
         Behavior:
         - Superuser or no field_permissions config: returns True (allow all)
+        - view_all_fields=True and field not explicitly denied: returns True
         - Profile has field_permissions but field not listed: returns False (whitelist mode)
         - Field explicitly listed: returns the configured readable value
 
@@ -646,25 +669,32 @@ def check_field_readable(
         >>> if check_field_readable(user, 'course', 'name', settings):
         >>>     obj_data['name'] = obj.name
     """
-    field_perms, has_config = get_user_field_permissions(user, model_name, settings)
+    field_perms, has_config, view_all_fields = get_user_field_permissions(user, model_name, settings)
 
-    # No config means no restrictions (superuser or no field_permissions)
-    if not has_config:
+    # No config and no view_all_fields means no restrictions (superuser or no field_permissions)
+    if not has_config and not view_all_fields:
         return True
 
-    # Config exists - if field not in whitelist, deny access
-    if field_name not in field_perms:
+    # If field is explicitly configured, use that value (overrides view_all_fields)
+    if field_name in field_perms:
+        return field_perms[field_name].get('readable', True)
+
+    # If view_all_fields is enabled and field not explicitly denied, allow read access
+    if view_all_fields:
+        return True
+
+    # Config exists but field not in whitelist - deny access (whitelist mode)
+    if has_config:
         return False
 
-    # Return the explicit readable setting
-    return field_perms[field_name].get('readable', True)
+    return True
 
 
 def check_field_editable(
     user,
     model_name: str,
     field_name: str,
-    settings: Dict
+    settings: AppMetadataSettingsTypedDict
 ) -> bool:
     """
     Check if a user can edit a specific field on a model.
@@ -686,17 +716,21 @@ def check_field_editable(
         - Profile has field_permissions but field not listed: returns False (whitelist mode)
         - Field explicitly listed: returns the configured editable value
 
+        Note: view_all_fields only affects read access, not edit access.
+        Edit permissions still require explicit field_permissions configuration.
+
     Example:
         >>> if not check_field_editable(user, 'course', 'status', settings):
         >>>     return JsonResponse({'error': 'Cannot edit status field'}, status=403)
     """
-    field_perms, has_config = get_user_field_permissions(user, model_name, settings)
+    field_perms, has_config, _view_all_fields = get_user_field_permissions(user, model_name, settings)
 
     # No config means no restrictions (superuser or no field_permissions)
     if not has_config:
         return True
 
     # Config exists - if field not in whitelist, deny access
+    # Note: view_all_fields does NOT grant edit access, only read access
     if field_name not in field_perms:
         return False
 

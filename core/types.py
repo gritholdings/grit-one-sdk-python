@@ -43,6 +43,7 @@ class ModelPermissionsTypedDict(TypedDict):
     allow_read: NotRequired[bool]
     allow_edit: NotRequired[bool]
     allow_delete: NotRequired[bool]
+    view_all_fields: NotRequired[bool]
 
 
 class FieldPermissionsTypedDict(TypedDict):

@@ -37,7 +37,8 @@ export function MultimodalInput({
   suggestedMessages,
   ensureThreadExists,
   onFileUploadStart,
-  onFileUploadEnd
+  onFileUploadEnd,
+  disableAttachmentUiButton = false,
 }: {
   chatId: string;
   input: string;
@@ -64,6 +65,7 @@ export function MultimodalInput({
   ensureThreadExists: () => Promise<string>;
   onFileUploadStart?: () => void;
   onFileUploadEnd?: () => void;
+  disableAttachmentUiButton?: boolean;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
@@ -341,17 +343,19 @@ export function MultimodalInput({
         </Button>
       )}
 
-      <Button
-        className="file-upload-button rounded-full p-1.5 h-fit absolute bottom-2 right-14 m-0.5"
-        onClick={(event) => {
-          event.preventDefault();
-          fileInputRef.current?.click();
-        }}
-        variant="outline"
-        disabled={isLoading}
-      >
-        <PaperclipIcon size={14} />
-      </Button>
+      {!disableAttachmentUiButton && (
+        <Button
+          className="file-upload-button rounded-full p-1.5 h-fit absolute bottom-2 right-14 m-0.5"
+          onClick={(event) => {
+            event.preventDefault();
+            fileInputRef.current?.click();
+          }}
+          variant="outline"
+          disabled={isLoading}
+        >
+          <PaperclipIcon size={14} />
+        </Button>
+      )}
     </div>
   );
 }

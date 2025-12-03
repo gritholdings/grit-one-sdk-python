@@ -23,6 +23,50 @@ from core.utils.permissions import (
 )
 
 
+def _is_field_readable(
+    field_name: str,
+    field_perms: dict,
+    has_field_config: bool,
+    view_all_fields: bool
+) -> bool:
+    """
+    Check if a field is readable based on permission configuration.
+
+    This helper centralizes the field readability logic to ensure consistent
+    behavior across all views. It handles the interaction between view_all_fields
+    and field_permissions correctly.
+
+    Args:
+        field_name: The name of the field to check
+        field_perms: Dictionary of explicit field permissions from get_user_field_permissions()
+        has_field_config: Whether the profile has any field_permissions configured
+        view_all_fields: Whether view_all_fields is enabled for this model
+
+    Returns:
+        True if the field is readable, False otherwise
+
+    Logic:
+        1. If field is explicitly configured in field_perms, use that setting
+        2. If view_all_fields is True and field not explicitly denied, allow read
+        3. If has_field_config but field not in whitelist, deny (whitelist mode)
+        4. Otherwise allow (no restrictions - superuser or no config)
+    """
+    # Case 1: Field has explicit permission configuration
+    if field_name in field_perms:
+        return field_perms[field_name].get('readable', True)
+
+    # Case 2: view_all_fields grants read access to unlisted fields
+    if view_all_fields:
+        return True
+
+    # Case 3: Whitelist mode - field not in whitelist means deny
+    if has_field_config:
+        return False
+
+    # Case 4: No restrictions (superuser, no profile, or no field config)
+    return True
+
+
 def _get_user_queryset(model, user):
     """
     Get queryset filtered by user permissions using available manager.
@@ -123,20 +167,16 @@ def serialize_form_for_react(form_class, user=None, instance=None, model_name=No
     # Get field permissions if user and model_name provided
     field_perms = {}
     has_field_config = False
+    view_all_fields = False
     if user and model_name:
-        field_perms, has_field_config = get_user_field_permissions(user, model_name, settings.APP_METADATA_SETTINGS)
+        field_perms, has_field_config, view_all_fields = get_user_field_permissions(user, model_name, settings.APP_METADATA_SETTINGS)
 
     form_data = {}
 
     for field_name, field in form_instance.fields.items():
         # Check field permissions - skip non-readable fields
-        if has_field_config:
-            if field_name not in field_perms:
-                # Field not in whitelist - exclude from form
-                continue
-            if not field_perms[field_name].get('readable', True):
-                # Field is explicitly non-readable - exclude from form
-                continue
+        if not _is_field_readable(field_name, field_perms, has_field_config, view_all_fields):
+            continue
 
         # Map Django widgets to React component types
         widget_type = "TextInput"  # default
@@ -162,10 +202,19 @@ def serialize_form_for_react(form_class, user=None, instance=None, model_name=No
         }
 
         # Check if field is editable - add disabled flag if not
-        if has_field_config:
-            # Field is in whitelist (already checked above), check if editable
-            if not field_perms[field_name].get('editable', True):
-                # Field is readable but not editable - mark as disabled
+        if has_field_config or view_all_fields:
+            # Check if field has explicit permissions
+            if field_name in field_perms:
+                # Field is explicitly configured, check if editable
+                if not field_perms[field_name].get('editable', True):
+                    # Field is readable but not editable - mark as disabled
+                    field_config["disabled"] = True
+            elif view_all_fields:
+                # Field is readable via view_all_fields but has no explicit edit permission
+                # view_all_fields only grants read access, not edit - mark as disabled
+                field_config["disabled"] = True
+            elif has_field_config:
+                # Whitelist mode: field not in whitelist means no edit permission
                 field_config["disabled"] = True
 
         # Add help text if present
@@ -238,8 +287,12 @@ class MetadataViewGenerator:
             # Get user-specific queryset using helper method
             queryset = _get_user_queryset(model, request.user)
 
+            # Apply ordering from metadata if specified
+            if hasattr(metadata_class, 'ordering') and metadata_class.ordering:
+                queryset = queryset.order_by(*metadata_class.ordering)
+
             # Get field permissions for filtering
-            field_perms, has_field_config = get_user_field_permissions(request.user, model_name_lower, settings.APP_METADATA_SETTINGS)
+            field_perms, has_field_config, view_all_fields = get_user_field_permissions(request.user, model_name_lower, settings.APP_METADATA_SETTINGS)
 
             # Prepare data for the template
             items_data = []
@@ -253,13 +306,8 @@ class MetadataViewGenerator:
                 if hasattr(metadata_class, 'list_display'):
                     for field_name in metadata_class.list_display:
                         # Check field permission - skip non-readable fields
-                        if has_field_config:
-                            if field_name not in field_perms:
-                                # Field not in whitelist - skip
-                                continue
-                            if not field_perms[field_name].get('readable', True):
-                                # Field explicitly non-readable - skip
-                                continue
+                        if not _is_field_readable(field_name, field_perms, has_field_config, view_all_fields):
+                            continue
 
                         if hasattr(item, field_name):
                             # Check if it's a property first
@@ -287,13 +335,8 @@ class MetadataViewGenerator:
                         for key, value in item.metadata.items():
                             if key not in item_dict:  # Don't override actual fields
                                 # Check field permission before adding
-                                if has_field_config:
-                                    if key not in field_perms:
-                                        # Field not in whitelist - skip
-                                        continue
-                                    if not field_perms[key].get('readable', True):
-                                        # Field explicitly non-readable - skip
-                                        continue
+                                if not _is_field_readable(key, field_perms, has_field_config, view_all_fields):
+                                    continue
                                 item_dict[key] = value
 
                 items_data.append(item_dict)
@@ -309,13 +352,8 @@ class MetadataViewGenerator:
                 first_column_added = False
                 for field_name in metadata_class.list_display:
                     # Check field permission - skip non-readable fields
-                    if has_field_config:
-                        if field_name not in field_perms:
-                            # Field not in whitelist - skip
-                            continue
-                        if not field_perms[field_name].get('readable', True):
-                            # Field explicitly non-readable - skip
-                            continue
+                    if not _is_field_readable(field_name, field_perms, has_field_config, view_all_fields):
+                        continue
 
                     # Make the first readable field a link to the detail view
                     if not first_column_added:
@@ -515,7 +553,7 @@ class MetadataViewGenerator:
             obj = get_object_or_404(queryset, id=object_id)
 
             # Get field permissions for filtering
-            field_perms, has_field_config = get_user_field_permissions(request.user, model_name_lower, settings.APP_METADATA_SETTINGS)
+            field_perms, has_field_config, view_all_fields = get_user_field_permissions(request.user, model_name_lower, settings.APP_METADATA_SETTINGS)
 
             # Prepare data for the template
             obj_data = {
@@ -528,13 +566,8 @@ class MetadataViewGenerator:
                 field_name = field.name
 
                 # Check field permission - skip non-readable fields
-                if has_field_config:
-                    if field_name not in field_perms:
-                        # Field not in whitelist - skip
-                        continue
-                    if not field_perms[field_name].get('readable', True):
-                        # Field explicitly non-readable - skip
-                        continue
+                if not _is_field_readable(field_name, field_perms, has_field_config, view_all_fields):
+                    continue
 
                 value = getattr(obj, field_name)
 
@@ -560,13 +593,8 @@ class MetadataViewGenerator:
                 field_name = field.name
 
                 # Check field permission - skip non-readable fields
-                if has_field_config:
-                    if field_name not in field_perms:
-                        # Field not in whitelist - skip
-                        continue
-                    if not field_perms[field_name].get('readable', True):
-                        # Field explicitly non-readable - skip
-                        continue
+                if not _is_field_readable(field_name, field_perms, has_field_config, view_all_fields):
+                    continue
 
                 related_objects = getattr(obj, field_name).all()
                 obj_data[field_name] = [
@@ -585,13 +613,8 @@ class MetadataViewGenerator:
 
                     for field_name in field_names:
                         # Check field permission - skip non-readable fields
-                        if has_field_config:
-                            if field_name not in field_perms:
-                                # Field not in whitelist - skip
-                                continue
-                            if not field_perms[field_name].get('readable', True):
-                                # Field explicitly non-readable - skip
-                                continue
+                        if not _is_field_readable(field_name, field_perms, has_field_config, view_all_fields):
+                            continue
 
                         # Skip if field already in obj_data (from model fields)
                         if field_name in obj_data:
@@ -643,10 +666,19 @@ class MetadataViewGenerator:
                             obj_data[field_name] = ''
             
             # Prepare fieldsets for display (React component expects array of arrays)
+            # Filter fields by read permission to hide restricted fields from UI
             fieldsets = []
             if hasattr(metadata_class, 'fieldsets'):
                 for fieldset_name, fieldset_config in metadata_class.fieldsets:
                     field_names = fieldset_config.get('fields', [])
+
+                    # Filter out fields user doesn't have read permission for
+                    # Uses helper to correctly handle view_all_fields + field_permissions
+                    field_names = [
+                        f for f in field_names
+                        if _is_field_readable(f, field_perms, has_field_config, view_all_fields)
+                    ]
+
                     if field_names:
                         fieldsets.append([
                             fieldset_name,
@@ -903,7 +935,8 @@ class MetadataViewGenerator:
             # Handle GET request - return form metadata
             if request.method == 'GET':
                 # Get field permissions
-                field_perms, has_field_config = get_user_field_permissions(request.user, model_name_lower, settings.APP_METADATA_SETTINGS)
+                # Note: view_all_fields only affects read access, not edit access for create forms
+                field_perms, has_field_config, _view_all_fields = get_user_field_permissions(request.user, model_name_lower, settings.APP_METADATA_SETTINGS)
 
                 # Get the form class from metadata if available
                 form_class = getattr(metadata_class, 'form', None)
@@ -928,6 +961,7 @@ class MetadataViewGenerator:
                         dummy_form = form_class()
                     for field_name, field in dummy_form.fields.items():
                         # Check field permission - only include editable fields in create form
+                        # Note: view_all_fields does NOT grant edit access
                         if has_field_config:
                             if field_name not in field_perms:
                                 # Field not in whitelist - exclude from create form
@@ -990,9 +1024,11 @@ class MetadataViewGenerator:
             
             # Handle POST request - create the record
             # Get field permissions for validation
-            field_perms, has_field_config = get_user_field_permissions(request.user, model_name_lower, settings.APP_METADATA_SETTINGS)
+            # Note: view_all_fields only affects read access, not edit access
+            field_perms, has_field_config, _view_all_fields = get_user_field_permissions(request.user, model_name_lower, settings.APP_METADATA_SETTINGS)
 
             # Validate field permissions before processing
+            # Note: view_all_fields does NOT grant edit access
             if has_field_config:
                 forbidden_fields = []
                 for field_name in request.POST.keys():
@@ -1158,9 +1194,11 @@ class MetadataViewGenerator:
                 return JsonResponse({'error': f'{model_name} not found'}, status=404)
 
             # Get field permissions for validation
-            field_perms, has_field_config = get_user_field_permissions(request.user, model_name_lower, settings.APP_METADATA_SETTINGS)
+            # Note: view_all_fields only affects read access, not edit access
+            field_perms, has_field_config, _view_all_fields = get_user_field_permissions(request.user, model_name_lower, settings.APP_METADATA_SETTINGS)
 
             # Validate field permissions before processing
+            # Note: view_all_fields does NOT grant edit access
             if has_field_config:
                 forbidden_fields = []
                 for field_name in request.POST.keys():

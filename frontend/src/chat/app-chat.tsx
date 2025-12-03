@@ -8,9 +8,10 @@ import { Chat } from './components/chat';
 
 interface AppChatProps {
   threadId?: string;
+  disableAttachmentUiButton?: boolean;
 }
 
-export default function AppChat({ threadId: initialThreadId }: AppChatProps) {
+export default function AppChat({ threadId: initialThreadId, disableAttachmentUiButton = false }: AppChatProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentThreadId, setCurrentThreadId] = useState<string>(initialThreadId || '');
@@ -149,6 +150,7 @@ export default function AppChat({ threadId: initialThreadId }: AppChatProps) {
         id={currentThreadId}
         initialMessages={initialMessages}
         onNewThread={(threadId) => navigateToThread(threadId, true)}
+        disableAttachmentUiButton={disableAttachmentUiButton}
       />
     </AppLayout>
   );

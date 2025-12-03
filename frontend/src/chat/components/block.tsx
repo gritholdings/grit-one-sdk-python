@@ -71,7 +71,8 @@ export function Block({
   setMessages,
   // votes,
   suggestedMessages,
-  ensureThreadExists
+  ensureThreadExists,
+  disableAttachmentUiButton = false,
 }: {
   chatId: string;
   input: string;
@@ -98,6 +99,7 @@ export function Block({
   ) => void;
   suggestedMessages: string[];
   ensureThreadExists: () => Promise<string>;
+  disableAttachmentUiButton?: boolean;
 }) {
   const [messagesContainerRef, messagesEndRef] =
     useScrollToBottom<HTMLDivElement>();
@@ -344,6 +346,7 @@ export function Block({
                 setMessages={setMessages}
                 suggestedMessages={suggestedMessages}
                 ensureThreadExists={ensureThreadExists}
+                disableAttachmentUiButton={disableAttachmentUiButton}
               />
             </form>
           </div>
