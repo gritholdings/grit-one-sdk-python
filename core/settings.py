@@ -249,3 +249,7 @@ else:
 import app.settings as app_settings
 
 INSTALLED_APPS += app_settings.ADDITIONAL_INSTALLED_APPS
+
+# Apply any additional settings defined in app/settings.py
+if hasattr(app_settings, 'ADDITIONAL_SETTINGS'):
+    globals().update(app_settings.ADDITIONAL_SETTINGS)

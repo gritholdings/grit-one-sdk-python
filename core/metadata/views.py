@@ -575,9 +575,12 @@ class MetadataViewGenerator:
                 if value is None:
                     obj_data[field_name] = None
                 elif hasattr(value, 'id'):  # Foreign key
+                    # Get the related model name for URL generation
+                    related_model_name = camel_to_snake(value.__class__.__name__)
                     obj_data[field_name] = {
                         'id': str(value.id),
-                        'name': getattr(value, 'name', str(value))
+                        'name': getattr(value, 'name', str(value)),
+                        'model': related_model_name
                     }
                 elif field.get_internal_type() == 'UUIDField':
                     obj_data[field_name] = str(value)
@@ -833,7 +836,7 @@ class MetadataViewGenerator:
                     
                     # Build inline configuration
                     inline_config = {
-                        'model_name': inline_model.__name__,
+                        'model_name': inline_model.__name__.lower(),
                         'verbose_name': getattr(inline_class, 'verbose_name', inline_model.__name__) or inline_model.__name__,
                         'verbose_name_plural': getattr(inline_class, 'verbose_name_plural', f"{inline_model.__name__}s") or f"{inline_model.__name__}s",
                         'fields': inline_fields,

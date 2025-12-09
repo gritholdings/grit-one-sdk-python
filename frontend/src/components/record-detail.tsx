@@ -421,15 +421,14 @@ export default function RecordDetail({
       
       // Check if this is a foreign key field (has id and name properties)
       const isForeignKey = typeof value === 'object' && value !== null && 'id' in value && 'name' in value
-      
+
       // Generate link for foreign key fields
       let displayContent: React.ReactNode = <span>{displayText}</span>
       if (isForeignKey && value.id) {
-        // Convert snake_case field name to PascalCase model name (e.g., "course_work" -> "CourseWork")
-        const modelName = field.split('_')
-          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-          .join('')
-        const detailUrl = `/r/${modelName}/${value.id}/view`
+        // Use model name from backend (lowercase/snake_case) for URL generation
+        // Falls back to field name if model property is not available
+        const relatedModelName = 'model' in value ? String(value.model) : field
+        const detailUrl = `/r/${relatedModelName}/${value.id}/view`
         displayContent = (
           <a href={detailUrl} className="font-bold hover:underline">
             {displayText}

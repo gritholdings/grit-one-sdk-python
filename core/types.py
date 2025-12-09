@@ -1,5 +1,9 @@
-from typing import TypedDict, List, Dict, Literal
+from typing import TypedDict, List, Dict, Literal, Any
 from typing_extensions import NotRequired
+
+
+# Flexible type for app-level settings that override/extend core settings
+AdditionalSettingsType = Dict[str, Any]
 
 
 class CoreSettingsTypedDict(TypedDict):
