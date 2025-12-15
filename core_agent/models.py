@@ -271,7 +271,7 @@ class Agent(models.Model):
     system_prompt = models.TextField(blank=True)
     knowledge_bases = models.ManyToManyField(KnowledgeBase, related_name='knowledge_bases', blank=True)
     sub_agents = models.ManyToManyField('self', symmetrical=False, related_name='parent_agents', blank=True)
-    if apps.is_installed('core_sales'):
+    if apps.is_installed('grit.sales'):
         account = models.ForeignKey('core_sales.Account', on_delete=models.CASCADE,
                                     blank=True, null=True)
     # metadata fields:
@@ -382,7 +382,7 @@ class DataAutomationProject(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     blueprints = models.ManyToManyField(Blueprint, related_name="blueprints", blank=True)
-    if apps.is_installed('core_sales'):
+    if apps.is_installed('grit.sales'):
         account = models.ForeignKey('core_sales.Account', on_delete=models.CASCADE,
                                     blank=True, null=True)
     metadata = models.JSONField(blank=True, null=True)

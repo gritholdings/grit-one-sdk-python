@@ -170,7 +170,7 @@ def threads_runs(request: HttpRequest):
         # Check if user has access to this agent
         # If agent has an account, verify user belongs to that account
         if hasattr(agent_detail, 'account') and agent_detail.account:
-            from core_sales.models import Contact
+            from grit.sales.models import Contact
             try:
                 contact = Contact.objects.get(user=user) # pylint: disable=all
                 if contact.account != agent_detail.account:

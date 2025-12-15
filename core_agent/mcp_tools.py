@@ -58,7 +58,7 @@ class AgentQueryTool(ModelQueryToolset):
 
         # Check if user has an account through Contact
         try:
-            from core_sales.models import Contact
+            from grit.sales.models import Contact
             contact = Contact.objects.get(user=user)
             query |= Q(account__contacts__user=user)
         except Exception:

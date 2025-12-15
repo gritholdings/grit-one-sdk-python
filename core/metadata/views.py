@@ -67,6 +67,58 @@ def _is_field_readable(
     return True
 
 
+def _get_inline_field_name(parent_model, inline_model):
+    """
+    Get the field name on parent_model that corresponds to an inline's relationship.
+
+    This function determines which field on the parent model an inline represents,
+    enabling field-level permission checks for inline visibility. For example,
+    StudentInline (which uses Course.students.through) maps to the 'students' field.
+
+    Args:
+        parent_model: The Django model class that owns the inline (e.g., Course)
+        inline_model: The inline's model class (e.g., Course.students.through)
+
+    Returns:
+        str: The field name on parent_model (e.g., 'students', 'teachers')
+        None: If no relationship found (inline will be shown - no restrictions)
+
+    Relationship types handled:
+        1. ManyToMany through models: Returns the M2M field name (e.g., 'students')
+        2. ForeignKey relationships: Returns the related_name or default accessor
+    """
+    # Check if inline_model is a through model for a ManyToMany field
+    for m2m_field in parent_model._meta.many_to_many:
+        if m2m_field.remote_field.through == inline_model:
+            return m2m_field.name  # e.g., 'students', 'teachers'
+
+    # Check for direct ForeignKey relationship (OneToMany from parent's perspective)
+    # Find the FK field on inline_model that points to parent_model
+    for field in inline_model._meta.fields:
+        if field.related_model == parent_model:
+            # Get the reverse accessor name (related_name or default)
+            # This is how the parent accesses related objects
+            try:
+                if hasattr(field, 'remote_field') and field.remote_field:
+                    # Try to get related_query_name if available
+                    if hasattr(field.remote_field, 'related_query_name'):
+                        related_name = field.remote_field.related_query_name()
+                        if related_name and callable(related_name) is False:
+                            return related_name
+                    # Try get_accessor_name as alternative
+                    if hasattr(field.remote_field, 'get_accessor_name'):
+                        accessor = field.remote_field.get_accessor_name()
+                        if accessor:
+                            return accessor
+            except (AttributeError, TypeError):
+                pass
+            # Fallback to default Django naming: modelname_set
+            return f"{inline_model._meta.model_name}_set"
+
+    # No relationship found - return None (will allow inline by default)
+    return None
+
+
 def _get_user_queryset(model, user):
     """
     Get queryset filtered by user permissions using available manager.
@@ -731,11 +783,21 @@ class MetadataViewGenerator:
                     detail_actions.append(processed_group)
             
             # Process inline configurations
+            # Filter inlines based on field permissions before processing
             inlines_data = []
             if hasattr(metadata_class, 'inlines') and metadata_class.inlines:
                 for inline_class in metadata_class.inlines:
                     # Get the inline model
                     inline_model = inline_class.model
+
+                    # Check if user has permission to view this inline's underlying field
+                    # For example, StudentInline requires permission to read 'students' M2M field
+                    inline_field_name = _get_inline_field_name(model, inline_model)
+                    if inline_field_name is not None:
+                        # Field found - check if user can read it
+                        if not _is_field_readable(inline_field_name, field_perms, has_field_config, view_all_fields):
+                            # User cannot read this field - skip the inline entirely
+                            continue
                     
                     # Get fields to display from inline configuration (moved outside to avoid UnboundLocalError)
                     inline_fields = []
