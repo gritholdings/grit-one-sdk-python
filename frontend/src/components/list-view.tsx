@@ -12,7 +12,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
-import { DataTable } from "@/components/data-table"
+import { DataTable, type PaginationData } from "@/components/data-table"
 import { type ColumnDef } from "@tanstack/react-table"
 import { ArrowUpDown, MoreHorizontal } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -142,9 +142,9 @@ function createColumns(columnsConfig: ColumnConfig[]): ColumnDef<Record<string, 
           }
           
           return (
-            <a 
+            <a
               href={href}
-              className={`font-bold hover:underline ${config.align === "right" ? "text-right" : ""}`}
+              className={`record-link font-bold hover:underline ${config.align === "right" ? "text-right" : ""}`}
             >
               {linkText}
             </a>
@@ -190,6 +190,8 @@ interface ListViewProps {
   columns: ColumnConfig[]
   title?: string,
   actions?: NavActionGroup[]
+  pagination?: PaginationData
+  searchQuery?: string
   appConfigurations?: string | Record<string, any>
 }
 
@@ -198,6 +200,8 @@ export default function ListView({
   columns,
   title = "All Records",
   actions = [],
+  pagination,
+  searchQuery = "",
   appConfigurations
 }: ListViewProps) {
   // Ensure actions is always an array
@@ -229,7 +233,7 @@ export default function ListView({
           </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 px-4 py-10 min-w-0 overflow-x-hidden">
-            <DataTable columns={columnDefs} data={data} />
+            <DataTable columns={columnDefs} data={data} pagination={pagination} searchQuery={searchQuery} />
         </div>
       </SidebarInset>
     </SidebarProvider>

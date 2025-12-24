@@ -435,7 +435,16 @@ export default function RecordDetail({
           </a>
         )
       }
-      
+
+      // Textarea fields in view mode: scrollable, preserve newlines, visual container
+      if (fieldConfig?.widget === 'Textarea' && displayText !== '-') {
+        displayContent = (
+          <div className="whitespace-pre-wrap max-h-40 overflow-y-auto bg-gray-50 border border-gray-200 rounded-md p-3 text-sm">
+            {displayText}
+          </div>
+        )
+      }
+
       return (
         <div key={field} className="py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:py-4">
           <dt className="text-sm font-medium text-gray-500 sm:pt-1.5">

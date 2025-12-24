@@ -1,0 +1,174 @@
+{% extends 'base_page.html' %}
+{% load app_header %}
+{% load vite_tags %}
+{% block extra_head %}
+{% vite_assets %}
+{% endblock %}
+{% block nav %}
+{% app_header %}
+{% endblock %}
+{% block content %}
+<div class="px-4 py-10 sm:px-6 lg:px-8 lg:py-14 mx-auto">
+  <div
+    data-react-component="ListView"
+    data-prop-title="{{ title }}"
+    data-prop-data-source="items"
+    data-prop-columns='{{ columns|default:"[]" }}'
+    data-prop-actions='{{ actions|default:"[]" }}'
+    data-prop-pagination='{{ pagination_json|default:"{}" }}'
+    data-prop-search-query="{{ search_query|default:"" }}"
+    data-prop-app-configurations="{{ app_metadata_settings_json }}"
+  >
+    <!-- Skeleton loader -->
+    <div class="flex min-h-screen w-full animate-pulse">
+      <!-- Left Column - Sidebar Skeleton (narrower) -->
+      <div class="hidden md:flex h-screen w-64 flex-col bg-gray-50">
+        <!-- Sidebar header -->
+        <div class="flex h-14 items-center px-4">
+          <div class="h-8 w-32 bg-gray-200 rounded"></div>
+        </div>
+        <!-- Sidebar content -->
+        <div class="flex-1 overflow-auto p-4">
+          <div class="space-y-6">
+            <!-- App Group 1 -->
+            <div class="space-y-2">
+              <div class="h-4 w-20 bg-gray-200 rounded"></div>
+              <div class="space-y-1">
+                <div class="h-8 w-full bg-gray-200 rounded"></div>
+                <div class="h-8 w-full bg-gray-200 rounded"></div>
+                <div class="h-8 w-full bg-gray-200 rounded"></div>
+              </div>
+            </div>
+            <!-- App Group 2 -->
+            <div class="space-y-2">
+              <div class="h-4 w-24 bg-gray-200 rounded"></div>
+              <div class="space-y-1">
+                <div class="h-8 w-full bg-gray-200 rounded"></div>
+                <div class="h-8 w-full bg-gray-200 rounded"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column - Main Content Skeleton -->
+      <div class="flex-1 flex flex-col min-w-0 bg-white">
+        <!-- Header -->
+        <header class="flex h-14 shrink-0 items-center gap-2">
+          <div class="flex flex-1 items-center gap-2 px-3">
+            <div class="h-4 w-4 bg-gray-200 rounded"></div>
+            <div class="h-4 w-px bg-gray-200"></div>
+            <div class="h-5 w-32 bg-gray-200 rounded"></div>
+          </div>
+          <div class="ml-auto px-3">
+            <div class="h-9 w-28 bg-gray-200 rounded"></div>
+          </div>
+        </header>
+
+        <!-- Content Area -->
+        <div class="flex flex-1 flex-col gap-4 px-4 py-10">
+          <!-- Table Controls -->
+          <div class="flex items-center justify-between py-4">
+            <div class="flex-1"></div>
+            <div class="h-10 w-24 bg-gray-200 rounded"></div>
+          </div>
+
+          <!-- Table -->
+          <div class="overflow-hidden rounded-md bg-white" style="border: 1px solid #e5e7eb;">
+            <!-- Table Header -->
+            <div class="bg-gray-50 p-4" style="border-bottom: 1px solid #e5e7eb;">
+              <div class="flex gap-4">
+                <div class="h-5 w-8 bg-gray-200 rounded"></div>
+                <div class="h-5 w-40 bg-gray-200 rounded"></div>
+                <div class="h-5 w-32 bg-gray-200 rounded"></div>
+                <div class="h-5 w-24 ml-auto bg-gray-200 rounded"></div>
+              </div>
+            </div>
+
+            <!-- Table Rows -->
+            <div class="p-4" style="border-bottom: 1px solid #e5e7eb;">
+              <div class="flex gap-4 items-center">
+                <div class="h-4 w-4 bg-gray-200 rounded"></div>
+                <div class="h-4 w-40 bg-gray-200 rounded"></div>
+                <div class="h-4 w-32 bg-gray-200 rounded"></div>
+                <div class="h-8 w-8 ml-auto bg-gray-200 rounded"></div>
+              </div>
+            </div>
+            <div class="p-4" style="border-bottom: 1px solid #e5e7eb;">
+              <div class="flex gap-4 items-center">
+                <div class="h-4 w-4 bg-gray-200 rounded"></div>
+                <div class="h-4 w-40 bg-gray-200 rounded"></div>
+                <div class="h-4 w-32 bg-gray-200 rounded"></div>
+                <div class="h-8 w-8 ml-auto bg-gray-200 rounded"></div>
+              </div>
+            </div>
+            <div class="p-4" style="border-bottom: 1px solid #e5e7eb;">
+              <div class="flex gap-4 items-center">
+                <div class="h-4 w-4 bg-gray-200 rounded"></div>
+                <div class="h-4 w-40 bg-gray-200 rounded"></div>
+                <div class="h-4 w-32 bg-gray-200 rounded"></div>
+                <div class="h-8 w-8 ml-auto bg-gray-200 rounded"></div>
+              </div>
+            </div>
+            <div class="p-4" style="border-bottom: 1px solid #e5e7eb;">
+              <div class="flex gap-4 items-center">
+                <div class="h-4 w-4 bg-gray-200 rounded"></div>
+                <div class="h-4 w-40 bg-gray-200 rounded"></div>
+                <div class="h-4 w-32 bg-gray-200 rounded"></div>
+                <div class="h-8 w-8 ml-auto bg-gray-200 rounded"></div>
+              </div>
+            </div>
+            <div class="p-4" style="border-bottom: 1px solid #e5e7eb;">
+              <div class="flex gap-4 items-center">
+                <div class="h-4 w-4 bg-gray-200 rounded"></div>
+                <div class="h-4 w-40 bg-gray-200 rounded"></div>
+                <div class="h-4 w-32 bg-gray-200 rounded"></div>
+                <div class="h-8 w-8 ml-auto bg-gray-200 rounded"></div>
+              </div>
+            </div>
+            <div class="p-4" style="border-bottom: 1px solid #e5e7eb;">
+              <div class="flex gap-4 items-center">
+                <div class="h-4 w-4 bg-gray-200 rounded"></div>
+                <div class="h-4 w-40 bg-gray-200 rounded"></div>
+                <div class="h-4 w-32 bg-gray-200 rounded"></div>
+                <div class="h-8 w-8 ml-auto bg-gray-200 rounded"></div>
+              </div>
+            </div>
+            <div class="p-4" style="border-bottom: 1px solid #e5e7eb;">
+              <div class="flex gap-4 items-center">
+                <div class="h-4 w-4 bg-gray-200 rounded"></div>
+                <div class="h-4 w-40 bg-gray-200 rounded"></div>
+                <div class="h-4 w-32 bg-gray-200 rounded"></div>
+                <div class="h-8 w-8 ml-auto bg-gray-200 rounded"></div>
+              </div>
+            </div>
+            <div class="p-4">
+              <div class="flex gap-4 items-center">
+                <div class="h-4 w-4 bg-gray-200 rounded"></div>
+                <div class="h-4 w-40 bg-gray-200 rounded"></div>
+                <div class="h-4 w-32 bg-gray-200 rounded"></div>
+                <div class="h-8 w-8 ml-auto bg-gray-200 rounded"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pagination -->
+          <div class="flex items-center justify-end space-x-2 py-4">
+            <div class="h-4 w-48 bg-gray-200 rounded"></div>
+            <div class="space-x-2 flex">
+              <div class="h-9 w-20 bg-gray-200 rounded"></div>
+              <div class="h-9 w-20 bg-gray-200 rounded"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- End skeleton loader -->
+  </div>
+  {{ items|json_script:"items" }}
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+</script>
+{% endblock %}

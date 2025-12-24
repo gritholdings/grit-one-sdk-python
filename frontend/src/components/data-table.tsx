@@ -26,7 +26,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-// import { Input } from "@/components/ui/input"
+import { Input } from "@/components/ui/input"
 import {
   Table,
   TableBody,
@@ -129,19 +129,61 @@ export const columns: ColumnDef<Record<string, unknown>>[] = [
   },
 ]
 
+export interface PaginationData {
+  currentPage: number
+  totalPages: number
+  totalItems: number
+  pageSize: number
+  hasNext: boolean
+  hasPrevious: boolean
+  nextPage: number | null
+  previousPage: number | null
+}
+
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
+  pagination?: PaginationData
+  searchQuery?: string
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
+  pagination,
+  searchQuery = "",
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
   )
+  const [searchValue, setSearchValue] = React.useState(searchQuery)
+
+  // Handle search submission on Enter key
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      const searchParam = searchValue.trim()
+      const url = new URL(window.location.href)
+      if (searchParam) {
+        url.searchParams.set("search", searchParam)
+      } else {
+        url.searchParams.delete("search")
+      }
+      // Reset to page 1 when searching
+      url.searchParams.delete("page")
+      window.location.href = url.toString()
+    }
+  }
+
+  // Build pagination URL preserving search query
+  const buildPageUrl = (page: number) => {
+    const params = new URLSearchParams()
+    params.set("page", String(page))
+    if (searchQuery) {
+      params.set("search", searchQuery)
+    }
+    return `?${params.toString()}`
+  }
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
@@ -173,14 +215,13 @@ export function DataTable<TData, TValue>({
   return (
     <div className="w-full min-w-0 overflow-x-hidden">
       <div className="flex items-center py-4">
-        {/* <Input
-          placeholder="Filter emails..."
-          value={(table.getColumn("email")?.getFilterValue() as string) ?? ""}
-          onChange={(event) =>
-            table.getColumn("email")?.setFilterValue(event.target.value)
-          }
+        <Input
+          placeholder="Search..."
+          value={searchValue}
+          onChange={(e) => setSearchValue(e.target.value)}
+          onKeyDown={handleSearchKeyDown}
           className="max-w-sm"
-        /> */}
+        />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="ml-auto">
@@ -260,26 +301,77 @@ export function DataTable<TData, TValue>({
       </div>
       <div className="flex items-center justify-end space-x-2 py-4">
         <div className="text-muted-foreground flex-1 text-sm">
-          {table.getFilteredSelectedRowModel().rows.length} of{" "}
-          {table.getFilteredRowModel().rows.length} row(s) selected.
+          {pagination ? (
+            // Server-side pagination: show accurate totals
+            <>
+              {table.getFilteredSelectedRowModel().rows.length > 0 && (
+                <>{table.getFilteredSelectedRowModel().rows.length} selected. </>
+              )}
+              Showing {((pagination.currentPage - 1) * pagination.pageSize) + 1}-
+              {Math.min(pagination.currentPage * pagination.pageSize, pagination.totalItems)} of{" "}
+              {pagination.totalItems} row(s).
+              {pagination.totalPages > 1 && (
+                <> Page {pagination.currentPage} of {pagination.totalPages}.</>
+              )}
+            </>
+          ) : (
+            // Client-side pagination fallback
+            <>
+              {table.getFilteredSelectedRowModel().rows.length} of{" "}
+              {table.getFilteredRowModel().rows.length} row(s) selected.
+            </>
+          )}
         </div>
         <div className="space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Next
-          </Button>
+          {pagination ? (
+            // Server-side pagination: use href-based navigation
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!pagination.hasPrevious}
+                asChild={pagination.hasPrevious}
+              >
+                {pagination.hasPrevious ? (
+                  <a href={buildPageUrl(pagination.previousPage!)}>Previous</a>
+                ) : (
+                  "Previous"
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!pagination.hasNext}
+                asChild={pagination.hasNext}
+              >
+                {pagination.hasNext ? (
+                  <a href={buildPageUrl(pagination.nextPage!)}>Next</a>
+                ) : (
+                  "Next"
+                )}
+              </Button>
+            </>
+          ) : (
+            // Client-side pagination fallback
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+              >
+                Next
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </div>

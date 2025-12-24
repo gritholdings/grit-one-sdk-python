@@ -73,7 +73,7 @@ export function NavActions({ groups = defaultGroups, deleteUrl, modelName }: Nav
     
     // Add delete option to the first group
     const deleteOption = {
-      label: `Delete ${modelName || 'Record'}`,
+      label: 'Delete',
       icon: Trash2,
       action: 'delete',
       url: deleteUrl,
@@ -144,7 +144,7 @@ export function NavActions({ groups = defaultGroups, deleteUrl, modelName }: Nav
   }
 
   return (
-    <div className="flex items-center gap-2 text-sm">
+    <div className="more-actions-button flex items-center gap-2 text-sm">
       {/* <div className="text-muted-foreground hidden font-medium md:inline-block">
         Edit Oct 08
       </div> */}

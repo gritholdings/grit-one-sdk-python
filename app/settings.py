@@ -1,6 +1,7 @@
-from customauth.types import AuthSettingsTypedDict
-from core_agent.types import AgentSettingsTypedDict
-from core.types import (
+from pathlib import Path
+from grit.auth.types import AuthSettingsTypedDict
+from grit.agent.types import AgentSettingsTypedDict
+from grit.core.types import (
     AppMetadataSettingsTypedDict,
 )
 

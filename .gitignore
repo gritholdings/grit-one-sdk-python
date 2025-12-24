@@ -204,7 +204,7 @@ home/static/home/dist/
 staticfiles/
 
 # Built documentation
-app_docs/docs_build/
+app/docs/docs_build/
 
 # Credentials
 e2e_tests/e2e_credentials.json

@@ -27,4 +27,4 @@ else
 fi
 
 # Start the Gunicorn server
-exec daphne -b 0.0.0.0 -p 8000 core.asgi:application
+exec daphne -b 0.0.0.0 -p 8000 grit.core.asgi:application
