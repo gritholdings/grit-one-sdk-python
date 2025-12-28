@@ -180,6 +180,39 @@ def _get_user_queryset(model, user):
     return django_models.Manager().none()
 
 
+def _set_model_field_value(obj, field_name, value, model):
+    """
+    Set a field value on a model instance, handling ForeignKey and OneToOneField correctly.
+
+    For ForeignKey/OneToOneField fields, Django expects either a model instance or
+    the use of the `_id` suffix when setting by ID value. This helper handles that
+    conversion automatically.
+
+    Args:
+        obj: The model instance to update
+        field_name: The name of the field to set
+        value: The value to set (string for FK fields will be treated as ID)
+        model: The model class (for field introspection)
+
+    Returns:
+        bool: True if field was set successfully, False if field doesn't exist
+    """
+    try:
+        field = model._meta.get_field(field_name)
+        if isinstance(field, (ForeignKey, OneToOneField)):
+            # Convert empty string to None for nullable FK fields
+            if value == '' and field.null:
+                value = None
+            # Set using the _id field for FK/O2O fields
+            setattr(obj, f'{field_name}_id', value)
+        else:
+            setattr(obj, field_name, value)
+        return True
+    except FieldDoesNotExist:
+        # Field not found in model, skip it
+        return False
+
+
 def serialize_form_for_react(form_class, user=None, instance=None, model_name=None):
     """
     Serialize a Django form class into React component format.
@@ -1328,24 +1361,11 @@ class MetadataViewGenerator:
                     pass
                 
                 # Set fields from POST data
+                # Use helper function to properly handle ForeignKey/OneToOneField fields
                 for field_name, value in request.POST.items():
-                    if hasattr(obj, field_name) and field_name not in ['id', 'owner', 'created_at', 'updated_at']:
-                        # Handle ForeignKey and OneToOneField specially
-                        # These need to use the _id suffix and handle empty values
-                        try:
-                            field = model._meta.get_field(field_name)
-                            if isinstance(field, (ForeignKey, OneToOneField)):
-                                # Convert empty string to None for nullable FK fields
-                                if value == '' and field.null:
-                                    value = None
-                                # Set using the _id field for FK/O2O fields
-                                setattr(obj, f'{field_name}_id', value)
-                            else:
-                                setattr(obj, field_name, value)
-                        except FieldDoesNotExist:
-                            # Field not found in model, skip it
-                            pass
-                
+                    if field_name not in ['id', 'owner', 'created_at', 'updated_at', 'csrfmiddlewaretoken']:
+                        _set_model_field_value(obj, field_name, value, model)
+
                 try:
                     obj.save()
                     return JsonResponse({
@@ -1481,10 +1501,11 @@ class MetadataViewGenerator:
                     }, status=400)
             else:
                 # Direct update without form
+                # Use helper function to properly handle ForeignKey/OneToOneField fields
                 for field_name, value in request.POST.items():
-                    if hasattr(obj, field_name) and field_name not in ['id', 'owner', 'created_at', 'updated_at']:
-                        setattr(obj, field_name, value)
-                
+                    if field_name not in ['id', 'owner', 'created_at', 'updated_at', 'csrfmiddlewaretoken']:
+                        _set_model_field_value(obj, field_name, value, model)
+
                 try:
                     obj.save()
                     return JsonResponse({'success': True, 'message': f'{model_name} updated successfully'})

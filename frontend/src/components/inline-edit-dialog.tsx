@@ -261,7 +261,7 @@ export function InlineEditDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="dialog-content max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Edit {inlineConfig.verbose_name_plural}</DialogTitle>
           <DialogDescription>

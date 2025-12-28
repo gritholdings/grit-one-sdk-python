@@ -55,6 +55,13 @@ class FieldPermissionsTypedDict(TypedDict):
     editable: NotRequired[bool]
 
 
+class ChoiceItemTypedDict(TypedDict):
+    label: str
+    closure_type: str
+    is_active: bool
+    probability: NotRequired[int]
+
+
 class ProfileConfigTypedDict(TypedDict):
     app_visibilities: NotRequired[Dict[str, VisibilityItemTypedDict]]
     tab_visibilities: NotRequired[Dict[str, TabVisibilityItemTypedDict]]
@@ -68,3 +75,4 @@ class AppMetadataSettingsTypedDict(TypedDict):
     TABS: NotRequired[Dict[str, TabConfigTypedDict]]
     GROUPS: NotRequired[Dict[str, VisibilityConfigTypedDict]]
     PROFILES: NotRequired[Dict[str, ProfileConfigTypedDict]]
+    CHOICES: NotRequired[Dict[str, Dict[str, ChoiceItemTypedDict]]]

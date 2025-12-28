@@ -558,7 +558,7 @@ export default function RecordDetail({
         <div className={`record-detail-content flex flex-1 flex-col gap-4 px-4 py-10 ${isEditing ? 'pb-24' : ''}`}>
           <div className="max-w-4xl">
             {generalError && (
-              <Alert variant="destructive" className="mb-4">
+              <Alert variant="destructive" className="general-error mb-4">
                 <AlertDescription>{generalError}</AlertDescription>
               </Alert>
             )}
