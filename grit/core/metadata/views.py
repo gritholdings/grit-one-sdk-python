@@ -404,7 +404,10 @@ class MetadataViewGenerator:
                     queryset = queryset.filter(q_objects)
 
             # Server-side pagination
-            page_size = int(request.GET.get('page_size', 25))
+            try:
+                page_size = int(request.GET.get('page_size', 25))
+            except (ValueError, TypeError):
+                page_size = 25
             page_number = request.GET.get('page', 1)
 
             # Clamp page_size to reasonable bounds

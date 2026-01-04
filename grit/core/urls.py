@@ -9,11 +9,17 @@ from grit.core import views as core_views
 from grit.core.metadata import metadata
 from grit.core.metadata.autodiscover import autodiscover
 from grit.core.shortcuts import auth_redirect
+from grit.core.workflows import views as workflow_views
 
 # Autodiscover metadata registrations from all apps
 autodiscover()
 
 urlpatterns = [
+    # Workflow API endpoints
+    path('api/workflows/', include('grit.core.workflows.urls')),
+    # Workflow page views
+    path('workflows/', workflow_views.workflow_list_page, name='workflow_list_page'),
+    path('workflows/<str:workflow_id>/', workflow_views.workflow_detail_page, name='workflow_detail_page'),
     path('auth/', include('grit.auth.urls')),
     path('admin/', admin.site.urls),
     path('onboarding/', RedirectView.as_view(pattern_name='onboarding', permanent=False), {'step': 1}, name='onboarding_default'),

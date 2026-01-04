@@ -205,6 +205,7 @@ staticfiles/
 
 # Built documentation
 app/docs/docs_build/
+app/docs/build_public/
 
 # Credentials
 e2e_tests/e2e_credentials.json

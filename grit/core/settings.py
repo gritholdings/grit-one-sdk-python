@@ -2,11 +2,10 @@
 Django settings for core project.
 """
 
-import json
 import os
 from pathlib import Path
 from app.settings import DOMAIN_NAME, AWS_RDS_ENDPOINT
-from .utils.env_config import load_credential, get_django_env
+from .utils.env_config import load_credential, set_environ_credential, get_django_env
 from .core_settings import core_settings
 
 # Basics
@@ -15,18 +14,13 @@ from .core_settings import core_settings
 ## Note: .parent.parent.parent accounts for grit/core/settings.py path
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-## Load the credentials.json file
-with open(os.path.join(BASE_DIR, 'credentials.json')) as f:
-    credentials = json.load(f)
-
 DJANGO_ENV = get_django_env()
 
-## Set the environment variable from the credentials file
-if 'OPENAI_API_KEY' in credentials:
-    os.environ['OPENAI_API_KEY'] = credentials['OPENAI_API_KEY']
+## Set the environment variable from the credentials file or env vars
+set_environ_credential('OPENAI_API_KEY')
 
-## Assign the secret key from the JSON file
-SECRET_KEY = credentials['SECRET_KEY']
+## Assign the secret key from credentials file or env vars
+SECRET_KEY = load_credential('SECRET_KEY')
 
 ALLOWED_HOSTS = [".awsapprunner.com", "." + DOMAIN_NAME, "127.0.0.1"]
 
@@ -87,9 +81,7 @@ ASGI_APPLICATION = 'grit.core.asgi.application'
 
 
 # Database is AWS RDS Aurora PostgreSQL
-with open(os.getcwd() + '/credentials.json') as f:
-    credentials = json.load(f)
-    DATABASE_PASSWORD = credentials['DATABASE_PASSWORD']
+DATABASE_PASSWORD = load_credential('DATABASE_PASSWORD')
 
 if DJANGO_ENV == 'TEST':
     DATABASES = {

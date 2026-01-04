@@ -62,6 +62,39 @@ class ChoiceItemTypedDict(TypedDict):
     probability: NotRequired[int]
 
 
+class WorkflowPositionTypedDict(TypedDict):
+    """Node position in the workflow canvas."""
+    x: int
+    y: int
+
+
+class WorkflowNodeTypedDict(TypedDict):
+    """Configuration for a single workflow node."""
+    name: str
+    position: WorkflowPositionTypedDict
+    type: str
+    type_version: NotRequired[float]
+    py_code: NotRequired[str]
+
+
+class WorkflowEdgeTypedDict(TypedDict):
+    """Configuration for an edge connecting two nodes."""
+    source_node_id: str
+    target_node_id: str
+
+
+class WorkflowMetaTypedDict(TypedDict):
+    """Workflow metadata."""
+    name: str
+
+
+class WorkflowTypedDict(TypedDict):
+    """Complete workflow configuration."""
+    meta: WorkflowMetaTypedDict
+    nodes: Dict[str, WorkflowNodeTypedDict]
+    edges: Dict[str, WorkflowEdgeTypedDict]
+
+
 class ProfileConfigTypedDict(TypedDict):
     app_visibilities: NotRequired[Dict[str, VisibilityItemTypedDict]]
     tab_visibilities: NotRequired[Dict[str, TabVisibilityItemTypedDict]]
@@ -76,3 +109,4 @@ class AppMetadataSettingsTypedDict(TypedDict):
     GROUPS: NotRequired[Dict[str, VisibilityConfigTypedDict]]
     PROFILES: NotRequired[Dict[str, ProfileConfigTypedDict]]
     CHOICES: NotRequired[Dict[str, Dict[str, ChoiceItemTypedDict]]]
+    WORKFLOWS: NotRequired[Dict[str, WorkflowTypedDict]]
