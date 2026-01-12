@@ -1,4 +1,6 @@
+import json
 import uuid
+from pathlib import Path
 from asgiref.sync import sync_to_async
 from django.http import JsonResponse, HttpRequest, StreamingHttpResponse
 from django.contrib.admin.views.decorators import staff_member_required
@@ -89,7 +91,8 @@ def thread_detail(request: HttpRequest) -> Response:
                     })
             else:
                 # Old string format
-                role, content = message.split(',', 1)
+                parts = message.split(',', 1)
+                role, content = parts if len(parts) == 2 else (parts[0], '')
                 messages.append({
                     'role': role,
                     'content': content,
@@ -130,9 +133,13 @@ def thread_detail(request: HttpRequest) -> Response:
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def threads_runs(request: HttpRequest):
+async def threads_runs(request: HttpRequest):
     """
     Processes chat messages for a specific thread.
+
+    This is an async view that streams responses from the chat agent.
+    The async pattern is required because the agent's process_chat method
+    returns an AsyncGenerator for true token-by-token streaming.
     """
     message = request.data.get('message')
     thread_id = request.data.get('thread_id')
@@ -152,7 +159,7 @@ def threads_runs(request: HttpRequest):
             {'error': 'Thread ID is required'},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     if not model_id:
         return Response(
             {'error': 'Model ID is required'},
@@ -160,19 +167,20 @@ def threads_runs(request: HttpRequest):
         )
 
     try:
-        agent_detail = Agent.objects.get_agent(agent_id=model_id)
+        # Wrap synchronous ORM calls with sync_to_async
+        agent_detail = await sync_to_async(Agent.objects.get_agent)(agent_id=model_id)
         if not agent_detail:
             return Response(
                 {'error': f'Model with ID {model_id} not found.'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         # Check if user has access to this agent
         # If agent has an account, verify user belongs to that account
         if hasattr(agent_detail, 'account') and agent_detail.account:
             from grit.sales.models import Contact
             try:
-                contact = Contact.objects.get(user=user) # pylint: disable=all
+                contact = await sync_to_async(Contact.objects.get)(user=user) # pylint: disable=all
                 if contact.account != agent_detail.account:
                     return Response(
                         {'error': 'You do not have permission to access this agent.'},
@@ -183,18 +191,23 @@ def threads_runs(request: HttpRequest):
                     {'error': 'You do not have permission to access this agent.'},
                     status=status.HTTP_403_FORBIDDEN
                 )
-        
-        agent_config = agent_detail.get_config()
-        agent_class = Agent.objects.get_agent_class(agent_class_str=agent_config.agent_class)
+
+        agent_config = await sync_to_async(agent_detail.get_config)()
+        agent_class = await sync_to_async(Agent.objects.get_agent_class)(
+            agent_class_str=agent_config.agent_class,
+            model_name=agent_config.model_name
+        )
         if not agent_class:
             return Response(
                 {'error': f'Model class for {model_id} not found.'},
                 status=status.HTTP_404_NOT_FOUND
             )
         chat_agent = agent_class(config=agent_config, request=request)
-        def token_generator():
+
+        async def token_generator():
+            """Async generator that yields tokens from the chat agent."""
             try:
-                for token in chat_agent.process_chat(
+                async for token in chat_agent.process_chat(
                     user=user,
                     thread_id=thread_id,
                     new_message=message,
@@ -203,6 +216,7 @@ def threads_runs(request: HttpRequest):
             except Exception as e:
                 # If something breaks mid-stream:
                 yield f"\n[Stream Error]: {str(e)}\n"
+
         streaming_response = StreamingHttpResponse(token_generator(), status=200, content_type='text/plain')
         streaming_response['Cache-Control'] = 'no-cache'
         return streaming_response
@@ -226,6 +240,47 @@ def models_list(request: HttpRequest) -> Response:
     return Response({
         'models': agent_list
     }, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+def default_config(request: HttpRequest) -> Response:
+    """
+    Returns the default agent configuration from default_system_prompt.json.
+    Used by the Assistant modal to get the default model without showing a dropdown.
+
+    Looks up the Agent by model_name from the config and returns the Agent's UUID,
+    which is required by the threads_runs endpoint.
+    """
+    try:
+        config_path = Path(__file__).parent / 'constants' / 'default_system_prompt.json'
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+
+        model_name = config.get('model', '')
+
+        # Look up the Agent by model_name in metadata to get its UUID
+        agent = Agent.objects.filter(metadata__model_name=model_name).first()
+        if not agent:
+            return Response(
+                {'error': f'No agent found with model_name: {model_name}'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        return Response({
+            'model': str(agent.id),  # Return the Agent UUID for use with threads_runs
+            'model_name': model_name,
+            'system_prompt': config.get('system_prompt', ''),
+        }, status=status.HTTP_200_OK)
+    except FileNotFoundError:
+        return Response(
+            {'error': 'Default configuration file not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except json.JSONDecodeError:
+        return Response(
+            {'error': 'Invalid configuration file format'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 @api_view(['POST'])

@@ -18,6 +18,7 @@ DJANGO_ENV = get_django_env()
 
 ## Set the environment variable from the credentials file or env vars
 set_environ_credential('OPENAI_API_KEY')
+set_environ_credential('ANTHROPIC_API_KEY')
 
 ## Assign the secret key from credentials file or env vars
 SECRET_KEY = load_credential('SECRET_KEY')
@@ -71,6 +72,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'grit.core.context_processors.environment_context',
             ],
         },
     },

@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { checkAuthentication } from '@/chat/lib/auth';
 import { apiClient } from '@/chat/lib/api-client';
+
+const THREAD_STORAGE_KEY = 'assistant_thread_id';
 import type { User, Message, Attachment } from '@/chat/types';
 import { useChat } from '@/chat/hooks/use-chat';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ModelSelector } from '@/chat/components/model-selector';
+import { SquarePen } from 'lucide-react';
 import { PreviewMessage, ThinkingMessage } from '@/chat/components/message';
 import { useScrollToBottom } from '@/chat/components/use-scroll-to-bottom';
 import { MultimodalInput } from '@/chat/components/multimodal-input';
@@ -21,7 +23,13 @@ interface AssistantChatSimpleProps {
 export function AssistantChatSimple({ onClose }: AssistantChatSimpleProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentThreadId, setCurrentThreadId] = useState<string>('');
+  // Initialize thread ID from sessionStorage to persist across page navigations
+  const [currentThreadId, setCurrentThreadId] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem(THREAD_STORAGE_KEY) || '';
+    }
+    return '';
+  });
   const threadIdRef = useRef<string>(currentThreadId);
   const [attachments, setAttachments] = useState<Array<Attachment>>([]);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
@@ -49,9 +57,12 @@ export function AssistantChatSimple({ onClose }: AssistantChatSimpleProps) {
 
   const [messagesContainerRef, messagesEndRef] = useScrollToBottom<HTMLDivElement>();
 
-  // Update threadIdRef whenever currentThreadId changes
+  // Update threadIdRef and persist to sessionStorage whenever currentThreadId changes
   useEffect(() => {
     threadIdRef.current = currentThreadId;
+    if (currentThreadId) {
+      sessionStorage.setItem(THREAD_STORAGE_KEY, currentThreadId);
+    }
   }, [currentThreadId]);
 
   const createThread = async (): Promise<string> => {
@@ -76,6 +87,29 @@ export function AssistantChatSimple({ onClose }: AssistantChatSimpleProps) {
     return threadIdRef.current;
   };
 
+  const fetchThreadMessages = async (threadId: string): Promise<Message[]> => {
+    try {
+      const response = await apiClient.post('/agent/api/threads/', { thread_id: threadId });
+      if (response.status === 200 && response.data.messages) {
+        // Transform backend messages to frontend Message format
+        return response.data.messages.map((msg: { role: string; content: string; metadata?: Record<string, unknown> }, index: number) => ({
+          id: `restored-${index}-${Date.now()}`,
+          role: msg.role,
+          content: msg.content,
+          metadata: msg.metadata,
+        }));
+      }
+      return [];
+    } catch (error) {
+      console.error('Error fetching thread messages:', error);
+      // If thread not found, clear the stored thread ID
+      sessionStorage.removeItem(THREAD_STORAGE_KEY);
+      threadIdRef.current = '';
+      setCurrentThreadId('');
+      return [];
+    }
+  };
+
   const {
     messages,
     setMessages,
@@ -95,6 +129,14 @@ export function AssistantChatSimple({ onClose }: AssistantChatSimpleProps) {
     ensureThreadExists
   });
 
+  const startNewConversation = useCallback(() => {
+    // Clear thread from storage and state
+    sessionStorage.removeItem(THREAD_STORAGE_KEY);
+    threadIdRef.current = '';
+    setCurrentThreadId('');
+    setMessages([]);
+  }, [setMessages]);
+
   // Authenticate user
   useEffect(() => {
     const authenticate = async () => {
@@ -112,6 +154,40 @@ export function AssistantChatSimple({ onClose }: AssistantChatSimpleProps) {
 
     authenticate();
   }, []);
+
+  // Fetch default model config (no model dropdown in Assistant mode)
+  useEffect(() => {
+    const fetchDefaultConfig = async () => {
+      try {
+        const response = await apiClient.get('/agent/api/default-config');
+        if (response.status === 200 && response.data.model) {
+          setSelectedModelOptions((prev) => ({
+            ...prev,
+            modelId: response.data.model,
+          }));
+        }
+      } catch (error) {
+        console.error('Error fetching default config:', error);
+      }
+    };
+
+    fetchDefaultConfig();
+  }, []);
+
+  // Load existing thread messages when component mounts with a stored thread ID
+  useEffect(() => {
+    const loadExistingThread = async () => {
+      // Only load if user is authenticated and we have a stored thread ID
+      if (user && currentThreadId && messages.length === 0) {
+        const restoredMessages = await fetchThreadMessages(currentThreadId);
+        if (restoredMessages.length > 0) {
+          setMessages(restoredMessages);
+        }
+      }
+    };
+
+    loadExistingThread();
+  }, [user, currentThreadId, setMessages]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (isLoading) {
     return (
@@ -136,16 +212,20 @@ export function AssistantChatSimple({ onClose }: AssistantChatSimpleProps) {
 
   return (
     <>
-      <div className="flex flex-col h-full bg-white overflow-hidden">
-        {/* Simplified Header - Model Selector Only */}
-        <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
+      <div className="flex flex-col h-full bg-white">
+        {/* Header with New Conversation button (no model dropdown in Assistant mode) */}
+        <div className="relative flex items-center justify-between px-4 py-3 border-b shrink-0">
           <h2 className="text-lg font-semibold">Assistant</h2>
-          <ModelSelector
-            setSelectedModelOptions={setSelectedModelOptions}
-            messagesLength={messages.length}
-            threadId={threadIdRef.current}
-            className="ml-auto mr-8"
-          />
+          <div className="flex items-center gap-2 ml-auto mr-8">
+            <button
+              onClick={startNewConversation}
+              className="p-1.5 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300"
+              aria-label="Start new conversation"
+              title="New conversation"
+            >
+              <SquarePen className="h-5 w-5 text-gray-500" />
+            </button>
+          </div>
         </div>
 
         {/* Chat Messages */}

@@ -1,0 +1,4 @@
+{
+    "model": "claude-sonnet-4-5",
+    "system_prompt": "If you do not know the answer to a question, you will answer with \"I don't know\"."
+}

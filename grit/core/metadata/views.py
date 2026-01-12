@@ -213,6 +213,49 @@ def _set_model_field_value(obj, field_name, value, model):
         return False
 
 
+def _process_single_action(action, model_name, model_name_lower, current_app_name):
+    """
+    Process a single action and convert 'new' actions to standardized 'create' format.
+
+    Args:
+        action: The action to process (dict or string)
+        model_name: Display name for the model (e.g., 'Account')
+        model_name_lower: Lowercase model name for URLs (e.g., 'account')
+        current_app_name: Current app name for URL building (or None)
+
+    Returns:
+        tuple: (processed_action, is_new_action)
+            - processed_action: The processed action dict, or None if it should be skipped
+            - is_new_action: True if this was a 'new' action that was converted
+    """
+    if isinstance(action, dict):
+        # Check for standardized "new" action
+        if action.get('action') == 'new' or action.get('name') == 'new':
+            url = f'/app/{current_app_name}/m/{model_name_lower}/create' if current_app_name else f'/m/{model_name_lower}/create'
+            return ({
+                'label': action.get('label', f'New {model_name}'),
+                'action': 'create',
+                'url': url,
+                'method': 'GET'
+            }, True)
+        elif action.get('action') != 'create':  # Skip any existing create actions
+            return (action, False)
+        else:
+            return (None, False)  # Skip existing create actions
+    else:
+        # Handle string actions
+        if action == 'new':
+            url = f'/app/{current_app_name}/m/{model_name_lower}/create' if current_app_name else f'/m/{model_name_lower}/create'
+            return ({
+                'label': f'New {model_name}',
+                'action': 'create',
+                'url': url,
+                'method': 'GET'
+            }, True)
+        else:
+            return (action, False)
+
+
 def serialize_form_for_react(form_class, user=None, instance=None, model_name=None):
     """
     Serialize a Django form class into React component format.
@@ -525,68 +568,21 @@ class MetadataViewGenerator:
             
             if actions and isinstance(actions, list):
                 # Check if it's already grouped (list of lists)
-                if actions and isinstance(actions[0], list):
-                    # It's grouped - process each group
-                    for group in actions:
-                        processed_group = []
-                        for action in group:
-                            if isinstance(action, dict):
-                                # Check for standardized "new" action
-                                if action.get('action') == 'new' or action.get('name') == 'new':
-                                    # Replace with standardized create action
-                                    has_new_action = True
-                                    processed_group.append({
-                                        'label': action.get('label', f'New {model_name}'),
-                                        'action': 'create',
-                                        'url': f'/app/{current_app_name}/m/{model_name_lower}/create' if current_app_name else f'/m/{model_name_lower}/create',
-                                        'method': 'GET'
-                                    })
-                                elif action.get('action') != 'create':  # Skip any existing create actions
-                                    processed_group.append(action)
-                            else:
-                                # Handle string actions
-                                if action == 'new':
-                                    has_new_action = True
-                                    processed_group.append({
-                                        'label': f'New {model_name}',
-                                        'action': 'create',
-                                        'url': f'/app/{current_app_name}/m/{model_name_lower}/create' if current_app_name else f'/m/{model_name_lower}/create',
-                                        'method': 'GET'
-                                    })
-                                else:
-                                    processed_group.append(action)
-                        if processed_group:
-                            processed_actions.append(processed_group)
-                else:
-                    # It's a flat list - process it
+                is_grouped = actions and isinstance(actions[0], list)
+                action_lists = actions if is_grouped else [actions]
+
+                for group in action_lists:
                     processed_group = []
-                    for action in actions:
-                        if isinstance(action, dict):
-                            # Check for standardized "new" action
-                            if action.get('action') == 'new' or action.get('name') == 'new':
-                                has_new_action = True
-                                processed_group.append({
-                                    'label': action.get('label', f'New {model_name}'),
-                                    'action': 'create',
-                                    'url': f'/app/{current_app_name}/m/{model_name_lower}/create' if current_app_name else f'/m/{model_name_lower}/create',
-                                    'method': 'GET'
-                                })
-                            elif action.get('action') != 'create':  # Skip any existing create actions
-                                processed_group.append(action)
-                        else:
-                            # Handle string actions
-                            if action == 'new':
-                                has_new_action = True
-                                processed_group.append({
-                                    'label': f'New {model_name}',
-                                    'action': 'create',
-                                    'url': f'/app/{current_app_name}/m/{model_name_lower}/create' if current_app_name else f'/m/{model_name_lower}/create',
-                                    'method': 'GET'
-                                })
-                            else:
-                                processed_group.append(action)
+                    for action in group:
+                        processed, is_new = _process_single_action(
+                            action, model_name, model_name_lower, current_app_name
+                        )
+                        if is_new:
+                            has_new_action = True
+                        if processed is not None:
+                            processed_group.append(processed)
                     if processed_group:
-                        processed_actions = [processed_group]
+                        processed_actions.append(processed_group)
             
             # Use processed actions or empty list if no actions
             actions = processed_actions if processed_actions else [[]]

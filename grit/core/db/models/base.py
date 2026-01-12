@@ -9,7 +9,10 @@ class BaseModel(models.Model):
     metadata = models.JSONField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    owner = models.ForeignKey(CustomUser, on_delete=models.DO_NOTHING, blank=True, null=True)
+    owner = models.ForeignKey(
+        CustomUser, on_delete=models.DO_NOTHING, blank=True, null=True,
+        related_name='%(class)s_as_owner'
+    )
 
     # Managers
     objects = models.Manager()  # Default manager

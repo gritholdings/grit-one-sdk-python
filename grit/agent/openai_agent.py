@@ -292,7 +292,8 @@ class BaseOpenAIAgent:
                         })
                 else:
                     # Old string format (backward compatibility)
-                    role, text = conversation_item.split(',', 1)
+                    parts = conversation_item.split(',', 1)
+                    role, text = parts if len(parts) == 2 else (parts[0], '')
                     if role == 'user':
                         memories_list.append({
                             "role": "user",
@@ -366,12 +367,15 @@ class BaseOpenAIAgent:
         # The target_sub_agent is already the Agent model instance
         agent_instance = target_sub_agent
         
-        # Get the agent class and instantiate it
-        agent_class_str = agent_instance.metadata.get('agent_class', 'grit.agent.openai_agent.BaseOpenAIAgent')
-        agent_class = await sync_to_async(Agent.objects.get_agent_class)(agent_class_str)
-
         # Create the sub-agent instance with config from the agent
         agent_config = await sync_to_async(agent_instance.get_config)()
+
+        # Get the agent class and instantiate it
+        agent_class_str = agent_instance.metadata.get('agent_class', 'grit.agent.openai_agent.BaseOpenAIAgent')
+        agent_class = await sync_to_async(Agent.objects.get_agent_class)(
+            agent_class_str,
+            model_name=agent_config.model_name
+        )
         # Propagate request context if available (needed for MCP queries)
         kwargs = {}
         if hasattr(self, 'request') and self.request:
@@ -495,32 +499,34 @@ class BaseOpenAIAgent:
                         final_output=result.final_output)
                     
                 if getattr(self.config, 'record_usage_for_payment', False) and hasattr(user, 'stripecustomer') and record_usage:
-                    input_tokens = result.raw_responses[0].usage.input_tokens
-                    output_tokens = result.raw_responses[0].usage.output_tokens
-                    total_tokens = input_tokens + output_tokens
-                    model_name = self.config.model_name if self.config.model_name else DEFAULT_MODEL_NAME
-                    input_cost = (input_tokens / 1000000) * MODEL_CONFIG[model_name]["price_per_1m_tokens_input"]
-                    output_cost = (output_tokens / 1000000) * MODEL_CONFIG[model_name]["price_per_1m_tokens_output"]
-                    total_cost = input_cost + output_cost
-                    success = await sync_to_async(record_usage)(
-                        user_id=user_id, token_used=total_tokens, provider_cost=total_cost)
+                    if result.raw_responses:
+                        input_tokens = result.raw_responses[0].usage.input_tokens
+                        output_tokens = result.raw_responses[0].usage.output_tokens
+                        total_tokens = input_tokens + output_tokens
+                        model_name = self.config.model_name if self.config.model_name else DEFAULT_MODEL_NAME
+                        input_cost = (input_tokens / 1000000) * MODEL_CONFIG[model_name]["price_per_1m_tokens_input"]
+                        output_cost = (output_tokens / 1000000) * MODEL_CONFIG[model_name]["price_per_1m_tokens_output"]
+                        total_cost = input_cost + output_cost
+                        success = await sync_to_async(record_usage)(
+                            user_id=user_id, token_used=total_tokens, provider_cost=total_cost)
         elif data_type == "image":
             namespace_for_memory = ("memories", user_id)
             # add each page of the PDF as a separate memory
             page_count = await sync_to_async(get_page_count)(new_message)
             for page_index in range(page_count):
-                base64_image = await sync_to_async(pdf_page_to_base64)(pdf_path=new_message, page_number=page_index)
+                base64_image, media_type = await sync_to_async(pdf_page_to_base64)(pdf_path=new_message, page_number=page_index)
                 # Store as structured data with metadata
                 if file_metadata and 'filename' in file_metadata:
                     # Enhance metadata with page count information
                     enhanced_metadata = {
                         **file_metadata,
-                        'pageCount': f"{page_count} page{'s' if page_count > 1 else ''}"
+                        'pageCount': f"{page_count} page{'s' if page_count > 1 else ''}",
+                        'media_type': media_type
                     }
                     # Store with new structure including metadata
                     memory_entry = {
                         "role": "user_image",
-                        "content": f"data:image/jpeg;base64,{base64_image}",
+                        "content": f"data:{media_type};base64,{base64_image}",
                         "metadata": enhanced_metadata
                     }
                     await sync_to_async(self.memory_store_service.upsert_memory)(
@@ -529,7 +535,7 @@ class BaseOpenAIAgent:
                     # Backward compatible format
                     await sync_to_async(self.memory_store_service.upsert_memory)(
                         namespace_for_memory, thread_id, 'conversation_history',
-                        f'user_image,data:image/jpeg;base64,{base64_image}')
+                        f'user_image,data:{media_type};base64,{base64_image}')
             await sync_to_async(self.memory_store_service.close)()
         else:
             raise ValueError(f"Unsupported data type: {data_type}")

@@ -58,7 +58,10 @@ async def threads_runs(request: HttpRequest):
                 status=status.HTTP_404_NOT_FOUND
             )
         agent_config = await sync_to_async(agent_detail.get_config)()
-        agent_class = await sync_to_async(Agent.objects.get_agent_class)(agent_class_str=agent_config.agent_class)
+        agent_class = await sync_to_async(Agent.objects.get_agent_class)(
+            agent_class_str=agent_config.agent_class,
+            model_name=agent_config.model_name
+        )
         if not agent_class:
             return Response(
                 {'error': f'Model class for {effective_model_id} not found.'},
@@ -129,6 +132,11 @@ async def upload_files(request: HttpRequest) -> Response:
 
         # Refresh the vector store after uploading the file
         first_agent = await sync_to_async(lambda: Agent.objects.all().first())()
+        if not first_agent:
+            return Response(
+                {'error': 'No agents available. Please configure an agent first.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
         model_id = str(first_agent.id)
         agent_detail = await sync_to_async(Agent.objects.get_agent)(agent_id=model_id)
         if not agent_detail:
@@ -137,7 +145,10 @@ async def upload_files(request: HttpRequest) -> Response:
                 status=status.HTTP_404_NOT_FOUND
             )
         agent_config = await sync_to_async(agent_detail.get_config)()
-        agent_class = await sync_to_async(Agent.objects.get_agent_class)(agent_class_str=agent_config.agent_class)
+        agent_class = await sync_to_async(Agent.objects.get_agent_class)(
+            agent_class_str=agent_config.agent_class,
+            model_name=agent_config.model_name
+        )
         if not agent_class:
             return Response(
                 {'error': f'Model class for {model_id} not found.'},

@@ -14,6 +14,7 @@ urlpatterns = [
     path('api/threads/runs', import_string(agent_settings.THREADS_RUNS_AVIEW), name='threads_runs'),
     path('api/threads/list', import_string(agent_settings.THREADS_LIST_VIEW), name='threads_list'),
     path('api/models', import_string(agent_settings.MODELS_LIST_VIEW), name='models_list'),
+    path('api/default-config', core_agent_views.default_config, name='default_config'),
     path('knowledge-base-webhook/', core_agent_views.knowledge_base_webhook, name='knowledge_base_webhook'),
     path('mcp', core_agent_views.mcp_query, name='mcp_query'),
 ]

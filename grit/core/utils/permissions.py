@@ -8,6 +8,36 @@ from django.http import Http404
 from grit.core.types import AppMetadataSettingsTypedDict
 
 
+def _filter_apps_by_visibility(
+    settings: AppMetadataSettingsTypedDict,
+    visible_apps: set,
+    visible_tabs: set
+) -> AppMetadataSettingsTypedDict:
+    """
+    Filter APPS dict to only include visible apps with visible tabs.
+
+    Args:
+        settings: The APP_METADATA_SETTINGS dictionary to filter
+        visible_apps: Set of app keys that should be visible
+        visible_tabs: Set of tab keys that should be visible
+
+    Returns:
+        Deep copy of settings with APPS filtered to only visible apps/tabs
+    """
+    filtered = deepcopy(settings)
+    filtered_apps = {}
+    for app_key, app_config in settings.get('APPS', {}).items():
+        if app_key in visible_apps:
+            original_tabs = app_config.get('tabs', [])
+            filtered_tabs = [tab for tab in original_tabs if tab in visible_tabs]
+            if filtered_tabs:
+                app_config_copy = deepcopy(app_config)
+                app_config_copy['tabs'] = filtered_tabs
+                filtered_apps[app_key] = app_config_copy
+    filtered['APPS'] = filtered_apps
+    return filtered
+
+
 def filter_app_metadata_by_user_groups(settings: AppMetadataSettingsTypedDict, user) -> AppMetadataSettingsTypedDict:
     """
     Filter APP_METADATA_SETTINGS based on user's group permissions.
@@ -80,27 +110,7 @@ def filter_app_metadata_by_user_groups(settings: AppMetadataSettingsTypedDict, u
             if visibility.get('visibility') == 'visible':
                 visible_tabs.add(tab_key)
 
-    # Deep copy to avoid mutating original settings
-    filtered = deepcopy(settings)
-
-    # Filter APPS
-    filtered_apps = {}
-    for app_key, app_config in settings.get('APPS', {}).items():
-        # Only include app if it's in visible_apps
-        if app_key in visible_apps:
-            # Filter the tabs within this app
-            original_tabs = app_config.get('tabs', [])
-            filtered_tabs = [tab for tab in original_tabs if tab in visible_tabs]
-
-            # Only include app if it has at least one visible tab
-            if filtered_tabs:
-                app_config_copy = deepcopy(app_config)
-                app_config_copy['tabs'] = filtered_tabs
-                filtered_apps[app_key] = app_config_copy
-
-    filtered['APPS'] = filtered_apps
-
-    return filtered
+    return _filter_apps_by_visibility(settings, visible_apps, visible_tabs)
 
 
 def filter_app_metadata_by_user_profile(settings: AppMetadataSettingsTypedDict, user) -> AppMetadataSettingsTypedDict:
@@ -181,27 +191,7 @@ def filter_app_metadata_by_user_profile(settings: AppMetadataSettingsTypedDict, 
         if visibility.get('visibility') == 'visible':
             visible_tabs.add(tab_key)
 
-    # Deep copy to avoid mutating original settings
-    filtered = deepcopy(settings)
-
-    # Filter APPS
-    filtered_apps = {}
-    for app_key, app_config in settings.get('APPS', {}).items():
-        # Only include app if it's in visible_apps
-        if app_key in visible_apps:
-            # Filter the tabs within this app
-            original_tabs = app_config.get('tabs', [])
-            filtered_tabs = [tab for tab in original_tabs if tab in visible_tabs]
-
-            # Only include app if it has at least one visible tab
-            if filtered_tabs:
-                app_config_copy = deepcopy(app_config)
-                app_config_copy['tabs'] = filtered_tabs
-                filtered_apps[app_key] = app_config_copy
-
-    filtered['APPS'] = filtered_apps
-
-    return filtered
+    return _filter_apps_by_visibility(settings, visible_apps, visible_tabs)
 
 
 def merge_filtered_settings(group_filtered: AppMetadataSettingsTypedDict, profile_filtered: AppMetadataSettingsTypedDict, original: AppMetadataSettingsTypedDict) -> AppMetadataSettingsTypedDict:

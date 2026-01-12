@@ -1,16 +1,15 @@
-import uuid
 import importlib
 from django.db import models
 from django.apps import apps
 from django.template import Template, Context
 from django.utils import timezone
-from pydantic import BaseModel
+from pydantic import BaseModel as PydanticBaseModel
+from grit.core.db.models import BaseModel
 from .extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
-from grit.auth.models import CustomUser
 from .dataclasses import AgentConfig
 
 
-class AgentResponse(BaseModel):
+class AgentResponse(PydanticBaseModel):
     id: str
     label: str
     description: str
@@ -18,7 +17,7 @@ class AgentResponse(BaseModel):
     overview_html: str
 
 
-class AgentDetail(BaseModel):
+class AgentDetail(PydanticBaseModel):
     id: str
     name: str
     system_prompt: str
@@ -42,9 +41,9 @@ class AgentManager(models.Manager):
             AgentResponse(**{
                 "id": str(agent.id),
                 "label": agent.name,
-                "description": agent.metadata.get('description', ''),
-                "suggested_messages": agent.metadata.get('suggested_messages', []),
-                "overview_html": agent.metadata.get('overview_html', ''),
+                "description": agent.metadata.get('description', '') if agent.metadata else '',
+                "suggested_messages": agent.metadata.get('suggested_messages', []) if agent.metadata else [],
+                "overview_html": agent.metadata.get('overview_html', '') if agent.metadata else '',
             })
             for agent in agent_queryset
         ]
@@ -88,14 +87,14 @@ class AgentManager(models.Manager):
                 query |= Q(account__isnull=True)
             
             agent_queryset = self.filter(query).distinct().order_by('metadata__order')
-        
+
         agent_responses = [
             AgentResponse(**{
                 "id": str(agent.id),
                 "label": agent.name,
-                "description": agent.metadata.get('description', ''),
-                "suggested_messages": agent.metadata.get('suggested_messages', []),
-                "overview_html": agent.metadata.get('overview_html', ''),
+                "description": agent.metadata.get('description', '') if agent.metadata else '',
+                "suggested_messages": agent.metadata.get('suggested_messages', []) if agent.metadata else [],
+                "overview_html": agent.metadata.get('overview_html', '') if agent.metadata else '',
             })
             for agent in agent_queryset
         ]
@@ -118,10 +117,14 @@ class AgentManager(models.Manager):
         except self.model.DoesNotExist:
             return None
     
-    def get_agent_class(self, agent_class_str: str):
+    def get_agent_class(self, agent_class_str: str, model_name: str = None):
         if not agent_class_str:
-            # Use default agent class for empty string or None
-            agent_class_str = "grit.agent.openai_agent.BaseOpenAIAgent"
+            # Auto-detect agent class based on model name if not explicitly set
+            if model_name and model_name.startswith('claude'):
+                agent_class_str = "grit.agent.claude_agent.BaseClaudeAgent"
+            else:
+                # Default to OpenAI agent class for empty string or None
+                agent_class_str = "grit.agent.openai_agent.BaseOpenAIAgent"
 
         # If agent_class is a string, dynamically import
         if isinstance(agent_class_str, str):
@@ -207,17 +210,14 @@ class AgentManager(models.Manager):
         return formatted_prompt_template + handoff_instructions
 
 
-class KnowledgeBase(models.Model):
-    id = models.UUIDField(default=uuid.uuid4, unique=True, primary_key=True)
+class KnowledgeBase(BaseModel):
     name = models.CharField(max_length=255)
-    metadata = models.JSONField(blank=True, null=True)
 
     def __str__(self):
         return self.name
 
 
-class DataSource(models.Model):
-    id = models.UUIDField(default=uuid.uuid4, unique=True, primary_key=True)
+class DataSource(BaseModel):
     name = models.CharField(max_length=255)
     # data_source_config fields:
     # {
@@ -234,7 +234,6 @@ class DataSource(models.Model):
     # }
     data_source_config = models.JSONField(blank=True, null=True)
     knowledge_base = models.ForeignKey(KnowledgeBase, on_delete=models.CASCADE)
-    metadata = models.JSONField(blank=True, null=True)
 
     def __str__(self):
         return self.name
@@ -265,8 +264,7 @@ class OwnedAgentManager(models.Manager):
         return self.get_queryset().get(id=agent_id)
 
 
-class Agent(models.Model):
-    id = models.UUIDField(default=uuid.uuid4, unique=True, primary_key=True)
+class Agent(BaseModel):
     name = models.CharField(max_length=255)
     system_prompt = models.TextField(blank=True)
     knowledge_bases = models.ManyToManyField(KnowledgeBase, related_name='knowledge_bases', blank=True)
@@ -277,33 +275,35 @@ class Agent(models.Model):
     # metadata fields:
     # 'model_name', 'suggested_messages', 'overview_html', 'enable_web_search',
     # 'enable_knowledge_base', 'knowledge_base_id', 'reasoning_effort'
-    metadata = models.JSONField(blank=True, null=True)
-    owner = models.ForeignKey(CustomUser, on_delete=models.DO_NOTHING, blank=True, null=True)
 
     objects = AgentManager()
     owned = OwnedAgentManager.from_queryset(OwnedAgentQuerySet)()
+
+    def _get_metadata_value(self, key, default=None):
+        """Safely get a value from metadata with a default."""
+        return self.metadata.get(key, default) if self.metadata else default
 
     def get_config(self) -> AgentConfig:
         return AgentConfig(
             id=str(self.id),
             label=self.name,
-            description=self.metadata.get('description', '') if self.metadata else '',
-            agent_class=self.metadata.get('agent_class', '') if self.metadata else '',
+            description=self._get_metadata_value('description', ''),
+            agent_class=self._get_metadata_value('agent_class', ''),
             prompt_template=self.system_prompt,
-            overview_html=self.metadata.get('overview_html', '') if self.metadata else '',
-            model_name=self.metadata.get('model_name', '') if self.metadata else '',
-            enable_web_search=self.metadata.get('enable_web_search', False) if self.metadata else False,
-            enable_knowledge_base=self.metadata.get('enable_knowledge_base', False) if self.metadata else False,
+            overview_html=self._get_metadata_value('overview_html', ''),
+            model_name=self._get_metadata_value('model_name', ''),
+            enable_web_search=self._get_metadata_value('enable_web_search', False),
+            enable_knowledge_base=self._get_metadata_value('enable_knowledge_base', False),
             knowledge_bases=list(self.knowledge_bases.all().values()),
-            suggested_messages=self.metadata.get('suggested_messages', []) if self.metadata else [],
-            reasoning_effort=self.metadata.get('reasoning_effort') if self.metadata else None,
+            suggested_messages=self._get_metadata_value('suggested_messages', []),
+            reasoning_effort=self._get_metadata_value('reasoning_effort'),
         )
 
     def __str__(self):
         return self.name
 
 
-class DataAutomationInvocation(models.Model):
+class DataAutomationInvocation(BaseModel):
     class Status(models.TextChoices):
         CREATED = 'created', 'Created'
         IN_PROGRESS = 'in_progress', 'In Progress'
@@ -314,7 +314,6 @@ class DataAutomationInvocation(models.Model):
         choices=Status.choices,
         default=Status.CREATED,
     )
-    id = models.UUIDField(default=uuid.uuid4, unique=True, primary_key=True)
     data_automation_project = models.ForeignKey(
         'DataAutomationProject', on_delete=models.CASCADE, related_name='data_automation_project'
     )
@@ -323,16 +322,12 @@ class DataAutomationInvocation(models.Model):
     # 'output_configuration': {
     #     "s3_uri": 'string'
     # }
-    metadata = models.JSONField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.data_automation_project.name} - {self.id}"
 
 
-class Blueprint(models.Model):
-    id = models.UUIDField(default=uuid.uuid4, unique=True, primary_key=True)
+class Blueprint(BaseModel):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     # schema fields:
@@ -347,9 +342,6 @@ class Blueprint(models.Model):
     }
     """
     schema = models.JSONField(blank=True, null=True)
-    metadata = models.JSONField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
@@ -377,17 +369,13 @@ class DataAutomationProjectManager(models.Manager):
         ).distinct()
 
 
-class DataAutomationProject(models.Model):
-    id = models.UUIDField(default=uuid.uuid4, unique=True, primary_key=True)
+class DataAutomationProject(BaseModel):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     blueprints = models.ManyToManyField(Blueprint, related_name="blueprints", blank=True)
     if apps.is_installed('grit.sales'):
         account = models.ForeignKey('core_sales.Account', on_delete=models.CASCADE,
                                     blank=True, null=True)
-    metadata = models.JSONField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     projects = DataAutomationProjectManager()
 

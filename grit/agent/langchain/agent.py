@@ -189,9 +189,9 @@ class BaseAgent(ABC):
             # add each page of the PDF as a separate memory
             page_count = get_page_count(new_message)
             for page_index in range(page_count):
-                base64_image = pdf_page_to_base64(pdf_path=new_message, page_number=page_index)
+                base64_image, media_type = pdf_page_to_base64(pdf_path=new_message, page_number=page_index)
                 self.memory_store_service.upsert_memory(
-                    namespace_for_memory, thread_id, 'conversation_history', f'user_image,data:image/jpeg;base64,{base64_image}')
+                    namespace_for_memory, thread_id, 'conversation_history', f'user_image,data:{media_type};base64,{base64_image}')
             self.memory_store_service.close()
         else:
             raise ValueError(f"Unsupported data type: {data_type}")

@@ -35,7 +35,17 @@ def get_page_count(pdf_path: str):
     pdf_document = fitz.open(pdf_path)
     return pdf_document.page_count
 
-def pdf_page_to_base64(pdf_path: str, page_number: int):
+def pdf_page_to_base64(pdf_path: str, page_number: int) -> tuple[str, str]:
+    """
+    Convert a PDF page to a base64-encoded image.
+
+    Args:
+        pdf_path: Path to the PDF file
+        page_number: Zero-indexed page number to convert
+
+    Returns:
+        tuple: (base64_encoded_image, media_type) where media_type matches the output format
+    """
     pdf_document = fitz.open(pdf_path)
     # load the entire PDF for now
     page = pdf_document.load_page(page_number)
@@ -48,7 +58,7 @@ def pdf_page_to_base64(pdf_path: str, page_number: int):
     img.save(buffer, format="PNG")
     # Encode to base64
     image_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
-    return image_base64
+    return image_base64, "image/png"
 
 
 def extract_placeholders_from_template(template: str) -> list:
