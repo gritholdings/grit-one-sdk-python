@@ -1,8 +1,5 @@
 from typing import TypedDict, List, Dict, Literal, Any
 from typing_extensions import NotRequired
-
-
-# Flexible type for app-level settings that override/extend core settings
 AdditionalSettingsType = Dict[str, Any]
 
 
@@ -47,6 +44,7 @@ class ModelPermissionsTypedDict(TypedDict):
     allow_read: NotRequired[bool]
     allow_edit: NotRequired[bool]
     allow_delete: NotRequired[bool]
+    allow_summarize: NotRequired[bool]
     view_all_fields: NotRequired[bool]
 
 
@@ -63,13 +61,11 @@ class ChoiceItemTypedDict(TypedDict):
 
 
 class WorkflowPositionTypedDict(TypedDict):
-    """Node position in the workflow canvas."""
     x: int
     y: int
 
 
 class WorkflowNodeTypedDict(TypedDict):
-    """Configuration for a single workflow node."""
     name: str
     position: WorkflowPositionTypedDict
     type: str
@@ -78,18 +74,15 @@ class WorkflowNodeTypedDict(TypedDict):
 
 
 class WorkflowEdgeTypedDict(TypedDict):
-    """Configuration for an edge connecting two nodes."""
     source_node_id: str
     target_node_id: str
 
 
 class WorkflowMetaTypedDict(TypedDict):
-    """Workflow metadata."""
     name: str
 
 
 class WorkflowTypedDict(TypedDict):
-    """Complete workflow configuration."""
     meta: WorkflowMetaTypedDict
     nodes: Dict[str, WorkflowNodeTypedDict]
     edges: Dict[str, WorkflowEdgeTypedDict]

@@ -16,11 +16,20 @@ import type { UIBlock } from '@/chat/components/block';
 import type { ModelOptions } from '@/chat/components/chat';
 import { useWindowSize } from 'usehooks-ts';
 
-interface AssistantChatSimpleProps {
-  onClose?: () => void;
+// Type for summarization context passed from AssistantModal
+interface SummarizeContext {
+  context: Record<string, unknown>;
+  modelName: string;
+  recordName: string;
 }
 
-export function AssistantChatSimple({ onClose }: AssistantChatSimpleProps) {
+interface AssistantChatSimpleProps {
+  onClose?: () => void;
+  summarizeContext?: SummarizeContext | null;
+  onSummarizeContextConsumed?: () => void;
+}
+
+export function AssistantChatSimple({ onClose, summarizeContext, onSummarizeContextConsumed }: AssistantChatSimpleProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   // Initialize thread ID from sessionStorage to persist across page navigations
@@ -177,6 +186,9 @@ export function AssistantChatSimple({ onClose }: AssistantChatSimpleProps) {
   // Load existing thread messages when component mounts with a stored thread ID
   useEffect(() => {
     const loadExistingThread = async () => {
+      // Skip loading if a summarization request is pending - let the summarize effect handle thread state
+      if (summarizeContext) return;
+
       // Only load if user is authenticated and we have a stored thread ID
       if (user && currentThreadId && messages.length === 0) {
         const restoredMessages = await fetchThreadMessages(currentThreadId);
@@ -187,7 +199,85 @@ export function AssistantChatSimple({ onClose }: AssistantChatSimpleProps) {
     };
 
     loadExistingThread();
-  }, [user, currentThreadId, setMessages]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, currentThreadId, setMessages, summarizeContext]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Track summarization state: null = idle, object = pending submission
+  const [pendingSummarization, setPendingSummarization] = useState<{
+    prompt: string;
+    context: SummarizeContext;
+  } | null>(null);
+
+  // Track if we've already processed the current summarization context
+  const summarizeProcessedRef = useRef(false);
+
+  // Phase 1: When summarize context arrives, prepare the prompt and clear the thread
+  useEffect(() => {
+    // Skip if no context, not ready, or already processed
+    if (!summarizeContext || !user || !selectedModelOptions.modelId || summarizeProcessedRef.current) return;
+
+    // Mark as processed immediately to prevent duplicate submissions
+    summarizeProcessedRef.current = true;
+
+    // Start a fresh conversation for each summarization request
+    // This ensures each record gets its own dedicated thread
+    sessionStorage.removeItem(THREAD_STORAGE_KEY);
+    threadIdRef.current = '';
+    setCurrentThreadId('');
+    setMessages([]);
+
+    // Format the record context into a readable summary request
+    const { context, modelName, recordName } = summarizeContext;
+
+    // Build a structured prompt with the record data
+    const contextLines = Object.entries(context)
+      .filter(([_, value]) => value !== null && value !== undefined && value !== '')
+      .map(([key, value]) => {
+        // Format key from snake_case to readable format
+        const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        // Handle object values (like foreign keys)
+        const formattedValue = typeof value === 'object' && value !== null
+          ? ('name' in value ? value.name : JSON.stringify(value))
+          : String(value);
+        return `- ${formattedKey}: ${formattedValue}`;
+      })
+      .join('\n');
+
+    const prompt = `Please provide a concise summary of this ${modelName || 'record'}${recordName ? ` "${recordName}"` : ''}:\n\n${contextLines}`;
+
+    // Store the pending summarization - will be submitted after messages are cleared
+    setPendingSummarization({ prompt, context: summarizeContext });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [summarizeContext, user, selectedModelOptions.modelId]);
+
+  // Phase 2: Submit the summarization after messages have been cleared
+  useEffect(() => {
+    // Only submit when we have a pending summarization and messages are cleared
+    if (!pendingSummarization || messages.length > 0) return;
+
+    const submitSummarization = async () => {
+      const { prompt } = pendingSummarization;
+
+      // Use append to send the message programmatically
+      await append({
+        role: 'user',
+        content: prompt,
+      });
+
+      // Clear the pending state and context after submitting
+      setPendingSummarization(null);
+      onSummarizeContextConsumed?.();
+    };
+
+    submitSummarization();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingSummarization, messages.length]);
+
+  // Reset the processed flag when context changes to a new value or is cleared
+  useEffect(() => {
+    if (!summarizeContext) {
+      summarizeProcessedRef.current = false;
+    }
+  }, [summarizeContext]);
 
   if (isLoading) {
     return (

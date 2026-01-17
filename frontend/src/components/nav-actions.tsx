@@ -5,7 +5,8 @@ import {
   MoreHorizontal,
   Trash2,
   Upload,
-  Plus
+  Plus,
+  Sparkles
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -188,6 +189,16 @@ export function NavActions({ groups = defaultGroups, deleteUrl, modelName }: Nav
                                 // Show delete confirmation dialog
                                 setIsOpen(false)
                                 setShowDeleteDialog(true)
+                              } else if (item.action === 'summarize') {
+                                // Open assistant with record context for summarization
+                                setIsOpen(false)
+                                window.dispatchEvent(new CustomEvent('openAssistantWithContext', {
+                                  detail: {
+                                    context: item.props?.context || {},
+                                    modelName: item.props?.modelName || modelName,
+                                    recordName: item.props?.recordName || ''
+                                  }
+                                }))
                               } else if (item.url && item.method === 'POST') {
                                 // Handle POST request for actions
                                 try {
@@ -267,6 +278,7 @@ export function NavActions({ groups = defaultGroups, deleteUrl, modelName }: Nav
                             {item.icon && <item.icon />}
                             {!item.icon && item.component === 'FileUploadButton' && <Upload />}
                             {!item.icon && item.action === 'create' && <Plus />}
+                            {!item.icon && item.action === 'summarize' && <Sparkles />}
                             <span>{item.label}</span>
                           </SidebarMenuButton>
                         </SidebarMenuItem>

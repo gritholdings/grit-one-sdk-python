@@ -4,6 +4,13 @@ import { AssistantChatSimple } from './assistant-chat-simple';
 
 const STORAGE_KEY = 'assistant_sidebar_open';
 
+// Type for summarization context passed via events
+interface SummarizeContext {
+  context: Record<string, unknown>;
+  modelName: string;
+  recordName: string;
+}
+
 export function AssistantModal() {
   // Initialize state from sessionStorage
   const [isOpen, setIsOpen] = useState(() => {
@@ -12,6 +19,9 @@ export function AssistantModal() {
     }
     return false;
   });
+
+  // State for summarization context (passed to chat for auto-submit)
+  const [summarizeContext, setSummarizeContext] = useState<SummarizeContext | null>(null);
 
   // Persist state to sessionStorage whenever it changes
   useEffect(() => {
@@ -39,12 +49,20 @@ export function AssistantModal() {
       setIsOpen(true);
     };
 
+    // Handle openAssistantWithContext for summarization feature
+    const handleOpenAssistantWithContext = (event: CustomEvent<SummarizeContext>) => {
+      setSummarizeContext(event.detail);
+      setIsOpen(true);
+    };
+
     window.addEventListener('toggleAssistant', handleToggleAssistant);
     window.addEventListener('openAssistant', handleOpenAssistant);
+    window.addEventListener('openAssistantWithContext', handleOpenAssistantWithContext as EventListener);
 
     return () => {
       window.removeEventListener('toggleAssistant', handleToggleAssistant);
       window.removeEventListener('openAssistant', handleOpenAssistant);
+      window.removeEventListener('openAssistantWithContext', handleOpenAssistantWithContext as EventListener);
     };
   }, [toggleSidebar]);
 
@@ -70,7 +88,11 @@ export function AssistantModal() {
 
         {/* Only render chat when open to avoid unnecessary API calls */}
         {isOpen && (
-          <AssistantChatSimple onClose={closeSidebar} />
+          <AssistantChatSimple
+            onClose={closeSidebar}
+            summarizeContext={summarizeContext}
+            onSummarizeContextConsumed={() => setSummarizeContext(null)}
+          />
         )}
       </div>
 
