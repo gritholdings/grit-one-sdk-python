@@ -1,33 +1,14 @@
-"""
-Django settings for core project.
-"""
-
 import os
 from pathlib import Path
-from app.settings import DOMAIN_NAME, AWS_RDS_ENDPOINT
+from app.settings import DOMAIN_NAME, AWS_RDS_ENDPOINT, APP_METADATA_SETTINGS
 from .utils.env_config import load_credential, set_environ_credential, get_django_env
 from .core_settings import core_settings
-
-# Basics
-
-## Build paths inside the project like this: BASE_DIR / 'subdir'.
-## Note: .parent.parent.parent accounts for grit/core/settings.py path
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-
 DJANGO_ENV = get_django_env()
-
-## Set the environment variable from the credentials file or env vars
 set_environ_credential('OPENAI_API_KEY')
 set_environ_credential('ANTHROPIC_API_KEY')
-
-## Assign the secret key from credentials file or env vars
 SECRET_KEY = load_credential('SECRET_KEY')
-
 ALLOWED_HOSTS = [".awsapprunner.com", "." + DOMAIN_NAME, "127.0.0.1"]
-
-
-# Application definition
-
 INSTALLED_APPS = [
     'daphne',
     'django.contrib.admin',
@@ -46,7 +27,6 @@ INSTALLED_APPS = [
     'grit.agent.apps.AgentsConfig',
     'app'
 ]
-
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -58,9 +38,7 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware'
 ]
-
 ROOT_URLCONF = 'grit.core.urls'
-
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -77,14 +55,9 @@ TEMPLATES = [
         },
     },
 ]
-
 WSGI_APPLICATION = 'grit.core.wsgi.application'
 ASGI_APPLICATION = 'grit.core.asgi.application'
-
-
-# Database is AWS RDS Aurora PostgreSQL
 DATABASE_PASSWORD = load_credential('DATABASE_PASSWORD')
-
 if DJANGO_ENV == 'TEST':
     DATABASES = {
         'default': {
@@ -103,24 +76,14 @@ else:
             'PORT':'5432'
         }
     }
-
-# Authentication
-
-## User Authentication
 AUTH_USER_MODEL = 'customauth.CustomUser'
-
 AUTHENTICATION_BACKENDS = [
     'grit.auth.backends.EmailBackend',
     'django.contrib.auth.backends.ModelBackend'
 ]
-
 LOGIN_URL = '/auth/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
-
-
-## Password validation
-## https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -135,8 +98,6 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
-
-## REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
@@ -148,36 +109,25 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.JSONRenderer',
     ],
 }
-
-## CORS
 CORS_ALLOW_CREDENTIALS = True
-
 CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:3000',
     "https://*.awsapprunner.com",
     "https://platform." + DOMAIN_NAME
 ]
-
 CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:3000",
     "https://*.awsapprunner.com",
     "https://*." + DOMAIN_NAME
 ]
-
-### Add CORS_EXPOSE_HEADERS to ensure CSRF token is exposed
 CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
-
-### Configure CSRF settings
-CSRF_COOKIE_SECURE = False  # For HTTPS
-CSRF_COOKIE_SAMESITE = 'Lax'  # Or 'None' if you need cross-site requests
-CSRF_COOKIE_DOMAIN = "." + DOMAIN_NAME  # Include subdomain
-CSRF_USE_SESSIONS = False  # Store CSRF token in cookie instead of session
-CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access to CSRF token
+CSRF_COOKIE_SECURE = False
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_DOMAIN = "." + DOMAIN_NAME
+CSRF_USE_SESSIONS = False
+CSRF_COOKIE_HTTPONLY = False
 CSRF_FAILURE_VIEW = "grit.core.views.custom_csrf_failure_view"
-
-# Email Service
 if DJANGO_ENV in ['TEST', 'DEV']:
-    # Use locmem backend for tests and local development to prevent sending real emails
     EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 else:
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -187,23 +137,12 @@ else:
     EMAIL_HOST_USER = load_credential("AWS_SES_SMTP_USERNAME")
     EMAIL_HOST_PASSWORD = load_credential("AWS_SES_SMTP_PASSWORD")
 DEFAULT_FROM_EMAIL = 'support@' + DOMAIN_NAME
-
-# Internationalization
-
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = core_settings.TIME_ZONE
-
 USE_I18N = True
-
 USE_TZ = True
-
-
-# Static files (CSS, JavaScript, Images)
-
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-
 STORAGES = {
     "default": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
@@ -212,26 +151,17 @@ STORAGES = {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
-
-# Default primary key field type
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-# Use environment variables
 if DJANGO_ENV == 'PROD' or DJANGO_ENV == 'STAGING':
     DEBUG = False
     if DJANGO_ENV == 'STAGING':
-        # The following settings enable printing of the exception traceback in the browser
         DEBUG_PROPAGATE_EXCEPTIONS = True
         from django.views.debug import technical_500_response
         import sys
         def custom_server_error(request):
-            # Capture the exception info; note that this works if an exception is active.
             return technical_500_response(request, *sys.exc_info())
         handler500 = custom_server_error
-
         from whitenoise.storage import CompressedManifestStaticFilesStorage
-
         class NonStrictManifestStaticFilesStorage(CompressedManifestStaticFilesStorage):
             manifest_strict = False
 elif DJANGO_ENV == 'DEV':
@@ -239,12 +169,7 @@ elif DJANGO_ENV == 'DEV':
     CSRF_COOKIE_DOMAIN = None
 else:
     DEBUG = True
-
-# Import additional settings that override the default settings
 import app.settings as app_settings
-
 INSTALLED_APPS += app_settings.ADDITIONAL_INSTALLED_APPS
-
-# Apply any additional settings defined in app/settings.py
 if hasattr(app_settings, 'ADDITIONAL_SETTINGS'):
     globals().update(app_settings.ADDITIONAL_SETTINGS)

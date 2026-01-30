@@ -10,8 +10,6 @@ from .views import (
      verify_email, send_verification_email_view, verification_email_sent
 )
 from .settings import auth_settings
-
-
 urlpatterns = [
     path('login/', import_string(auth_settings.LOGIN_VIEW), name='login'),
     path('logout/', custom_logout_view, name='logout'),
@@ -29,8 +27,6 @@ urlpatterns = [
     path('password-reset-complete/',
          PasswordResetCompleteView.as_view(template_name='customauth/password_reset_complete.html'),
          name='password_reset_complete'),
-
-    # Email verification URLs
     path('verify-email/<uidb64>/<token>/',
          verify_email,
          name='verify_email'),

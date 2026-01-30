@@ -5,7 +5,6 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 
 class CustomUserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
-        """Create and save a regular user with the given email and password."""
         if not email:
             raise ValueError('The Email field must be set.')
         email = self.normalize_email(email)
@@ -13,9 +12,7 @@ class CustomUserManager(BaseUserManager):
         user.set_password(password)
         user.save(using=self._db)
         return user
-
     def create_superuser(self, email, password=None, **extra_fields):
-        """Create and save a superuser with the given email and password."""
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('is_active', True)
@@ -35,21 +32,15 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     profile = models.ForeignKey( 'Profile',
         on_delete=models.DO_NOTHING, related_name='users',
         null=True, blank=True)
-
     objects = CustomUserManager()
-
-    USERNAME_FIELD = 'email'  # Set email as the unique identifier
-    REQUIRED_FIELDS = []  # Remove username from REQUIRED_FIELDS
-
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = []
     class Meta:
         verbose_name = 'User'
         verbose_name_plural = 'Users'
-
     def __str__(self):
         return self.email
-
     def save(self, *args, **kwargs):
-        # Initialize metadata as an empty dict if it's None
         if self.metadata is None:
             self.metadata = {}
         super().save(*args, **kwargs)
@@ -61,6 +52,5 @@ class Profile(models.Model):
     metadata = models.JSONField(default=dict, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
     def __str__(self):
         return self.name

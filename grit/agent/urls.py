@@ -3,8 +3,6 @@ from django.utils.module_loading import import_string
 from . import views as core_agent_views
 from . import aviews as core_agent_aviews
 from .settings import agent_settings
-
-
 urlpatterns = [
     path('chat/', core_agent_views.chat_view, name='agent_chat_new'),
     path('chat/c/<str:thread_id>', core_agent_views.chat_view, name='agent_chat'),

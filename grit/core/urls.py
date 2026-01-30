@@ -17,9 +17,16 @@ urlpatterns = [
     path('profile/', home_views.profile, name='profile'),
     path('app/<str:app_name>/', core_views.app_specific_view, name='app_specific'),
     path('app/', core_views.app_view, name='app'),
-    path('', auth_redirect('app', 'home'), name='index'),
     path('', include('app.urls')),
 ]
+if hasattr(home_views, 'IndexView'):
+    urlpatterns += [
+        path('', home_views.IndexView.as_view(), name='index'),
+    ]
+else:
+    urlpatterns += [
+        path('', auth_redirect('app', 'home'), name='index'),
+    ]
 if hasattr(home_views, 'OnboardingView'):
     urlpatterns += [
         path('onboarding/', RedirectView.as_view(pattern_name='onboarding', permanent=False),

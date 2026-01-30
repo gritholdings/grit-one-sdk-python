@@ -4,6 +4,14 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
 
 
+class BaseView(LoginRequiredMixin, View):
+    pass
+
+
+class PublicBaseView(View):
+    pass
+
+
 class OnboardingBaseView(LoginRequiredMixin, View):
     template_name = "home/onboarding.html"
     onboarding_steps = []

@@ -12,12 +12,9 @@ class ClickableInlineMixin:
                 )
                 return format_html('<a href="{}">{}</a>', url, instance)
             except Exception as e:
-                # Fallback for unregistered models
                 return str(instance)
         return "(New)"
-    
     def has_change_permission(self, request, obj=None):
         return False
-    
     def has_add_permission(self, request, obj=None):
         return False

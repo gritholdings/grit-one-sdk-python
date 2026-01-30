@@ -1,5 +1,3 @@
-# A recommended prompt prefix for agents that use handoffs. We recommend including this or
-# similar instructions in any agents that use handoffs.
 RECOMMENDED_PROMPT_PREFIX = (
     "# System context\n"
     "You are part of a multi-agent system called the Agents SDK, designed to make agent "
@@ -13,7 +11,4 @@ RECOMMENDED_PROMPT_PREFIX = (
 
 
 def prompt_with_handoff_instructions(prompt: str) -> str:
-    """
-    Add recommended instructions to the prompt for agents that use handoffs.
-    """
     return f"{RECOMMENDED_PROMPT_PREFIX}\n\n{prompt}"

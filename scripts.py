@@ -1,20 +1,16 @@
 #!/usr/bin/env python
-"""Point of entry"""
 import sys
 from scripts.deploy import deploy, build_image
 
 
 class ManagementUtility:
-    """Utility class to manage command-line execution."""
-
     def __init__(self, argv=None):
         self.argv = argv or sys.argv[:]
-
     def execute(self):
         try:
             subcommand = self.argv[1]
         except IndexError:
-            subcommand = 'help' # Default to 'help' if no command is provided
+            subcommand = 'help'
         if subcommand == 'build_image':
             build_image()
         elif subcommand == 'deploy':
@@ -36,7 +32,5 @@ def execute_from_command_line(argv=None):
 
 def main():
     execute_from_command_line(sys.argv)
-
-
 if __name__ == '__main__':
     main()

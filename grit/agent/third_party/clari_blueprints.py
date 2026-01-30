@@ -1,11 +1,3 @@
-"""
-Predefined Blueprint schemas for Clari sales call data validation and extraction.
-
-These schemas can be used with DataAutomationProject to define what data fields
-should be extracted and validated from Clari API responses.
-"""
-
-# Standard Clari Call Summary Blueprint
 CLARI_CALL_SUMMARY_BLUEPRINT = {
     "name": "Clari Call Summary",
     "description": "Extract key summary information from Clari sales calls",
@@ -49,8 +41,6 @@ CLARI_CALL_SUMMARY_BLUEPRINT = {
         "required": ["call_id", "call_date", "account_name"]
     }
 }
-
-# Detailed Clari Call Analytics Blueprint
 CLARI_CALL_ANALYTICS_BLUEPRINT = {
     "name": "Clari Call Analytics",
     "description": "Extract detailed analytics and metrics from Clari sales calls",
@@ -120,8 +110,6 @@ CLARI_CALL_ANALYTICS_BLUEPRINT = {
         "required": ["call_id", "call_date", "account_name"]
     }
 }
-
-# Deal Pipeline Blueprint
 CLARI_DEAL_PIPELINE_BLUEPRINT = {
     "name": "Clari Deal Pipeline",
     "description": "Extract deal pipeline information from Clari sales calls",
@@ -175,8 +163,6 @@ CLARI_DEAL_PIPELINE_BLUEPRINT = {
         "required": ["call_id", "account_name", "deal_name"]
     }
 }
-
-# Sales Rep Performance Blueprint
 CLARI_REP_PERFORMANCE_BLUEPRINT = {
     "name": "Clari Sales Rep Performance",
     "description": "Extract sales representative performance metrics from calls",
@@ -228,8 +214,6 @@ CLARI_REP_PERFORMANCE_BLUEPRINT = {
         "required": ["call_id", "rep_name", "account_name"]
     }
 }
-
-# Simple Call Log Blueprint
 CLARI_CALL_LOG_BLUEPRINT = {
     "name": "Clari Call Log",
     "description": "Basic call logging information for record keeping",
@@ -269,8 +253,6 @@ CLARI_CALL_LOG_BLUEPRINT = {
         "required": ["call_id", "call_time", "account_name"]
     }
 }
-
-# Transcript Text Extraction Blueprint
 CLARI_TRANSCRIPT_TEXT_BLUEPRINT = {
     "name": "Clari Transcript Text",
     "description": "Extract plain text from call transcripts for chatbot integration",
@@ -314,8 +296,6 @@ CLARI_TRANSCRIPT_TEXT_BLUEPRINT = {
         "required": ["call_id", "transcript_text", "transcript_clean"]
     }
 }
-
-# Collection of all predefined blueprints
 PREDEFINED_CLARI_BLUEPRINTS = [
     CLARI_CALL_SUMMARY_BLUEPRINT,
     CLARI_CALL_ANALYTICS_BLUEPRINT,
@@ -327,17 +307,7 @@ PREDEFINED_CLARI_BLUEPRINTS = [
 
 
 def create_clari_blueprint(blueprint_config):
-    """
-    Helper function to create a Blueprint model instance from a blueprint configuration.
-    
-    Args:
-        blueprint_config: Dictionary containing blueprint configuration
-        
-    Returns:
-        Blueprint model instance (not saved to database)
-    """
     from ..models import Blueprint
-    
     return Blueprint(
         name=blueprint_config["name"],
         description=blueprint_config["description"],
@@ -346,15 +316,6 @@ def create_clari_blueprint(blueprint_config):
 
 
 def get_blueprint_by_name(name: str):
-    """
-    Get a predefined blueprint configuration by name.
-    
-    Args:
-        name: Name of the blueprint
-        
-    Returns:
-        Blueprint configuration dictionary or None if not found
-    """
     for blueprint in PREDEFINED_CLARI_BLUEPRINTS:
         if blueprint["name"] == name:
             return blueprint
@@ -362,12 +323,6 @@ def get_blueprint_by_name(name: str):
 
 
 def list_available_blueprints():
-    """
-    List all available predefined Clari blueprints.
-    
-    Returns:
-        List of blueprint names and descriptions
-    """
     return [
         {
             "name": blueprint["name"],

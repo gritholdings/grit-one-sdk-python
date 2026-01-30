@@ -13,10 +13,7 @@ class BaseModel(models.Model):
         CustomUser, on_delete=models.DO_NOTHING, blank=True, null=True,
         related_name='%(class)s_as_owner'
     )
-
-    # Managers
-    objects = models.Manager()  # Default manager
+    objects = models.Manager()
     scoped = ScopedManager()
-
     class Meta:
         abstract = True

@@ -12,6 +12,8 @@ EXPOSE 8000
 
 # Set to production environment for settings.py
 ENV DJANGO_ENV=PROD
+# Required for deps/ settings to load from the correct module
+ENV CORE_SETTINGS_MODULE=app.settings
 
 # Ensure the start.sh script is executable
 RUN chmod +x /app/scripts/start.sh
