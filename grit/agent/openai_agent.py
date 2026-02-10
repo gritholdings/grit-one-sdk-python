@@ -14,39 +14,9 @@ from .models import Agent
 from .extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX, prompt_with_handoff_instructions
 from .store import MemoryStoreService
 from .utils import get_page_count, pdf_page_to_base64
+from .constants import OPENAI_MODEL_CONFIG, DEFAULT_OPENAI_MODEL
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-MODEL_CONFIG = {
-    "gpt-4o": {
-        "price_per_1m_tokens_input": 2.5,
-        "price_per_1m_tokens_output": 10,
-    },
-    "gpt-4.1": {
-        "price_per_1m_tokens_input": 2,
-        "price_per_1m_tokens_output": 8,
-    },
-    "gpt-4.1-mini": {
-        "price_per_1m_tokens_input": 0.4,
-        "price_per_1m_tokens_output": 1.6,
-    },
-    "gpt-4.5": {
-        "price_per_1m_tokens_input": 75,
-        "price_per_1m_tokens_output": 150,
-    },
-    "o1": {
-        "price_per_1m_tokens_input": 15,
-        "price_per_1m_tokens_output": 60,
-    },
-    "o3": {
-        "price_per_1m_tokens_input": 2,
-        "price_per_1m_tokens_output": 8,
-    },
-    "gpt-5": {
-        "price_per_1m_tokens_input": 1.25,
-        "price_per_1m_tokens_output": 10.00,
-    }
-}
-DEFAULT_MODEL_NAME = "gpt-4o"
 
 
 def get_record_usage_function():
@@ -127,7 +97,7 @@ class BaseOpenAIAgent:
         tools = self._build_tools()
         handoff_agents = self._build_handoff_agents()
         self.agent_instance = Agent.objects.get(id=self.config.id)
-        model_name = self.config.model_name or DEFAULT_MODEL_NAME
+        model_name = self.config.model_name or DEFAULT_OPENAI_MODEL
         created_agent = OpenAIAgent(
             name=self.config.label,
             instructions=instructions,
@@ -343,9 +313,9 @@ class BaseOpenAIAgent:
                         input_tokens = result.raw_responses[0].usage.input_tokens
                         output_tokens = result.raw_responses[0].usage.output_tokens
                         total_tokens = input_tokens + output_tokens
-                        model_name = self.config.model_name if self.config.model_name else DEFAULT_MODEL_NAME
-                        input_cost = (input_tokens / 1000000) * MODEL_CONFIG[model_name]["price_per_1m_tokens_input"]
-                        output_cost = (output_tokens / 1000000) * MODEL_CONFIG[model_name]["price_per_1m_tokens_output"]
+                        model_name = self.config.model_name if self.config.model_name else DEFAULT_OPENAI_MODEL
+                        input_cost = (input_tokens / 1000000) * OPENAI_MODEL_CONFIG[model_name]["price_per_1m_tokens_input"]
+                        output_cost = (output_tokens / 1000000) * OPENAI_MODEL_CONFIG[model_name]["price_per_1m_tokens_output"]
                         total_cost = input_cost + output_cost
                         success = await sync_to_async(record_usage)(
                             user_id=user_id, token_used=total_tokens, provider_cost=total_cost)

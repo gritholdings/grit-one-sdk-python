@@ -10,27 +10,9 @@ from .dataclasses import AgentConfig
 from .models import Agent
 from .store import MemoryStoreService
 from .utils import get_page_count, pdf_page_to_base64
+from .constants import CLAUDE_MODEL_CONFIG, DEFAULT_CLAUDE_MODEL
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-MODEL_CONFIG = {
-    "claude-sonnet-4-5": {
-        "price_per_1m_tokens_input": 3,
-        "price_per_1m_tokens_output": 15,
-    },
-    "claude-haiku-4-5": {
-        "price_per_1m_tokens_input": 1,
-        "price_per_1m_tokens_output": 5,
-    },
-    "claude-opus-4-5": {
-        "price_per_1m_tokens_input": 15,
-        "price_per_1m_tokens_output": 75,
-    },
-}
-DEFAULT_PRICING = {
-    "price_per_1m_tokens_input": 3,
-    "price_per_1m_tokens_output": 15,
-}
-DEFAULT_CLAUDE_MODEL = "claude-sonnet-4-5"
 
 
 class SimpleClaudeChat:
@@ -338,8 +320,9 @@ class BaseClaudeAgent:
                 if getattr(self.config, 'record_usage_for_payment', False) and is_stripecustomer and record_usage:
                     if total_input_tokens > 0 or total_output_tokens > 0:
                         total_tokens = total_input_tokens + total_output_tokens
-                        input_cost = (total_input_tokens / 1000000) * DEFAULT_PRICING["price_per_1m_tokens_input"]
-                        output_cost = (total_output_tokens / 1000000) * DEFAULT_PRICING["price_per_1m_tokens_output"]
+                        default_pricing = CLAUDE_MODEL_CONFIG[DEFAULT_CLAUDE_MODEL]
+                        input_cost = (total_input_tokens / 1000000) * default_pricing["price_per_1m_tokens_input"]
+                        output_cost = (total_output_tokens / 1000000) * default_pricing["price_per_1m_tokens_output"]
                         total_cost = input_cost + output_cost
                         await sync_to_async(record_usage)(
                             user_id=user_id, token_used=total_tokens, provider_cost=total_cost
@@ -578,8 +561,9 @@ The params argument is optional and varies by operation:
             if getattr(self.config, 'record_usage_for_payment', False) and is_stripecustomer and record_usage:
                 if total_input_tokens > 0 or total_output_tokens > 0:
                     total_tokens = total_input_tokens + total_output_tokens
-                    input_cost = (total_input_tokens / 1000000) * DEFAULT_PRICING["price_per_1m_tokens_input"]
-                    output_cost = (total_output_tokens / 1000000) * DEFAULT_PRICING["price_per_1m_tokens_output"]
+                    default_pricing = CLAUDE_MODEL_CONFIG[DEFAULT_CLAUDE_MODEL]
+                    input_cost = (total_input_tokens / 1000000) * default_pricing["price_per_1m_tokens_input"]
+                    output_cost = (total_output_tokens / 1000000) * default_pricing["price_per_1m_tokens_output"]
                     total_cost = input_cost + output_cost
                     await sync_to_async(record_usage)(
                         user_id=user_id, token_used=total_tokens, provider_cost=total_cost

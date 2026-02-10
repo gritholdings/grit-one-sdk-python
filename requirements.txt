@@ -22,3 +22,4 @@ mkdocs
 mkdocs-material
 PyYAML
 markdown2
+jsonref
