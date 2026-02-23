@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import sys
 from scripts.deploy import deploy, build_image
+from scripts.deploy_azure import deploy as deploy_azure, build_image as build_image_azure
 
 
 class ManagementUtility:
@@ -15,10 +16,16 @@ class ManagementUtility:
             build_image()
         elif subcommand == 'deploy':
             deploy()
+        elif subcommand == 'build_image_azure':
+            build_image_azure()
+        elif subcommand == 'deploy_azure':
+            deploy_azure()
         elif subcommand == 'help':
             print("Available commands:")
             print("build_image")
             print("deploy")
+            print("build_image_azure")
+            print("deploy_azure")
             print("help")
         else:
             print(f"Unknown command: {subcommand}")

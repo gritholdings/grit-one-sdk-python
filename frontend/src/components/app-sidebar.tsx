@@ -6,18 +6,6 @@ interface AppSidebarProps {
   [key: string]: any
 }
 
-// Map string icon names to Lucide icon components
-const iconMap: Record<string, any> = {
-  GraduationCap: Icons.GraduationCap,
-  BookOpen: Icons.BookOpen,
-  Bot: Icons.Bot,
-  Wrench: Icons.Wrench,
-  Briefcase: Icons.Briefcase,
-  FileText: Icons.FileText,
-  FolderOpen: Icons.FolderOpen,
-  ChartCandlestick: Icons.ChartCandlestick,
-}
-
 /**
  * Convert snake_case to PascalCase
  * Examples: 'course' -> 'Course', 'course_work' -> 'CourseWork'
@@ -45,7 +33,7 @@ function toCamelCase(str: string): string {
  * Backend structure: { APPS: { appKey: { label, icon, tabs } }, MODELS: {...}, TABS: {...} }
  * Frontend structure: [{ name, logo, url, navItems: [{ title, url, icon }] }]
  */
-function transformAppSettings(settings: any, iconMap: Record<string, any>): any[] {
+function transformAppSettings(settings: any): any[] {
   if (!settings || !settings.APPS) {
     return []
   }
@@ -80,14 +68,14 @@ function transformAppSettings(settings: any, iconMap: Record<string, any>): any[
         return {
           title,
           url,
-          icon: iconMap[modelConfig.icon] || Icons.FileText
+          icon: (Icons as any)[modelConfig.icon] || Icons.FileText
         }
       } else if (tabConfig) {
         // It's a custom tab - use the tab config
         return {
           title: tabConfig.label || tabKey,
           url: tabConfig.url || (tabConfig.urlName ? `/${tabConfig.urlName}` : `/${tabKey}`),
-          icon: iconMap[tabConfig.icon] || Icons.Wrench
+          icon: (Icons as any)[tabConfig.icon] || Icons.Wrench
         }
       } else {
         // Fallback - create a basic nav item using PascalCase
@@ -106,7 +94,7 @@ function transformAppSettings(settings: any, iconMap: Record<string, any>): any[
     return {
       name: appConfig.label || appKey,
       key: appKey,  // Store the original snake_case key for URL matching
-      logo: iconMap[appConfig.icon] || Icons.FileText,
+      logo: (Icons as any)[appConfig.icon] || Icons.FileText,
       url: mainUrl,
       navItems
     }
@@ -132,7 +120,7 @@ export function AppSidebar({
   }
 
   // Transform backend APP_METADATA_SETTINGS into AppConfiguration format
-  const configs = rawSettings ? transformAppSettings(rawSettings, iconMap) : []
+  const configs = rawSettings ? transformAppSettings(rawSettings) : []
     
   return (
     <BaseAppSidebar

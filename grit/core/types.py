@@ -6,6 +6,8 @@ AdditionalSettingsType = Dict[str, Any]
 class CoreSettingsTypedDict(TypedDict):
     SUBDOMAIN_NAME: NotRequired[str]
     TIME_ZONE: NotRequired[str]
+    AZURE_ACR_REGISTRY_NAME: NotRequired[str]
+    AZURE_ACR_REPOSITORY_NAME: NotRequired[str]
 
 
 class TabTypedDict(TypedDict):
@@ -55,8 +57,9 @@ class FieldPermissionsTypedDict(TypedDict):
 
 class ChoiceItemTypedDict(TypedDict):
     label: str
-    closure_type: str
-    is_active: bool
+    closure_type: NotRequired[str]
+    is_active: NotRequired[bool]
+    is_closed: NotRequired[bool]
     probability: NotRequired[int]
 
 

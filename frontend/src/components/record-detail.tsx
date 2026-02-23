@@ -36,7 +36,7 @@ import { getActionComponent } from "@/components/action-component-registry"
 import { camelToSnakeCase } from "@/lib/utils"
 
 interface FieldConfig {
-  widget: "TextInput" | "Textarea" | "Select"
+  widget: "TextInput" | "Textarea" | "Select" | "DateInput"
   help_text?: string
   required?: boolean
   choices?: Array<{ value: string; label: string }>
@@ -55,7 +55,9 @@ interface InlineConfig {
   readonly_fields: string[]
   can_delete: boolean
   items: InlineItem[]
-  relationship_type?: 'many_to_many' | 'one_to_many' | null
+  relationship_type?: 'many_to_many' | 'one_to_many' | 'generic_fk' | null
+  hidden_fields?: Record<string, string>
+  create_url?: string
 }
 
 interface ActionConfig {
@@ -111,9 +113,8 @@ export default function RecordDetail({
     open: boolean
     modelName: string
     createUrl: string
-    parentField: string
-    parentId: string
-  }>({ open: false, modelName: '', createUrl: '', parentField: '', parentId: '' })
+    hiddenFields: Record<string, string>
+  }>({ open: false, modelName: '', createUrl: '', hiddenFields: {} })
   
   // Derive delete URL and model name from update URL
   const deleteUrl = updateUrl ? updateUrl.replace('/update', '/delete') : undefined
@@ -502,6 +503,15 @@ export default function RecordDetail({
               rows={4}
               disabled={isSubmitting}
             />
+          ) : fieldConfig.widget === 'DateInput' ? (
+            <Input
+              id={field}
+              type="datetime-local"
+              value={typeof displayValue === 'string' ? displayValue.slice(0, 16) : ''}
+              onChange={(e) => handleInputChange(field, e.target.value)}
+              className={fieldErrors ? 'border-red-500' : ''}
+              disabled={isSubmitting}
+            />
           ) : (
             <Input
               id={field}
@@ -622,14 +632,13 @@ export default function RecordDetail({
                             // Derive the parent field name from the model name
                             // For example: Course -> course, CourseWork -> course_work
                             const parentFieldName = modelName ? camelToSnakeCase(modelName) : ''
-                            const createUrl = `/m/${inline.model_name}/create`
-                            
+                            const createUrl = inline.create_url || `/m/${inline.model_name}/create`
+
                             setCreateDialogState({
                               open: true,
                               modelName: inline.model_name,
                               createUrl,
-                              parentField: parentFieldName,
-                              parentId: record.id as string
+                              hiddenFields: { [parentFieldName]: record.id as string }
                             })
                           }}
                           disabled={isEditing}
@@ -637,6 +646,35 @@ export default function RecordDetail({
                           <Plus className="h-4 w-4 mr-1" />
                           New
                         </Button>
+                      ) : inline.relationship_type === 'generic_fk' ? (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              const createUrl = inline.create_url || `/m/${inline.model_name}/create`
+                              setCreateDialogState({
+                                open: true,
+                                modelName: inline.model_name,
+                                createUrl,
+                                hiddenFields: inline.hidden_fields || {}
+                              })
+                            }}
+                            disabled={isEditing}
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            New
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditingInline(inline)}
+                            disabled={isEditing}
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                        </div>
                       ) : (
                         // Fallback to Edit button if relationship_type is not set (backward compatibility)
                         <Button
@@ -774,13 +812,13 @@ export default function RecordDetail({
         </div>
       )}
       
-      {/* Create Record Dialog for one-to-many relationships */}
+      {/* Create Record Dialog for one-to-many and generic_fk relationships */}
       <CreateRecordDialog
         open={createDialogState.open}
         onOpenChange={(open) => setCreateDialogState(prev => ({ ...prev, open }))}
         createUrl={createDialogState.createUrl}
         modelName={createDialogState.modelName}
-        hiddenFields={{ [createDialogState.parentField]: createDialogState.parentId }}
+        hiddenFields={createDialogState.hiddenFields}
         onSuccess={(data) => {
           // Reload the page to show the new record
           window.location.reload()

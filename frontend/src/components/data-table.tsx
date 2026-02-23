@@ -35,7 +35,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-
 export type Payment = {
   id: string
   amount: number
@@ -145,6 +144,7 @@ interface DataTableProps<TData, TValue> {
   data: TData[]
   pagination?: PaginationData
   searchQuery?: string
+  onSelectionChange?: (selectedIds: string[]) => void
 }
 
 export function DataTable<TData, TValue>({
@@ -152,6 +152,7 @@ export function DataTable<TData, TValue>({
   data,
   pagination,
   searchQuery = "",
+  onSelectionChange,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -211,6 +212,16 @@ export function DataTable<TData, TValue>({
       rowSelection,
     },
   })
+
+  // Report selected row IDs to parent when selection changes
+  React.useEffect(() => {
+    if (onSelectionChange) {
+      const selectedIds = table.getFilteredSelectedRowModel().rows.map(
+        (row) => (row.original as Record<string, unknown>).id as string
+      )
+      onSelectionChange(selectedIds)
+    }
+  }, [rowSelection])
 
   return (
     <div className="w-full min-w-0 overflow-x-hidden">

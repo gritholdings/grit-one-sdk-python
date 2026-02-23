@@ -6,8 +6,9 @@ import {
   Trash2,
   Upload,
   Plus,
-  Sparkles
+  Sparkles,
 } from "lucide-react"
+import type { BulkAction } from "@/components/list-view"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -52,12 +53,16 @@ interface NavActionsProps {
   }>>
   deleteUrl?: string
   modelName?: string
+  bulkActions?: BulkAction[]
+  selectedIds?: string[]
 }
 
-export function NavActions({ groups = defaultGroups, deleteUrl, modelName }: NavActionsProps) {
+export function NavActions({ groups = defaultGroups, deleteUrl, modelName, bulkActions = [], selectedIds = [] }: NavActionsProps) {
   const [isOpen, setIsOpen] = React.useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = React.useState(false)
+  const [isBulkDeleting, setIsBulkDeleting] = React.useState(false)
   const [showComponentDialog, setShowComponentDialog] = React.useState<{component: string, props: any} | null>(null)
   const [showCreateDialog, setShowCreateDialog] = React.useState(false)
   const [createUrl, setCreateUrl] = React.useState<string>("")
@@ -98,6 +103,48 @@ export function NavActions({ groups = defaultGroups, deleteUrl, modelName }: Nav
     setShowCreateDialog(false)
   }
   
+  const handleBulkAction = (action: string) => {
+    if (action === "delete") {
+      setShowBulkDeleteDialog(true)
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    setIsBulkDeleting(true)
+    try {
+      const pathMatch = window.location.pathname.match(/^\/app\/([^/]+)\/m\/([^/]+)\/list/)
+      if (!pathMatch) return
+
+      const [, appName, model] = pathMatch
+      const url = `/app/${appName}/m/${model}/bulk-action`
+
+      const getCookie = (name: string) => {
+        const value = `; ${document.cookie}`
+        const parts = value.split(`; ${name}=`)
+        if (parts.length === 2) return parts.pop()?.split(";").shift()
+        return null
+      }
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+          "X-CSRFToken": getCookie("csrftoken") || "",
+        },
+        credentials: "same-origin",
+        body: JSON.stringify({ action: "delete", ids: selectedIds }),
+      })
+
+      if (response.ok) {
+        window.location.reload()
+      }
+    } finally {
+      setIsBulkDeleting(false)
+      setShowBulkDeleteDialog(false)
+    }
+  }
+
   const handleDelete = async () => {
     if (!deleteUrl) return
     
@@ -287,6 +334,28 @@ export function NavActions({ groups = defaultGroups, deleteUrl, modelName }: Nav
                   </SidebarGroupContent>
                 </SidebarGroup>
               ))}
+              {bulkActions.length > 0 && (
+                <SidebarGroup className="border-b last:border-none">
+                  <SidebarGroupContent className="gap-0">
+                    <SidebarMenu>
+                      {bulkActions.map((action, index) => (
+                        <SidebarMenuItem key={index}>
+                          <SidebarMenuButton
+                            disabled={selectedIds.length === 0}
+                            onClick={() => {
+                              setIsOpen(false)
+                              handleBulkAction(action.action)
+                            }}
+                          >
+                            {action.action === 'delete' && <Trash2 />}
+                            <span>{action.label}{selectedIds.length > 0 ? ` (${selectedIds.length})` : ''}</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      ))}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              )}
             </SidebarContent>
           </Sidebar>
         </PopoverContent>
@@ -341,6 +410,26 @@ export function NavActions({ groups = defaultGroups, deleteUrl, modelName }: Nav
         </Dialog>
       )}
       
+      {/* Bulk Delete Confirmation Dialog */}
+      <Dialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Bulk Delete</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete {selectedIds.length} record(s)? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBulkDeleteDialog(false)} disabled={isBulkDeleting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleBulkDelete} disabled={isBulkDeleting}>
+              {isBulkDeleting ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Create Record Dialog */}
       <CreateRecordDialog
         open={showCreateDialog}

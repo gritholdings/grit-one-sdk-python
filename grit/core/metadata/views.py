@@ -1,5 +1,7 @@
 import json
 from django import forms
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 from django.db.models import ForeignKey, OneToOneField, Q
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, Http404
@@ -55,6 +57,9 @@ def _get_inline_field_name(parent_model, inline_model):
                             return accessor
             except (AttributeError, TypeError):
                 pass
+            return f"{inline_model._meta.model_name}_set"
+    for field in inline_model._meta.private_fields:
+        if isinstance(field, GenericForeignKey):
             return f"{inline_model._meta.model_name}_set"
     return None
 
@@ -333,10 +338,12 @@ class MetadataViewGenerator:
                 'nextPage': page_obj.next_page_number() if page_obj.has_next() else None,
                 'previousPage': page_obj.previous_page_number() if page_obj.has_previous() else None,
             }
+            bulk_actions = getattr(metadata_class, 'list_bulk_actions', None) or []
             context = {
                 'items': items_data,
                 'columns': json.dumps(columns, cls=DjangoJSONEncoder),
                 'actions': json.dumps(actions, cls=DjangoJSONEncoder),
+                'bulk_actions': json.dumps(bulk_actions, cls=DjangoJSONEncoder),
                 'model_name': model_name,
                 'model_name_lower': model_name_lower,
                 'title': f'{model_name} List',
@@ -414,6 +421,22 @@ class MetadataViewGenerator:
                     obj_data[field_name] = value or {}
                 else:
                     obj_data[field_name] = value
+            for field in model._meta.private_fields:
+                if not isinstance(field, GenericForeignKey):
+                    continue
+                field_name = field.name
+                if not _is_field_readable(field_name, field_perms, has_field_config, view_all_fields):
+                    continue
+                value = getattr(obj, field_name)
+                if value is None:
+                    obj_data[field_name] = None
+                elif hasattr(value, 'id'):
+                    related_model_name = camel_to_snake(value.__class__.__name__)
+                    obj_data[field_name] = {
+                        'id': str(value.id),
+                        'name': getattr(value, 'name', str(value)),
+                        'model': related_model_name
+                    }
             for field in model._meta.many_to_many:
                 field_name = field.name
                 if not _is_field_readable(field_name, field_perms, has_field_config, view_all_fields):
@@ -491,8 +514,9 @@ class MetadataViewGenerator:
                 for fieldset_name, fieldset_config in metadata_class.fieldsets:
                     fieldset_fields.extend(fieldset_config.get('fields', []))
                 excluded_fields = {'id', 'created_at', 'updated_at', 'owner', 'metadata'}
+                gfk_field_names = {f.name for f in model._meta.private_fields if isinstance(f, GenericForeignKey)}
                 model_field_names = {f.name for f in model._meta.get_fields() if not getattr(f, 'auto_created', False)}
-                valid_fields = [f for f in fieldset_fields if f in model_field_names and f not in excluded_fields]
+                valid_fields = [f for f in fieldset_fields if f in model_field_names and f not in excluded_fields and f not in gfk_field_names]
                 if valid_fields:
                     DynamicForm = modelform_factory(model, fields=valid_fields)
                     form_data = serialize_form_for_react(
@@ -580,6 +604,13 @@ class MetadataViewGenerator:
                                 break
                     else:
                         fk_field = None
+                    gfk_field = None
+                    if not relationship_type:
+                        for field in inline_model._meta.private_fields:
+                            if isinstance(field, GenericForeignKey):
+                                gfk_field = field
+                                relationship_type = "generic_fk"
+                                break
                     if fk_field:
                         filter_kwargs = {fk_field: obj}
                         if hasattr(inline_model, 'objects'):
@@ -590,6 +621,18 @@ class MetadataViewGenerator:
                             related_objects = []
                     elif is_through_model and parent_field:
                         filter_kwargs = {parent_field: obj}
+                        if hasattr(inline_model, 'objects'):
+                            related_objects = inline_model.objects.filter(**filter_kwargs)
+                        elif hasattr(inline_model, 'owned'):
+                            related_objects = inline_model.owned.filter(**filter_kwargs)
+                        else:
+                            related_objects = []
+                    elif gfk_field:
+                        ct = ContentType.objects.get_for_model(model)
+                        filter_kwargs = {
+                            gfk_field.ct_field: ct,
+                            gfk_field.fk_field: obj.pk,
+                        }
                         if hasattr(inline_model, 'objects'):
                             related_objects = inline_model.objects.filter(**filter_kwargs)
                         elif hasattr(inline_model, 'owned'):
@@ -630,6 +673,17 @@ class MetadataViewGenerator:
                         'items': inline_items,
                         'relationship_type': relationship_type
                     }
+                    if relationship_type == 'generic_fk' and gfk_field:
+                        ct = ContentType.objects.get_for_model(model)
+                        inline_config['hidden_fields'] = {
+                            gfk_field.ct_field: str(ct.pk),
+                            gfk_field.fk_field: str(obj.pk),
+                        }
+                    if relationship_type in ('generic_fk', 'one_to_many'):
+                        from grit.core.metadata import metadata as meta_registry
+                        inline_model_snake = camel_to_snake(inline_model.__name__)
+                        inline_app = meta_registry._get_app_for_model(inline_model)
+                        inline_config['create_url'] = f'/app/{inline_app}/m/{inline_model_snake}/create'
                     inlines_data.append(inline_config)
             context = {
                 'object': obj,
@@ -745,8 +799,9 @@ class MetadataViewGenerator:
                         for fieldset_name, fieldset_config in metadata_class.fieldsets:
                             fieldset_fields.extend(fieldset_config.get('fields', []))
                         excluded_fields = {'id', 'created_at', 'updated_at', 'owner', 'metadata'}
+                        gfk_field_names = {f.name for f in model._meta.private_fields if isinstance(f, GenericForeignKey)}
                         model_field_names = {f.name for f in model._meta.get_fields() if not getattr(f, 'auto_created', False)}
-                        valid_fields = [f for f in fieldset_fields if f in model_field_names and f not in excluded_fields]
+                        valid_fields = [f for f in fieldset_fields if f in model_field_names and f not in excluded_fields and f not in gfk_field_names]
                         if valid_fields:
                             from django.forms import modelform_factory
                             DynamicForm = modelform_factory(model, fields=valid_fields)
@@ -1134,6 +1189,59 @@ class MetadataViewGenerator:
                 }, status=400)
         delete_view.__name__ = f'{model.__name__.lower()}_delete'
         return delete_view
+    @staticmethod
+    def create_bulk_action_view(model, metadata_class):
+        @login_required
+        @require_http_methods(["POST"])
+        def bulk_action_view(request):
+            model_name = model.__name__
+            model_name_lower = camel_to_snake(model_name)
+            app_label = model._meta.app_label
+            try:
+                body = json.loads(request.body)
+            except (json.JSONDecodeError, ValueError):
+                return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
+            action = body.get('action')
+            ids = body.get('ids', [])
+            if not action:
+                return JsonResponse({'success': False, 'error': 'No action specified'}, status=400)
+            if not ids or not isinstance(ids, list):
+                return JsonResponse({'success': False, 'error': 'No IDs provided'}, status=400)
+            bulk_actions = getattr(metadata_class, 'list_bulk_actions', None) or []
+            allowed_actions = [a.get('action') for a in bulk_actions]
+            if action not in allowed_actions:
+                return JsonResponse({'success': False, 'error': f'Action "{action}" is not allowed'}, status=400)
+            if action == 'delete':
+                return _handle_bulk_delete(request, model, model_name, model_name_lower, app_label, ids)
+            return JsonResponse({'success': False, 'error': f'Unknown action: {action}'}, status=400)
+        bulk_action_view.__name__ = f'{model.__name__.lower()}_bulk_action'
+        return bulk_action_view
+
+
+def _handle_bulk_delete(request, model, model_name, model_name_lower, app_label, ids):
+    if not request.user.is_superuser:
+        django_granted = request.user.has_perm(f'{app_label}.delete_{model_name_lower}')
+        groups_granted = check_group_permission(request.user, model_name_lower, settings.APP_METADATA_SETTINGS)
+        profiles_granted = check_profile_permission(request.user, model_name_lower, 'allow_delete', settings.APP_METADATA_SETTINGS)
+        if not (django_granted or groups_granted or profiles_granted):
+            raise Http404()
+    queryset = _get_user_queryset(model, request.user)
+    to_delete = queryset.filter(id__in=ids)
+    try:
+        deleted_count, _ = to_delete.delete()
+        return JsonResponse({
+            'success': True,
+            'deleted_count': deleted_count,
+            'message': f'{deleted_count} record(s) deleted'
+        })
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error bulk deleting {model_name}: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Unable to delete records. Some may have dependent records.'
+        }, status=400)
 
 
 class LegacyRedirectView:

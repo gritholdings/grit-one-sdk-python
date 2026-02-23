@@ -1,6 +1,7 @@
 class ModelMetadata:
     list_display = None
     list_actions = None
+    list_bulk_actions = None
     detail_actions = None
     fieldsets = None
     form = None
@@ -70,6 +71,7 @@ class MetadataRegistry:
             inline_update_view = view_generator.create_inline_update_view(model_class, metadata_class)
             available_items_view = view_generator.create_available_items_view(model_class, metadata_class)
             delete_view = view_generator.create_delete_view(model_class, metadata_class)
+            bulk_action_view = view_generator.create_bulk_action_view(model_class, metadata_class)
             for i, app_name in enumerate(app_names):
                 url_suffix = '' if i == 0 else f'_{app_name}'
                 patterns.append(
@@ -119,6 +121,13 @@ class MetadataRegistry:
                         f'app/{app_name}/r/{model_name_lower}/<uuid:{model_name_lower}_id>/delete',
                         delete_view,
                         name=f'{model_name_lower}_delete{url_suffix}'
+                    )
+                )
+                patterns.append(
+                    path(
+                        f'app/{app_name}/m/{model_name_lower}/bulk-action',
+                        bulk_action_view,
+                        name=f'{model_name_lower}_bulk_action{url_suffix}'
                     )
                 )
             from .views import LegacyRedirectView

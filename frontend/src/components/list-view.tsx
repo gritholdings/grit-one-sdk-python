@@ -26,7 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { FileText } from "lucide-react"
-import { useMemo } from "react"
+import { useMemo, useState, useCallback } from "react"
 
 
 interface ColumnConfig {
@@ -185,6 +185,11 @@ type NavAction = {
 }
 type NavActionGroup = NavAction[]
 
+export interface BulkAction {
+  label: string
+  action: string
+}
+
 interface ListViewProps {
   data: Record<string, unknown>[]
   columns: ColumnConfig[]
@@ -192,6 +197,8 @@ interface ListViewProps {
   actions?: NavActionGroup[]
   pagination?: PaginationData
   searchQuery?: string
+  bulkActions?: BulkAction[]
+  modelName?: string
   appConfigurations?: string | Record<string, any>
 }
 
@@ -202,11 +209,17 @@ export default function ListView({
   actions = [],
   pagination,
   searchQuery = "",
+  bulkActions = [],
+  modelName = "",
   appConfigurations
 }: ListViewProps) {
   // Ensure actions is always an array
   const validActions = actions || []
   const columnDefs = useMemo(() => createColumns(columns), [columns])
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const handleSelectionChange = useCallback((ids: string[]) => {
+    setSelectedIds(ids)
+  }, [])
   return (
     <SidebarProvider>
       <AppSidebar appConfigurations={appConfigurations} />
@@ -229,11 +242,11 @@ export default function ListView({
             </Breadcrumb>
           </div>
           <div className="ml-auto px-3">
-            <NavActions groups={validActions} />
+            <NavActions groups={validActions} bulkActions={bulkActions} selectedIds={selectedIds} />
           </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 px-4 py-10 min-w-0 overflow-x-hidden">
-            <DataTable columns={columnDefs} data={data} pagination={pagination} searchQuery={searchQuery} />
+            <DataTable columns={columnDefs} data={data} pagination={pagination} searchQuery={searchQuery} onSelectionChange={bulkActions.length > 0 ? handleSelectionChange : undefined} />
         </div>
       </SidebarInset>
     </SidebarProvider>

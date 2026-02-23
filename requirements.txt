@@ -1,4 +1,4 @@
-Django>=5.0,<6.0
+Django>=5.2,<6.0
 djangorestframework
 adrf
 asgiref>=3.7.0
