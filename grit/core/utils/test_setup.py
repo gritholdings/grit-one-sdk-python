@@ -20,7 +20,7 @@ def initialize_test_setup():
         return_value={'id': 'cus_mocked123', 'units_remaining': 1000}
     )
     _stack.enter_context(_stripe_patcher)
-    price_multiplier_patcher = patch('grit.payments.utils.STRIPE_PRICE_MULTIPLIER', 100)
+    price_multiplier_patcher = patch('grit.payments.settings.payments_settings.STRIPE_PRICE_MULTIPLIER', 100)
     _stack.enter_context(price_multiplier_patcher)
     _initialized = True
     return cleanup_test_setup

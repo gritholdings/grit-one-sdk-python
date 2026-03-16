@@ -1,5 +1,6 @@
 @import "tailwindcss" source("../");
 @source not "../env/";
+@plugin "@tailwindcss/typography";
 
 /* Add custom styles */
 @import "./app_frontend/app.css";

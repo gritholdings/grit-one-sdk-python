@@ -1,9 +1,10 @@
 import subprocess
-from app.settings import CORE_SETTINGS, IMAGE_NAME
+from grit.core.core_settings import core_settings
 DOCKER_CONTEXT = "desktop-linux"
 IMAGE_TAG = "latest"
-AZURE_ACR_REGISTRY_NAME = CORE_SETTINGS.get('AZURE_ACR_REGISTRY_NAME', '')
-AZURE_ACR_REPOSITORY_NAME = CORE_SETTINGS.get('AZURE_ACR_REPOSITORY_NAME', '')
+IMAGE_NAME = core_settings.IMAGE_NAME
+AZURE_ACR_REGISTRY_NAME = core_settings.AZURE_ACR_REGISTRY_NAME
+AZURE_ACR_REPOSITORY_NAME = core_settings.AZURE_ACR_REPOSITORY_NAME
 
 
 def build_image():

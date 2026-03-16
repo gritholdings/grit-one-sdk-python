@@ -7,6 +7,7 @@ class ModelMetadata:
     form = None
     inlines = None
     ordering = None
+    list_views = None
     def __init__(self):
         if self.inlines is None:
             self.inlines = []

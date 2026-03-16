@@ -1,10 +1,9 @@
 import os
 import json
 from pathlib import Path
-import app.settings
-from app.settings import DOMAIN_NAME
 from grit.core.core_settings import core_settings
-PLATFORM_NAME: str = getattr(app.settings, 'PLATFORM_NAME', 'platform')
+DOMAIN_NAME: str = core_settings.DOMAIN_NAME
+PLATFORM_NAME: str = core_settings.PLATFORM_NAME
 _credentials_cache: dict | None = None
 
 

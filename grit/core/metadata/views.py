@@ -213,6 +213,20 @@ class MetadataViewGenerator:
             queryset = _get_user_queryset(model, request.user)
             if hasattr(metadata_class, 'ordering') and metadata_class.ordering:
                 queryset = queryset.order_by(*metadata_class.ordering)
+            list_views = getattr(metadata_class, 'list_views', None) or {}
+            active_view = None
+            active_view_fields = None
+            if list_views:
+                view_param = request.GET.get('view', '').strip()
+                if view_param and view_param in list_views:
+                    active_view = view_param
+                else:
+                    active_view = next(iter(list_views))
+                view_config = list_views[active_view]
+                view_filters = view_config.get('filters', {})
+                if view_filters:
+                    queryset = queryset.filter(**view_filters)
+                active_view_fields = view_config.get('fields', None)
             search_query = request.GET.get('search', '').strip()
             if search_query and hasattr(metadata_class, 'list_display'):
                 q_objects = Q()
@@ -274,9 +288,10 @@ class MetadataViewGenerator:
                 items_data.append(item_dict)
             columns = []
             columns.append({'type': 'select'})
-            if hasattr(metadata_class, 'list_display') and metadata_class.list_display:
+            display_fields = active_view_fields or (metadata_class.list_display if hasattr(metadata_class, 'list_display') else None)
+            if display_fields:
                 first_column_added = False
-                for field_name in metadata_class.list_display:
+                for field_name in display_fields:
                     if not _is_field_readable(field_name, field_perms, has_field_config, view_all_fields):
                         continue
                     if not first_column_added:
@@ -339,6 +354,13 @@ class MetadataViewGenerator:
                 'previousPage': page_obj.previous_page_number() if page_obj.has_previous() else None,
             }
             bulk_actions = getattr(metadata_class, 'list_bulk_actions', None) or []
+            list_views_options = []
+            if list_views:
+                for view_key, view_config in list_views.items():
+                    list_views_options.append({
+                        'key': view_key,
+                        'label': view_config.get('label', view_key.title()),
+                    })
             context = {
                 'items': items_data,
                 'columns': json.dumps(columns, cls=DjangoJSONEncoder),
@@ -350,7 +372,9 @@ class MetadataViewGenerator:
                 'pagination': pagination_data,
                 'pagination_json': json.dumps(pagination_data, cls=DjangoJSONEncoder),
                 'search_query': search_query,
-                'app_metadata_settings_json': json.dumps(convert_keys_to_camel_case(resolve_urls_in_app_metadata(filtered_settings)))
+                'app_metadata_settings_json': json.dumps(convert_keys_to_camel_case(resolve_urls_in_app_metadata(filtered_settings))),
+                'list_views_json': json.dumps(list_views_options, cls=DjangoJSONEncoder),
+                'active_view': active_view or '',
             }
             template_names = [
                 f'{model._meta.app_label}/{model_name_lower}_listview.html',

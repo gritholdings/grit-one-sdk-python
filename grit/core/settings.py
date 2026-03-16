@@ -1,8 +1,10 @@
 import os
 from pathlib import Path
-from app.settings import DOMAIN_NAME, AWS_RDS_ENDPOINT, APP_METADATA_SETTINGS
+from app.settings import APP_METADATA_SETTINGS
 from .utils.env_config import load_credential, set_environ_credential, get_django_env
 from .core_settings import core_settings
+DOMAIN_NAME = core_settings.DOMAIN_NAME
+AWS_RDS_ENDPOINT = core_settings.AWS_RDS_ENDPOINT
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 DJANGO_ENV = get_django_env()
 set_environ_credential('OPENAI_API_KEY')
@@ -170,6 +172,6 @@ elif DJANGO_ENV == 'DEV':
 else:
     DEBUG = True
 import app.settings as app_settings
-INSTALLED_APPS += app_settings.ADDITIONAL_INSTALLED_APPS
+INSTALLED_APPS += core_settings.ADDITIONAL_INSTALLED_APPS
 if hasattr(app_settings, 'ADDITIONAL_SETTINGS'):
     globals().update(app_settings.ADDITIONAL_SETTINGS)

@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/sidebar"
 import { DataTable, type PaginationData } from "@/components/data-table"
 import { type ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, MoreHorizontal } from "lucide-react"
+import { ArrowUpDown, ChevronDown, MoreHorizontal } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -190,6 +190,11 @@ export interface BulkAction {
   action: string
 }
 
+interface ListViewOption {
+  key: string
+  label: string
+}
+
 interface ListViewProps {
   data: Record<string, unknown>[]
   columns: ColumnConfig[]
@@ -200,6 +205,8 @@ interface ListViewProps {
   bulkActions?: BulkAction[]
   modelName?: string
   appConfigurations?: string | Record<string, any>
+  listViews?: ListViewOption[]
+  activeView?: string
 }
 
 export default function ListView({
@@ -211,7 +218,9 @@ export default function ListView({
   searchQuery = "",
   bulkActions = [],
   modelName = "",
-  appConfigurations
+  appConfigurations,
+  listViews = [],
+  activeView = "",
 }: ListViewProps) {
   // Ensure actions is always an array
   const validActions = actions || []
@@ -240,6 +249,32 @@ export default function ListView({
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
+            {listViews.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="ml-1 gap-1 text-sm font-medium">
+                    {listViews.find(v => v.key === activeView)?.label || activeView}
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {listViews.map((view) => (
+                    <DropdownMenuItem
+                      key={view.key}
+                      className={view.key === activeView ? "font-semibold" : ""}
+                      onClick={() => {
+                        const url = new URL(window.location.href)
+                        url.searchParams.set("view", view.key)
+                        url.searchParams.delete("page")
+                        window.location.href = url.toString()
+                      }}
+                    >
+                      {view.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
           <div className="ml-auto px-3">
             <NavActions groups={validActions} bulkActions={bulkActions} selectedIds={selectedIds} />

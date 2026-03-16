@@ -5,9 +5,18 @@ AdditionalSettingsType = Dict[str, Any]
 
 class CoreSettingsTypedDict(TypedDict):
     SUBDOMAIN_NAME: NotRequired[str]
+    DOMAIN_NAME: NotRequired[str]
+    PLATFORM_NAME: NotRequired[str]
     TIME_ZONE: NotRequired[str]
+    AWS_RDS_ENDPOINT: NotRequired[str]
+    AWS_PROFILE: NotRequired[str]
+    AWS_ACCOUNT_ID: NotRequired[str]
+    AWS_REGION: NotRequired[str]
+    IMAGE_NAME: NotRequired[str]
+    ECR_REPOSITORY_NAME: NotRequired[str]
     AZURE_ACR_REGISTRY_NAME: NotRequired[str]
     AZURE_ACR_REPOSITORY_NAME: NotRequired[str]
+    ADDITIONAL_INSTALLED_APPS: NotRequired[List[str]]
 
 
 class TabTypedDict(TypedDict):

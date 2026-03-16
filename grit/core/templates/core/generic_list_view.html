@@ -20,6 +20,8 @@
     data-prop-bulk-actions='{{ bulk_actions|default:"[]" }}'
     data-prop-model-name="{{ model_name_lower|default:"" }}"
     data-prop-app-configurations="{{ app_metadata_settings_json }}"
+    data-prop-list-views='{{ list_views_json|default:"[]" }}'
+    data-prop-active-view="{{ active_view|default:"" }}"
   >
     <!-- Skeleton loader -->
     <div class="flex min-h-screen w-full animate-pulse">

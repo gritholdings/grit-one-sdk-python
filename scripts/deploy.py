@@ -1,11 +1,10 @@
 import subprocess
-from app.settings import (
-    AWS_PROFILE,
-    AWS_ACCOUNT_ID,
-    AWS_REGION,
-    IMAGE_NAME,
-    ECR_REPOSITORY_NAME
-)
+from grit.core.core_settings import core_settings
+AWS_PROFILE = core_settings.AWS_PROFILE
+AWS_ACCOUNT_ID = core_settings.AWS_ACCOUNT_ID
+AWS_REGION = core_settings.AWS_REGION
+IMAGE_NAME = core_settings.IMAGE_NAME
+ECR_REPOSITORY_NAME = core_settings.ECR_REPOSITORY_NAME
 DOCKER_CONTEXT = "desktop-linux"
 IMAGE_TAG = "latest"
 
