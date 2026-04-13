@@ -1,0 +1,58 @@
+{% extends 'base_generic.html' %}
+{% block title %}Verify Your Identity{% endblock %}
+{% block content %}
+<div class="min-h-screen flex items-center justify-center px-4 bg-gray-50">
+  <div class="w-full max-w-md">
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm">
+      <div class="p-8 sm:p-7">
+        <div class="text-center">
+          <h1 class="text-xl font-semibold mb-1">Two-factor authentication</h1>
+          <p class="mt-2 text-sm text-gray-600">
+            Enter the 6-digit code sent to your email, or use a backup code.
+          </p>
+        </div>
+
+        {% if messages %}
+        <div class="mt-4 space-y-2">
+          {% for message in messages %}
+          <div class="rounded-lg px-4 py-3 text-sm
+            {% if message.tags == 'error' %}bg-red-50 text-red-800 border border-red-200
+            {% elif message.tags == 'warning' %}bg-yellow-50 text-yellow-800 border border-yellow-200
+            {% else %}bg-blue-50 text-blue-800 border border-blue-200{% endif %}">
+            {{ message }}
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <form method="post" class="mt-6 space-y-4">
+          {% csrf_token %}
+          <div>
+            <label class="block text-sm">Verification code</label>
+            {{ form.code }}
+          </div>
+          <button type="submit" class="w-full bg-primary-600 text-white rounded-lg py-2 hover:bg-primary-700">
+            Verify
+          </button>
+        </form>
+
+        <div class="mt-4 text-center">
+          <a href="{% url 'mfa_resend' %}" class="text-sm text-primary-600 hover:underline">
+            Resend code
+          </a>
+        </div>
+      </div>
+    </div>
+    <p class="mt-3 flex justify-center items-center text-center">
+      <a class="inline-flex items-center gap-x-2 text-sm text-gray-600 hover:underline hover:text-primary-600" href="{% url 'login' %}">
+        <svg class="size-2.5" width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M11.2792 1.64001L5.63273 7.28646C5.43747 7.48172 5.43747 7.79831 5.63273 7.99357L11.2792 13.64" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+        </svg>
+        Back to sign in
+      </a>
+    </p>
+  </div>
+</div>
+{% endblock %}
+{% block footer %}
+{% endblock %}

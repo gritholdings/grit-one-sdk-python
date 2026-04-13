@@ -9,4 +9,8 @@ class AuthSettings(BaseSettings):
     EMAIL_VERIFICATION_EXPIRY_HOURS: int = 48
     EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS: int = 60
     SIGNUP_REDIRECT_URL: str = 'index'
+    MFA_ENFORCEMENT: Literal['mandatory', 'optional', 'disabled'] = 'optional'
+    MFA_METHODS: list[str] = ['email']
+    MFA_BACKUP_CODE_COUNT: int = 10
+    MFA_CODE_EXPIRY_SECONDS: int = 600
 auth_settings: AuthSettings = AuthSettings()

@@ -38,7 +38,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware'
+    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'grit.auth.middleware.SessionActivityMiddleware',
 ]
 ROOT_URLCONF = 'grit.core.urls'
 TEMPLATES = [

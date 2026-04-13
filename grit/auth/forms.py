@@ -94,6 +94,28 @@ class CustomPasswordResetForm(PasswordResetForm):
     )
 
 
+class MFAVerifyForm(forms.Form):
+    code = forms.CharField(
+        max_length=8,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control w-full mt-1 px-3 py-2 border rounded-lg',
+            'placeholder': 'Enter 6-digit code',
+            'autofocus': True,
+            'autocomplete': 'one-time-code',
+            'inputmode': 'numeric',
+        })
+    )
+
+
+class MFADisableForm(forms.Form):
+    password = forms.CharField(
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control w-full mt-1 px-3 py-2 border rounded-lg',
+            'placeholder': 'Enter your password',
+        })
+    )
+
+
 class CustomSetPasswordForm(SetPasswordForm):
     new_password1 = forms.CharField(
         widget=forms.PasswordInput(attrs={

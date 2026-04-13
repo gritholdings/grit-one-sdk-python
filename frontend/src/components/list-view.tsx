@@ -168,6 +168,13 @@ function createColumns(columnsConfig: ColumnConfig[]): ColumnDef<Record<string, 
             return <div className={config.align === "right" ? "text-right" : ""}>{formatted}</div>
           }
 
+          if (value && typeof value === 'object') {
+            const text = Array.isArray(value)
+              ? value.join(', ')
+              : Object.entries(value).map(([k, v]) => `${k}: ${v}`).join(', ')
+            return <div className={config.align === "right" ? "text-right" : ""}>{text}</div>
+          }
+
           return <div className={config.align === "right" ? "text-right" : ""}>{String(value)}</div>
         }
       }

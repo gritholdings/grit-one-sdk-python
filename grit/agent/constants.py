@@ -39,6 +39,10 @@ OPENAI_MODEL_CONFIG = {
         "price_per_1m_tokens_input": 1.75,
         "price_per_1m_tokens_output": 14.00,
     },
+    "gpt-5.4": {
+        "price_per_1m_tokens_input": 2.5,
+        "price_per_1m_tokens_output": 15.00,
+    }
 }
 DEFAULT_OPENAI_MODEL = "gpt-5"
 CLAUDE_MODEL_CONFIG = {
@@ -60,3 +64,12 @@ CLAUDE_MODEL_CONFIG = {
     }
 }
 DEFAULT_CLAUDE_MODEL = "claude-sonnet-4-5"
+REASONING_EFFORT_CHOICES = [
+    ('', 'Default'),
+    ('none', 'None - No reasoning (lowest latency)'),
+    ('minimal', 'Minimal - Fastest responses with minimal reasoning'),
+    ('low', 'Low - Faster responses with less reasoning'),
+    ('medium', 'Medium - Balanced speed and reasoning'),
+    ('high', 'High - More thorough reasoning'),
+    ('xhigh', 'Extra High - Most thorough reasoning'),
+]

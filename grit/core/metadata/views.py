@@ -277,7 +277,10 @@ class MetadataViewGenerator:
                                 else:
                                     item_dict[field_name] = value
                         elif hasattr(item, 'metadata') and item.metadata and field_name in item.metadata:
-                            item_dict[field_name] = item.metadata.get(field_name, '')
+                            value = item.metadata.get(field_name, '')
+                            if isinstance(value, dict):
+                                value = json.dumps(value)
+                            item_dict[field_name] = value
                 if hasattr(item, 'metadata') and item.metadata:
                     if isinstance(item.metadata, dict):
                         for key, value in item.metadata.items():
@@ -484,6 +487,8 @@ class MetadataViewGenerator:
                         if hasattr(obj, 'metadata') and isinstance(obj.metadata, dict):
                             if field_name in obj.metadata:
                                 field_value = obj.metadata.get(field_name)
+                                if isinstance(field_value, dict):
+                                    field_value = json.dumps(field_value)
                                 obj_data[field_name] = field_value if field_value is not None else ''
                                 continue
                         if hasattr(obj, field_name):

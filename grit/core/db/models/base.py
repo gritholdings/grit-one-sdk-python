@@ -1,5 +1,5 @@
 import uuid
-from django.db import models
+from grit.core.db import models
 from grit.core.managers import ScopedManager
 from grit.auth.models import CustomUser
 

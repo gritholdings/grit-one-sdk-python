@@ -6,14 +6,27 @@ const NonMemoizedMarkdown = ({ children }: { children: string }) => {
   const components = {
     code: ({ node, inline, className, children, ...props }: any) => {
       const match = /language-(\w+)/.exec(className || "");
-      return !inline && match ? (
-        <pre
-          {...props}
-          className={`${className} text-sm w-[80dvw] md:max-w-[500px] overflow-x-scroll bg-zinc-100 p-3 rounded-lg mt-2 dark:bg-zinc-800`}
-        >
-          <code className={match[1]}>{children}</code>
-        </pre>
-      ) : (
+      if (!inline && match) {
+        return (
+          <pre
+            {...props}
+            className={`${className} text-sm w-[80dvw] md:max-w-[500px] overflow-x-scroll bg-zinc-100 p-3 rounded-lg mt-2 dark:bg-zinc-800`}
+          >
+            <code className={match[1]}>{children}</code>
+          </pre>
+        );
+      }
+      if (!inline) {
+        return (
+          <pre
+            {...props}
+            className={`text-sm w-[80dvw] md:max-w-[500px] whitespace-pre-wrap bg-zinc-100 p-3 rounded-lg mt-2 dark:bg-zinc-800`}
+          >
+            <code>{children}</code>
+          </pre>
+        );
+      }
+      return (
         <code
           className={`${className} text-sm bg-zinc-100 dark:bg-zinc-800 py-0.5 px-1 rounded-md`}
           {...props}
@@ -35,7 +48,7 @@ const NonMemoizedMarkdown = ({ children }: { children: string }) => {
     },
     li: ({ node, children, ...props }: any) => {
       return (
-        <li className="py-1 hover:bg-transparent" {...props}>
+        <li className="py-1 hover:bg-transparent [&>p]:inline [&>p]:m-0" {...props}>
           {children}
         </li>
       );

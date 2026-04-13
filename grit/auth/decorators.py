@@ -59,6 +59,25 @@ class VerifiedUserRequiredMixin(LoginRequiredMixin):
         return super().dispatch(request, *args, **kwargs)
 
 
+def mfa_required(view_func):
+    @login_required
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.user.mfa_devices.filter(is_active=True).exists():
+            return redirect('mfa_setup')
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
+
+class MFARequiredMixin(LoginRequiredMixin):
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+        if not request.user.mfa_devices.filter(is_active=True).exists():
+            return redirect('mfa_setup')
+        return super().dispatch(request, *args, **kwargs)
+
+
 class EmailVerifiedRequiredMixin:
     verification_redirect_url = 'resend_verification_email'
     verification_message = 'Please verify your email address to access this page.'

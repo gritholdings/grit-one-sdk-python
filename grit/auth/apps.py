@@ -6,3 +6,5 @@ class CustomauthConfig(AppConfig):
     name = 'grit.auth'
     label = 'customauth'
     verbose_name = 'Users'
+    def ready(self):
+        from . import signals

@@ -1,15 +1,34 @@
 import subprocess
 from grit.core.core_settings import core_settings
+DOCKER_CONTEXT = "desktop-linux"
+IMAGE_TAG = "latest"
+IMAGE_NAME = core_settings.IMAGE_NAME
+ECR_REPOSITORY_NAME = core_settings.ECR_REPOSITORY_NAME
 AWS_PROFILE = core_settings.AWS_PROFILE
 AWS_ACCOUNT_ID = core_settings.AWS_ACCOUNT_ID
 AWS_REGION = core_settings.AWS_REGION
-IMAGE_NAME = core_settings.IMAGE_NAME
-ECR_REPOSITORY_NAME = core_settings.ECR_REPOSITORY_NAME
-DOCKER_CONTEXT = "desktop-linux"
-IMAGE_TAG = "latest"
+AZURE_ACR_REGISTRY_NAME = core_settings.AZURE_ACR_REGISTRY_NAME
+AZURE_ACR_REPOSITORY_NAME = core_settings.AZURE_ACR_REPOSITORY_NAME
 
 
-def build_image():
+def detect_provider():
+    has_aws = bool(AWS_ACCOUNT_ID)
+    has_azure = bool(AZURE_ACR_REGISTRY_NAME)
+    if has_aws and has_azure:
+        raise RuntimeError(
+            "Multiple cloud providers configured. "
+            "Set only one of AWS_ACCOUNT_ID or AZURE_ACR_REGISTRY_NAME."
+        )
+    if not has_aws and not has_azure:
+        raise RuntimeError(
+            "No cloud provider configured. "
+            "Set AWS_ACCOUNT_ID or AZURE_ACR_REGISTRY_NAME in core_settings."
+        )
+    return "aws" if has_aws else "azure"
+
+
+def build_image(provider):
+    print(f"Detected provider: {provider}")
     container_name = IMAGE_NAME
     npm_install_command = "cd frontend && npm install"
     npm_build_command = "cd frontend && npm run build"
@@ -44,7 +63,14 @@ def build_image():
             print("Try to open Docker Desktop, then reset/resume. Make sure it says Engine running")
 
 
-def deploy():
+def deploy(provider):
+    if provider == "aws":
+        _deploy_aws()
+    else:
+        _deploy_azure()
+
+
+def _deploy_aws():
     ecr_url = f"{AWS_ACCOUNT_ID}.dkr.ecr.{AWS_REGION}.amazonaws.com"
     login_command = (
         f"aws ecr get-login-password --region {AWS_REGION} --profile {AWS_PROFILE} | "
@@ -65,6 +91,24 @@ def deploy():
         subprocess.run(login_command, shell=True, check=True)
         subprocess.run(tag_command, shell=True, check=True)
         subprocess.run(delete_command, shell=True, check=True)
+        subprocess.run(push_command, shell=True, check=True)
+    except subprocess.CalledProcessError as error:
+        print(f"An error occurred during deployment: {error}")
+
+
+def _deploy_azure():
+    acr_url = f"{AZURE_ACR_REGISTRY_NAME}.azurecr.io"
+    login_command = f"az acr login --name {AZURE_ACR_REGISTRY_NAME}"
+    tag_command = (
+        f"docker --context {DOCKER_CONTEXT} tag {IMAGE_NAME}:{IMAGE_TAG} "
+        f"{acr_url}/{AZURE_ACR_REPOSITORY_NAME}:{IMAGE_TAG}"
+    )
+    push_command = (
+        f"docker --context {DOCKER_CONTEXT} push {acr_url}/{AZURE_ACR_REPOSITORY_NAME}:{IMAGE_TAG}"
+    )
+    try:
+        subprocess.run(login_command, shell=True, check=True)
+        subprocess.run(tag_command, shell=True, check=True)
         subprocess.run(push_command, shell=True, check=True)
     except subprocess.CalledProcessError as error:
         print(f"An error occurred during deployment: {error}")

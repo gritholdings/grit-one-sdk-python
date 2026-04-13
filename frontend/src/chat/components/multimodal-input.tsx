@@ -79,7 +79,8 @@ export function MultimodalInput({
   const adjustHeight = () => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight + 2}px`;
+      const newHeight = Math.max(textareaRef.current.scrollHeight + 2, 56);
+      textareaRef.current.style.height = `${newHeight}px`;
     }
   };
 
@@ -122,6 +123,10 @@ export function MultimodalInput({
     // same thread because backend doesn't return the attachment details yet.
     // setAttachments([]);
     setLocalStorageInput('');
+
+    if (textareaRef.current) {
+      textareaRef.current.style.height = '56px';
+    }
 
     if (width && width > 768) {
       textareaRef.current?.focus();
@@ -300,10 +305,10 @@ export function MultimodalInput({
         value={input}
         onChange={handleInput}
         className={cn(
-          'min-h-[24px] max-h-[calc(75dvh)] overflow-hidden resize-none rounded-xl text-base bg-muted',
+          'min-h-[56px] max-h-[333px] overflow-hidden resize-none rounded-xl text-base bg-muted',
           className
         )}
-        rows={3}
+        rows={2}
         autoFocus
         onKeyDown={(event) => {
           if (event.key === 'Enter' && !event.shiftKey) {

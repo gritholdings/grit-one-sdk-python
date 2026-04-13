@@ -1,4 +1,4 @@
-from django.db import models
+from grit.core.db import models
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType

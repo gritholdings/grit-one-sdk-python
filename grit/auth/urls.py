@@ -7,7 +7,10 @@ from django.utils.module_loading import import_string
 from .views import (
      custom_logout_view, is_authenticated, signup,
      CustomPasswordResetView, CustomPasswordResetConfirmView,
-     verify_email, send_verification_email_view, verification_email_sent
+     verify_email, send_verification_email_view, verification_email_sent,
+     device_list, sign_out_session, sign_out_all_other_sessions,
+     mfa_setup_view, mfa_verify_view, mfa_resend_view,
+     mfa_disable_view, mfa_backup_codes_view,
 )
 from .settings import auth_settings
 urlpatterns = [
@@ -36,4 +39,18 @@ urlpatterns = [
     path('verification-email-sent/',
          verification_email_sent,
          name='verification_email_sent'),
+    path('devices/',
+         device_list,
+         name='device_list'),
+    path('devices/sign-out/<uuid:session_id>/',
+         sign_out_session,
+         name='sign_out_session'),
+    path('devices/sign-out-all/',
+         sign_out_all_other_sessions,
+         name='sign_out_all_other_sessions'),
+    path('mfa/setup/', mfa_setup_view, name='mfa_setup'),
+    path('mfa/verify/', mfa_verify_view, name='mfa_verify'),
+    path('mfa/resend/', mfa_resend_view, name='mfa_resend'),
+    path('mfa/disable/', mfa_disable_view, name='mfa_disable'),
+    path('mfa/backup-codes/', mfa_backup_codes_view, name='mfa_backup_codes'),
 ]

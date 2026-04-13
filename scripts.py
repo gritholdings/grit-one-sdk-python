@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import sys
-from scripts.deploy import deploy, build_image
-from scripts.deploy_azure import deploy as deploy_azure, build_image as build_image_azure
+from scripts.deploy import detect_provider, deploy, build_image
 
 
 class ManagementUtility:
@@ -13,19 +12,15 @@ class ManagementUtility:
         except IndexError:
             subcommand = 'help'
         if subcommand == 'build_image':
-            build_image()
+            provider = detect_provider()
+            build_image(provider)
         elif subcommand == 'deploy':
-            deploy()
-        elif subcommand == 'build_image_azure':
-            build_image_azure()
-        elif subcommand == 'deploy_azure':
-            deploy_azure()
+            provider = detect_provider()
+            deploy(provider)
         elif subcommand == 'help':
             print("Available commands:")
             print("build_image")
             print("deploy")
-            print("build_image_azure")
-            print("deploy_azure")
             print("help")
         else:
             print(f"Unknown command: {subcommand}")

@@ -1,6 +1,7 @@
 import uuid
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from django.utils import timezone
 
 
 class CustomUserManager(BaseUserManager):
@@ -54,3 +55,52 @@ class Profile(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     def __str__(self):
         return self.name
+
+
+class UserSession(models.Model):
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Active"
+        SIGNED_OUT = "signed_out", "Signed out"
+    id = models.UUIDField(default=uuid.uuid4, unique=True, primary_key=True)
+    user = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name='sessions'
+    )
+    metadata = models.JSONField(blank=True, null=True)
+    session_key = models.CharField(max_length=40, unique=True, db_index=True)
+    user_agent = models.CharField(max_length=512, blank=True)
+    ip = models.GenericIPAddressField(null=True, blank=True)
+    status = models.CharField(
+        max_length=15, choices=Status.choices, default=Status.ACTIVE
+    )
+    last_active_at = models.DateTimeField(null=True, blank=True)
+    signed_out_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    class Meta:
+        ordering = ['-last_active_at']
+        verbose_name = 'User Session'
+        verbose_name_plural = 'User Sessions'
+    def __str__(self):
+        return f"{self.user.email} — {self.session_key[:8]}"
+    def sign_out(self):
+        from django.contrib.sessions.backends.db import SessionStore
+        SessionStore(session_key=self.session_key).delete()
+        self.status = self.Status.SIGNED_OUT
+        self.signed_out_at = timezone.now()
+        self.save(update_fields=['status', 'signed_out_at', 'updated_at'])
+
+
+class MFADevice(models.Model):
+    class MFAMethod(models.TextChoices):
+        EMAIL = 'email', 'Email OTP'
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='mfa_devices')
+    name = models.CharField(max_length=255, default='Authenticator App')
+    method = models.CharField(max_length=10, choices=MFAMethod.choices, default=MFAMethod.EMAIL)
+    is_active = models.BooleanField(default=False)
+    metadata = models.JSONField(default=dict, blank=True)
+
+
+class BackupCode(models.Model):
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='backup_codes')
+    code_hash = models.CharField(max_length=255)
+    is_used = models.BooleanField(default=False)
