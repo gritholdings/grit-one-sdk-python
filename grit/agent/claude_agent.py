@@ -82,7 +82,7 @@ class BaseClaudeAgent:
     def _build_claude_options(self) -> ClaudeAgentOptions:
         instructions = self.get_agent_instructions()
         options = ClaudeAgentOptions(
-            model=DEFAULT_CLAUDE_MODEL,
+            model=self.config.model_name or DEFAULT_CLAUDE_MODEL,
             system_prompt=instructions,
             max_turns=1,
             include_partial_messages=True,
@@ -275,7 +275,7 @@ class BaseClaudeAgent:
                     client = anthropic.AsyncAnthropic()
                     system_prompt = await sync_to_async(self.get_agent_instructions)()
                     async with client.messages.stream(
-                        model=DEFAULT_CLAUDE_MODEL,
+                        model=self.config.model_name or DEFAULT_CLAUDE_MODEL,
                         max_tokens=4096,
                         system=system_prompt,
                         messages=messages,
@@ -489,7 +489,7 @@ The params argument is optional and varies by operation:
             while iteration < max_tool_iterations:
                 iteration += 1
                 api_params = {
-                    "model": DEFAULT_CLAUDE_MODEL,
+                    "model": self.config.model_name or DEFAULT_CLAUDE_MODEL,
                     "max_tokens": 4096,
                     "system": system_prompt,
                     "messages": messages,
