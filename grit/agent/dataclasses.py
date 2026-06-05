@@ -10,6 +10,7 @@ class AgentConfig:
     description: str
     agent_class: Optional[Type['BaseAgent'] | str] = None
     model_name: Optional[str] = None
+    model_provider: Optional[str] = None
     tags: Optional[List[str]] = field(default_factory=list)
     prompt_template: Optional[str] = None
     overview_html: Optional[str] = None
@@ -19,6 +20,14 @@ class AgentConfig:
     record_usage_for_payment: bool = True
     suggested_messages: Optional[List[str]] = field(default_factory=list)
     reasoning_effort: Optional[str] = None
+    def __post_init__(self):
+        if self.model_provider == 'bedrock' and not self.model_name:
+            raise ValueError(
+                "model_provider='bedrock' requires model_name to be set to a "
+                "full Bedrock model ID (e.g., "
+                "'us.anthropic.claude-opus-4-7'). The Bedrock ID "
+                "format varies by region and version, so it cannot be auto-derived."
+            )
 @dataclass
 
 

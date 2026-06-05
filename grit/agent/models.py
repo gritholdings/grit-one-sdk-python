@@ -1,4 +1,5 @@
 import importlib
+from typing import Optional
 from django.db import models
 from django.apps import apps
 from django.template import Template, Context
@@ -56,7 +57,7 @@ class AgentManager(models.Manager):
                 return []
         else:
             from django.db.models import Q
-            query = Q(account__contacts__user=user)
+            query = Q(account__contacts__user=user) | Q(owner=user)
             if agent_config_tag:
                 query |= Q(account__isnull=True, metadata__tags__Type__contains=agent_config_tag)
             else:
@@ -82,9 +83,12 @@ class AgentManager(models.Manager):
             return agent
         except self.model.DoesNotExist:
             return None
-    def get_agent_class(self, agent_class_str: str, model_name: str = None):
+    def get_agent_class(self, agent_class_str: str, model_name: Optional[str] = None, model_provider: Optional[str] = None):
         if not agent_class_str:
-            if model_name and model_name.startswith('claude'):
+            is_claude = model_provider == 'bedrock' or (
+                model_name and 'claude' in model_name
+            )
+            if is_claude:
                 agent_class_str = "grit.agent.claude_agent.BaseClaudeUserModeAgent"
             else:
                 agent_class_str = "grit.agent.openai_agent.BaseOpenAIUserModeAgent"
@@ -175,6 +179,11 @@ class Agent(BaseModel):
     def _get_metadata_value(self, key, default=None):
         return self.metadata.get(key, default) if self.metadata else default
     def get_config(self) -> AgentConfig:
+        from grit.agent.settings import agent_settings
+        model_provider = (
+            self._get_metadata_value('model_provider')
+            or agent_settings.DEFAULT_MODEL_PROVIDER
+        )
         return AgentConfig(
             id=str(self.id),
             label=self.name,
@@ -183,6 +192,7 @@ class Agent(BaseModel):
             prompt_template=self.system_prompt,
             overview_html=self._get_metadata_value('overview_html', ''),
             model_name=self._get_metadata_value('model_name', ''),
+            model_provider=model_provider or None,
             enable_web_search=self._get_metadata_value('enable_web_search', False),
             enable_knowledge_base=self._get_metadata_value('enable_knowledge_base', False),
             knowledge_bases=list(self.knowledge_bases.all().values()),

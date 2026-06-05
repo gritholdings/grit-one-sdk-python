@@ -1,11 +1,14 @@
+import os
 import uuid
 import logging
+from contextlib import contextmanager
 from typing import AsyncGenerator, Optional
 from asgiref.sync import sync_to_async
 from django.apps import apps
 import anthropic
 from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions, AssistantMessage, TextBlock
 from claude_agent_sdk.types import StreamEvent
+from grit.core.utils.env_config import load_credential
 from .dataclasses import AgentConfig
 from .models import Agent
 from .store import MemoryStoreService
@@ -13,21 +16,73 @@ from .utils import get_page_count, pdf_page_to_base64
 from .constants import CLAUDE_MODEL_CONFIG, DEFAULT_CLAUDE_MODEL
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+_BEDROCK_AWS_REGION = "us-east-1"
+
+
+def _resolve_provider(provider: Optional[str]) -> str:
+    return provider or 'api'
+
+
+def _build_bedrock_async_anthropic() -> 'anthropic.AsyncAnthropicBedrock':
+    return anthropic.AsyncAnthropicBedrock(
+        aws_region=_BEDROCK_AWS_REGION,
+        aws_access_key=load_credential("AWS_ACCESS_KEY_ID"),
+        aws_secret_key=load_credential("AWS_SECRET_ACCESS_KEY"),
+    )
+@contextmanager
+
+
+def _bedrock_env_for_sdk_client(provider: str):
+    if provider != 'bedrock':
+        yield
+        return
+    desired = {
+        "CLAUDE_CODE_USE_BEDROCK": "1",
+        "AWS_ACCESS_KEY_ID": load_credential("AWS_ACCESS_KEY_ID"),
+        "AWS_SECRET_ACCESS_KEY": load_credential("AWS_SECRET_ACCESS_KEY"),
+        "AWS_REGION": _BEDROCK_AWS_REGION,
+    }
+    prior: dict[str, Optional[str]] = {k: os.environ.get(k) for k in desired}
+    try:
+        for k, v in desired.items():
+            os.environ[k] = v
+        yield
+    finally:
+        for k, val in prior.items():
+            if val is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = val
 
 
 class SimpleClaudeChat:
+    def __init__(
+        self,
+        model_provider: Optional[str] = None,
+        model_name: Optional[str] = None,
+    ):
+        self.model_provider = _resolve_provider(model_provider)
+        self.model_name = model_name or DEFAULT_CLAUDE_MODEL
+        if self.model_provider == 'bedrock' and not model_name:
+            raise ValueError(
+                "model_provider='bedrock' requires model_name to be set to a "
+                "full Bedrock model ID (e.g., "
+                "'us.anthropic.claude-opus-4-7'). The Bedrock ID "
+                "format varies by region and version, so it cannot be auto-derived."
+            )
     async def send(self, message: str, system_prompt: Optional[str] = None) -> AsyncGenerator[str, None]:
-        options = ClaudeAgentOptions(model=DEFAULT_CLAUDE_MODEL)
+        options = ClaudeAgentOptions(model=self.model_name)
         if system_prompt:
-            options = ClaudeAgentOptions(model=DEFAULT_CLAUDE_MODEL, system_prompt=system_prompt)
+            options = ClaudeAgentOptions(model=self.model_name, system_prompt=system_prompt)
         try:
-            async with ClaudeSDKClient(options=options) as client:
-                await client.query(message)
-                async for msg in client.receive_response():
-                    if isinstance(msg, AssistantMessage):
-                        for block in msg.content:
-                            if isinstance(block, TextBlock):
-                                yield block.text
+            with _bedrock_env_for_sdk_client(self.model_provider):
+                async with ClaudeSDKClient(options=options) as client:
+                    await client.query(message)
+                    async for msg in client.receive_response():
+                        if isinstance(msg, AssistantMessage):
+                            for block in msg.content:
+                                if isinstance(block, TextBlock):
+                                    yield block.text
         except Exception as e:
             logger.error(f"SimpleClaudeChat error: {e}")
             yield f"[Error]: {str(e)}"
@@ -272,7 +327,11 @@ class BaseClaudeAgent:
             total_output_tokens = 0
             try:
                 if has_images:
-                    client = anthropic.AsyncAnthropic()
+                    provider = _resolve_provider(self.config.model_provider)
+                    if provider == 'bedrock':
+                        client = _build_bedrock_async_anthropic()
+                    else:
+                        client = anthropic.AsyncAnthropic()
                     system_prompt = await sync_to_async(self.get_agent_instructions)()
                     async with client.messages.stream(
                         model=self.config.model_name or DEFAULT_CLAUDE_MODEL,
@@ -288,25 +347,27 @@ class BaseClaudeAgent:
                             total_input_tokens = response.usage.input_tokens
                             total_output_tokens = response.usage.output_tokens
                 else:
-                    async with ClaudeSDKClient(options=options) as client:
-                        prompt = self._format_conversation_for_prompt(messages)
-                        await client.query(prompt)
-                        async for message in client.receive_response():
-                            if isinstance(message, StreamEvent):
-                                event = message.event
-                                if event.get('type') == 'content_block_delta':
-                                    delta = event.get('delta', {})
-                                    if delta.get('type') == 'text_delta':
-                                        text = delta.get('text', '')
-                                        if text:
-                                            yield text
-                                            final_output += text
-                            elif isinstance(message, AssistantMessage):
-                                if hasattr(message, 'usage'):
-                                    if hasattr(message.usage, 'input_tokens'):
-                                        total_input_tokens += message.usage.input_tokens
-                                    if hasattr(message.usage, 'output_tokens'):
-                                        total_output_tokens += message.usage.output_tokens
+                    provider = _resolve_provider(self.config.model_provider)
+                    with _bedrock_env_for_sdk_client(provider):
+                        async with ClaudeSDKClient(options=options) as client:
+                            prompt = self._format_conversation_for_prompt(messages)
+                            await client.query(prompt)
+                            async for message in client.receive_response():
+                                if isinstance(message, StreamEvent):
+                                    event = message.event
+                                    if event.get('type') == 'content_block_delta':
+                                        delta = event.get('delta', {})
+                                        if delta.get('type') == 'text_delta':
+                                            text = delta.get('text', '')
+                                            if text:
+                                                yield text
+                                                final_output += text
+                                elif isinstance(message, AssistantMessage):
+                                    if hasattr(message, 'usage'):
+                                        if hasattr(message.usage, 'input_tokens'):
+                                            total_input_tokens += message.usage.input_tokens
+                                        if hasattr(message.usage, 'output_tokens'):
+                                            total_output_tokens += message.usage.output_tokens
             except Exception as e:
                 logger.error(f"Error in process_chat: {str(e)}", exc_info=True)
                 yield f"\n[Stream Error]: {type(e).__name__}: {str(e)}\n"
@@ -483,7 +544,11 @@ The params argument is optional and varies by operation:
         total_input_tokens = 0
         total_output_tokens = 0
         try:
-            client = anthropic.AsyncAnthropic()
+            provider = _resolve_provider(self.config.model_provider)
+            if provider == 'bedrock':
+                client = _build_bedrock_async_anthropic()
+            else:
+                client = anthropic.AsyncAnthropic()
             max_tool_iterations = 5
             iteration = 0
             while iteration < max_tool_iterations:

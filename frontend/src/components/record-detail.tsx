@@ -36,7 +36,7 @@ import { getActionComponent } from "@/components/action-component-registry"
 import { camelToSnakeCase } from "@/lib/utils"
 
 interface FieldConfig {
-  widget: "TextInput" | "Textarea" | "Select" | "DateInput"
+  widget: "TextInput" | "Textarea" | "Select" | "DateInput" | "FileInput"
   help_text?: string
   required?: boolean
   choices?: Array<{ value: string; label: string }>
@@ -150,7 +150,7 @@ export default function RecordDetail({
     return Object.keys(form).length > 0 ? Object.keys(form) : Object.keys(record)
   }
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: unknown) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -199,6 +199,12 @@ export default function RecordDetail({
             }
             // For empty arrays, don't send anything for ManyToMany fields
             // Django will interpret this as clearing the field
+          }
+          // Handle file uploads - append the File object directly so the
+          // browser sends it as multipart/form-data. Must come before the
+          // object checks below since a File is also a typeof 'object'.
+          else if (value instanceof File) {
+            formDataToSend.append(field, value)
           }
           // Handle foreign key objects - send just the ID
           else if (typeof value === 'object' && 'id' in value) {
@@ -446,6 +452,33 @@ export default function RecordDetail({
         )
       }
 
+      // File fields in view mode: the editable input has no value, so the
+      // current file is carried in help_text (e.g. "Current file: <url> — ...").
+      // Surface it with the URL linkified; fall back to "-" when no file.
+      if (fieldConfig?.widget === 'FileInput') {
+        const help = typeof fieldConfig.help_text === 'string' ? fieldConfig.help_text : ''
+        const fileUrl = help.match(/https?:\/\/\S+/)?.[0]
+        if (fileUrl) {
+          const [before, after] = help.split(fileUrl)
+          displayContent = (
+            <span>
+              {before}
+              <a
+                href={fileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-bold hover:underline break-all"
+              >
+                {fileUrl}
+              </a>
+              {after}
+            </span>
+          )
+        } else {
+          displayContent = <span>-</span>
+        }
+      }
+
       return (
         <div key={field} className="py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:py-4">
           <dt className="text-sm font-medium text-gray-500 sm:pt-1.5">
@@ -509,6 +542,14 @@ export default function RecordDetail({
               type="datetime-local"
               value={typeof displayValue === 'string' ? displayValue.slice(0, 16) : ''}
               onChange={(e) => handleInputChange(field, e.target.value)}
+              className={fieldErrors ? 'border-red-500' : ''}
+              disabled={isSubmitting}
+            />
+          ) : fieldConfig.widget === 'FileInput' ? (
+            <Input
+              id={field}
+              type="file"
+              onChange={(e) => handleInputChange(field, e.target.files?.[0] ?? null)}
               className={fieldErrors ? 'border-red-500' : ''}
               disabled={isSubmitting}
             />

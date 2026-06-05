@@ -44,7 +44,8 @@ async def threads_runs(request: HttpRequest):
         agent_config = await sync_to_async(agent_detail.get_config)()
         agent_class = await sync_to_async(Agent.objects.get_agent_class)(
             agent_class_str=agent_config.agent_class,
-            model_name=agent_config.model_name
+            model_name=agent_config.model_name,
+            model_provider=agent_config.model_provider
         )
         if not agent_class:
             return Response(
@@ -109,7 +110,8 @@ async def upload_files(request: HttpRequest) -> Response:
         agent_config = await sync_to_async(agent_detail.get_config)()
         agent_class = await sync_to_async(Agent.objects.get_agent_class)(
             agent_class_str=agent_config.agent_class,
-            model_name=agent_config.model_name
+            model_name=agent_config.model_name,
+            model_provider=agent_config.model_provider
         )
         if not agent_class:
             return Response(

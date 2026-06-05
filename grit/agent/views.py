@@ -238,7 +238,8 @@ def threads_list(request: HttpRequest) -> Response:
                 elif role == 'user_image' and metadata.get('filename'):
                     continue
             else:
-                role, content = message.split(',', 1)
+                parts = message.split(',', 1)
+                role, content = parts if len(parts) == 2 else (parts[0], '')
                 if role == 'user':
                     if content.startswith('base64'):
                         continue

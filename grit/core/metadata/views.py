@@ -162,6 +162,8 @@ def serialize_form_for_react(form_class, user=None, instance=None, model_name=No
             widget_type = "NumberInput"
         elif isinstance(widget, forms.EmailInput):
             widget_type = "EmailInput"
+        elif isinstance(widget, (forms.ClearableFileInput, forms.FileInput)):
+            widget_type = "FileInput"
         field_config = {
             "widget": widget_type,
             "required": field.required,
@@ -177,11 +179,15 @@ def serialize_form_for_react(form_class, user=None, instance=None, model_name=No
         if field.help_text:
             field_config["help_text"] = str(field.help_text)
         if hasattr(field, 'choices') and field.choices:
-            field_config["choices"] = [
-                {"value": str(choice[0]), "label": str(choice[1])}
-                for choice in field.choices
-                if choice[0] != ''
-            ]
+            flat_choices = []
+            for value, label in field.choices:
+                if isinstance(label, (list, tuple)):
+                    for sub_value, sub_label in label:
+                        if sub_value != '':
+                            flat_choices.append({"value": str(sub_value), "label": str(sub_label)})
+                elif value != '':
+                    flat_choices.append({"value": str(value), "label": str(label)})
+            field_config["choices"] = flat_choices
         if hasattr(field, 'max_length') and field.max_length:
             field_config["max_length"] = field.max_length
         if hasattr(field, 'min_length') and field.min_length:
@@ -204,6 +210,7 @@ class MetadataViewGenerator:
             import re
             app_name_match = re.match(r'^/app/([^/]+)/', request.path)
             current_app_name = app_name_match.group(1) if app_name_match else None
+            requested_auto_open_create = request.path.rstrip('/').endswith('/list/new')
             if not request.user.is_superuser:
                 django_granted = request.user.has_perm(permission)
                 groups_granted = check_group_permission(request.user, model_name_lower, settings.APP_METADATA_SETTINGS)
@@ -378,6 +385,7 @@ class MetadataViewGenerator:
                 'app_metadata_settings_json': json.dumps(convert_keys_to_camel_case(resolve_urls_in_app_metadata(filtered_settings))),
                 'list_views_json': json.dumps(list_views_options, cls=DjangoJSONEncoder),
                 'active_view': active_view or '',
+                'auto_open_create': json.dumps(bool(requested_auto_open_create and has_new_action)),
             }
             template_names = [
                 f'{model._meta.app_label}/{model_name_lower}_listview.html',
@@ -796,16 +804,22 @@ class MetadataViewGenerator:
                             'required': field.required,
                             'type': 'text'
                         }
-                        from django.forms import Textarea, EmailField, URLField, IntegerField, DecimalField, DateField, DateTimeField, BooleanField, ChoiceField, Select
+                        from django.forms import Textarea, EmailField, URLField, IntegerField, DecimalField, DateField, DateTimeField, BooleanField, ChoiceField, Select, FileField
                         if isinstance(field.widget, Textarea):
                             field_info['type'] = 'textarea'
+                        elif isinstance(field, FileField):
+                            field_info['type'] = 'file'
                         elif isinstance(field.widget, Select) or isinstance(field, ChoiceField):
                             field_info['type'] = 'select'
                             if hasattr(field, 'choices'):
-                                field_info['choices'] = [
-                                    {'value': str(choice[0]), 'label': str(choice[1])}
-                                    for choice in field.choices
-                                ]
+                                flat_choices = []
+                                for value, label in field.choices:
+                                    if isinstance(label, (list, tuple)):
+                                        for sub_value, sub_label in label:
+                                            flat_choices.append({'value': str(sub_value), 'label': str(sub_label)})
+                                    else:
+                                        flat_choices.append({'value': str(value), 'label': str(label)})
+                                field_info['choices'] = flat_choices
                         elif isinstance(field, EmailField):
                             field_info['type'] = 'email'
                         elif isinstance(field, URLField):
@@ -843,6 +857,7 @@ class MetadataViewGenerator:
                                 'DateInput': 'date',
                                 'NumberInput': 'number',
                                 'EmailInput': 'email',
+                                'FileInput': 'file',
                             }
                             for field_name in valid_fields:
                                 if field_name in form_data:
@@ -906,9 +921,9 @@ class MetadataViewGenerator:
                         post_data['metadata'] = json.dumps({})
                         logger.error(f"CREATE VIEW DEBUG - Added empty metadata to POST: {post_data['metadata']}")
                 try:
-                    form = form_class(post_data, user=request.user)
+                    form = form_class(post_data, request.FILES, user=request.user)
                 except TypeError:
-                    form = form_class(post_data)
+                    form = form_class(post_data, request.FILES)
                 if hasattr(model, 'owner') and hasattr(form.instance, 'owner'):
                     form.instance.owner = request.user
                 if form.is_valid():
@@ -1007,7 +1022,7 @@ class MetadataViewGenerator:
                     if 'metadata' not in post_data and hasattr(obj, 'metadata'):
                         current_metadata = obj.metadata if obj.metadata else {}
                         post_data['metadata'] = json.dumps(current_metadata)
-                form = form_class(post_data, instance=obj)
+                form = form_class(post_data, request.FILES, instance=obj)
                 if form.is_valid():
                     form.save()
                     return JsonResponse({'success': True, 'message': f'{model_name} updated successfully'})

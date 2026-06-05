@@ -214,6 +214,7 @@ interface ListViewProps {
   appConfigurations?: string | Record<string, any>
   listViews?: ListViewOption[]
   activeView?: string
+  autoOpenCreate?: boolean
 }
 
 export default function ListView({
@@ -228,6 +229,7 @@ export default function ListView({
   appConfigurations,
   listViews = [],
   activeView = "",
+  autoOpenCreate = false,
 }: ListViewProps) {
   // Ensure actions is always an array
   const validActions = actions || []
@@ -284,7 +286,7 @@ export default function ListView({
             )}
           </div>
           <div className="ml-auto px-3">
-            <NavActions groups={validActions} bulkActions={bulkActions} selectedIds={selectedIds} />
+            <NavActions groups={validActions} bulkActions={bulkActions} selectedIds={selectedIds} modelName={modelName} autoOpenCreate={autoOpenCreate} />
           </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 px-4 py-10 min-w-0 overflow-x-hidden">

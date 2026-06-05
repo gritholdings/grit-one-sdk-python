@@ -55,9 +55,10 @@ interface NavActionsProps {
   modelName?: string
   bulkActions?: BulkAction[]
   selectedIds?: string[]
+  autoOpenCreate?: boolean
 }
 
-export function NavActions({ groups = defaultGroups, deleteUrl, modelName, bulkActions = [], selectedIds = [] }: NavActionsProps) {
+export function NavActions({ groups = defaultGroups, deleteUrl, modelName, bulkActions = [], selectedIds = [], autoOpenCreate = false }: NavActionsProps) {
   const [isOpen, setIsOpen] = React.useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
@@ -69,7 +70,73 @@ export function NavActions({ groups = defaultGroups, deleteUrl, modelName, bulkA
   
   // Ensure groups is always an array
   const validGroups = Array.isArray(groups) ? groups : defaultGroups
-  
+
+  // Find the create action's URL among the action groups (used when the
+  // dialog is opened from a URL rather than a click).
+  const findCreateUrl = React.useCallback(() => {
+    for (const group of validGroups) {
+      for (const item of group) {
+        if (item.action === 'create') return item.url || ''
+      }
+    }
+    return ''
+  }, [validGroups])
+
+  // Open the create dialog and reflect it in the URL as .../list/new without
+  // a page reload, so the popup is shareable and survives a refresh.
+  const openCreateDialog = (url: string) => {
+    setCreateUrl(url)
+    setShowCreateDialog(true)
+    const { pathname, search, hash } = window.location
+    const base = pathname.replace(/\/$/, '')
+    // Only rewrite when on a model list view and not already at .../list/new.
+    if (/\/m\/[^/]+\/list$/.test(base)) {
+      window.history.pushState({ createDialog: true }, '', `${base}/new${search}${hash}`)
+    }
+  }
+
+  // Close the create dialog and revert the URL from .../list/new to .../list.
+  const handleCreateDialogChange = (open: boolean) => {
+    setShowCreateDialog(open)
+    if (!open) {
+      const { pathname, search, hash } = window.location
+      if (/\/list\/new\/?$/.test(pathname)) {
+        const reverted = pathname.replace(/\/new\/?$/, '')
+        window.history.pushState({}, '', `${reverted}${search}${hash}`)
+      }
+    }
+  }
+
+  // Auto-open the dialog when the page was loaded directly at .../list/new.
+  React.useEffect(() => {
+    if (!autoOpenCreate) return
+    const url = findCreateUrl()
+    if (url) {
+      setCreateUrl(url)
+      setShowCreateDialog(true)
+    }
+    // Run once on mount; the deep-link state is fixed at load time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Keep the dialog in sync with browser Back/Forward navigation.
+  React.useEffect(() => {
+    const onPopState = () => {
+      if (/\/list\/new\/?$/.test(window.location.pathname)) {
+        const url = findCreateUrl()
+        if (url) {
+          setCreateUrl(url)
+          setShowCreateDialog(true)
+        }
+      } else {
+        setShowCreateDialog(false)
+      }
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [findCreateUrl])
+
+
   // Add delete option to the first group if deleteUrl is provided
   const enhancedGroups = React.useMemo(() => {
     if (!deleteUrl) return validGroups
@@ -228,10 +295,9 @@ export function NavActions({ groups = defaultGroups, deleteUrl, modelName, bulkA
                                 setIsOpen(false)
                                 setShowComponentDialog({ component: item.component, props: item.props })
                               } else if (item.action === 'create') {
-                                // Show create form dialog
+                                // Show create form dialog and sync URL to .../list/new
                                 setIsOpen(false)
-                                setCreateUrl(item.url || '')
-                                setShowCreateDialog(true)
+                                openCreateDialog(item.url || '')
                               } else if (item.action === 'delete') {
                                 // Show delete confirmation dialog
                                 setIsOpen(false)
@@ -433,7 +499,7 @@ export function NavActions({ groups = defaultGroups, deleteUrl, modelName, bulkA
       {/* Create Record Dialog */}
       <CreateRecordDialog
         open={showCreateDialog}
-        onOpenChange={setShowCreateDialog}
+        onOpenChange={handleCreateDialogChange}
         createUrl={createUrl}
         modelName={modelName}
         onSuccess={handleCreateSuccess}

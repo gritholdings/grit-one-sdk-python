@@ -188,6 +188,21 @@ export function FormFieldRenderer({
       )
     }
 
+    // Handle file input. File inputs are uncontrolled (no `value`); we capture
+    // the selected File object so the parent can append it to a multipart
+    // FormData submission.
+    if (widgetType === 'file' || widgetType === 'FileInput') {
+      return (
+        <Input
+          id={field.name}
+          type="file"
+          onChange={(e) => onChange(field.name, e.target.files?.[0] ?? null)}
+          className={hasError ? 'border-red-500' : ''}
+          disabled={disabled || field.readonly}
+        />
+      )
+    }
+
     // Default to text input
     return (
       <Input

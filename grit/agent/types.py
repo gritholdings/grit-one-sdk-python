@@ -1,4 +1,4 @@
-from typing import TypedDict
+from typing import TypedDict, List, Optional
 from typing_extensions import NotRequired
 
 
@@ -7,6 +7,8 @@ class AgentSettingsTypedDict(TypedDict):
     THREADS_LIST_VIEW: NotRequired[str]
     MODELS_LIST_VIEW: NotRequired[str]
     DISABLE_ATTACHMENT_UI_BUTTON: NotRequired[bool]
+    DEFAULT_MODEL_PROVIDER: NotRequired[str]
+    AVAILABLE_MODEL_PROVIDERS: NotRequired[Optional[List[str]]]
 
 
 class ApplicationsSettingsTypedDict(TypedDict):

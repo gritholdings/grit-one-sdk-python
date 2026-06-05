@@ -84,6 +84,13 @@ class MetadataRegistry:
                 )
                 patterns.append(
                     path(
+                        f'app/{app_name}/m/{model_name_lower}/list/new',
+                        list_view,
+                        name=f'{model_name_lower}_listview_new{url_suffix}'
+                    )
+                )
+                patterns.append(
+                    path(
                         f'app/{app_name}/r/{model_name_lower}/<uuid:{model_name_lower}_id>/view',
                         detail_view,
                         name=f'{model_name_lower}_detailview{url_suffix}'

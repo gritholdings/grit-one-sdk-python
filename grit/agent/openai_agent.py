@@ -14,7 +14,7 @@ from .models import Agent
 from .extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX, prompt_with_handoff_instructions
 from .store import MemoryStoreService
 from .utils import get_page_count, pdf_page_to_base64
-from .constants import OPENAI_MODEL_CONFIG, DEFAULT_OPENAI_MODEL
+from .constants import OPENAI_MODEL_CONFIG, DEFAULT_OPENAI_MODEL, REASONING_CAPABLE_MODEL_PREFIXES
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
@@ -25,6 +25,10 @@ def get_record_usage_function():
         return record_usage
     else:
         return lambda *args, **kwargs: None
+
+
+def _supports_reasoning(model_name: Optional[str]) -> bool:
+    return (model_name or DEFAULT_OPENAI_MODEL).startswith(REASONING_CAPABLE_MODEL_PREFIXES)
 
 
 class BaseOpenAIAgent:
@@ -76,7 +80,7 @@ class BaseOpenAIAgent:
         for sub_agent in sub_agents:
             sub_agent_config = Agent.objects.get_agent_config(sub_agent.id)
             model_settings_kwargs = {"max_tokens": 16000}
-            if sub_agent_config.reasoning_effort:
+            if sub_agent_config.reasoning_effort and _supports_reasoning(sub_agent_config.model_name):
                 model_settings_kwargs["reasoning"] = Reasoning(effort=sub_agent_config.reasoning_effort)
             sub_agent_instance = OpenAIAgent(
                 name=sub_agent_config.label,
@@ -89,7 +93,7 @@ class BaseOpenAIAgent:
         return handoff_agents
     def _build_model_settings(self):
         model_settings_kwargs = {"max_tokens": 16000}
-        if self.config.reasoning_effort:
+        if self.config.reasoning_effort and _supports_reasoning(self.config.model_name):
             model_settings_kwargs["reasoning"] = Reasoning(effort=self.config.reasoning_effort)
         return ModelSettings(**model_settings_kwargs)
     def create_agent(self):
@@ -219,7 +223,8 @@ class BaseOpenAIAgent:
         agent_class_str = agent_instance.metadata.get('agent_class', 'grit.agent.openai_agent.BaseOpenAIAgent')
         agent_class = await sync_to_async(Agent.objects.get_agent_class)(
             agent_class_str,
-            model_name=agent_config.model_name
+            model_name=agent_config.model_name,
+            model_provider=agent_config.model_provider
         )
         kwargs = {}
         if hasattr(self, 'request') and self.request:
