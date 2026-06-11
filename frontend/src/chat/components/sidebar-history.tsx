@@ -5,16 +5,15 @@ import type { User } from '../types';
 import { apiClient } from '../lib/api-client';
 
 import { MoreHorizontalIcon, TrashIcon } from './icons';
+import { Button } from '@/components/ui/button';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -224,25 +223,31 @@ export function SidebarHistory({
         </SidebarGroupContent>
       </SidebarGroup>
 
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent className="sm:max-w-[425px] bg-white">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-xl font-semibold text-gray-900">Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription className="text-sm text-gray-600 mt-2">
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent showCloseButton={false} className="sm:max-w-[425px] bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold text-gray-900">Are you absolutely sure?</DialogTitle>
+            <DialogDescription className="text-sm text-gray-600 mt-2">
               This action cannot be undone. This will permanently delete your chat.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-row justify-center gap-3 sm:justify-center">
-            <AlertDialogCancel className="mt-0 bg-gray-100 hover:bg-gray-200 text-gray-900 border-0">Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-row justify-center gap-3 sm:justify-center">
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+              className="mt-0 bg-gray-100 hover:bg-gray-200 text-gray-900 border-0"
+            >
+              Cancel
+            </Button>
+            <Button
               onClick={handleDelete}
               className="mt-0 bg-red-600 hover:bg-red-700 text-white border-0"
             >
               Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

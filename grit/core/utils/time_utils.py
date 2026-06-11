@@ -13,18 +13,5 @@ def get_cooldown_remaining_seconds(last_sent_timestamp, cooldown_seconds=300):
     return 0
 
 
-def format_remaining_time(seconds):
-    if seconds <= 0:
-        return "0 seconds"
-    minutes = seconds // 60
-    remaining_seconds = seconds % 60
-    parts = []
-    if minutes > 0:
-        parts.append(f"{minutes} minute{'s' if minutes != 1 else ''}")
-    if remaining_seconds > 0:
-        parts.append(f"{remaining_seconds} second{'s' if remaining_seconds != 1 else ''}")
-    return " and ".join(parts)
-
-
 def is_cooldown_active(last_sent_timestamp, cooldown_seconds=300):
     return get_cooldown_remaining_seconds(last_sent_timestamp, cooldown_seconds) > 0

@@ -12,6 +12,7 @@ import { SparklesIcon } from './icons';
 import { Markdown } from './markdown';
 // import { MessageActions } from './message-actions';
 import { PreviewAttachment } from './preview-attachment';
+import { FilePreviewDialog } from './file-preview-dialog';
 // import { Weather } from './weather';
 
 import type { Attachment, ChatRequestOptions, CreateMessage, Message } from '../types';
@@ -49,13 +50,12 @@ export const PreviewMessage = ({
             <div className="flex flex-col gap-4">
               {/* Check if it's a file upload message */}
               {message.role === 'user_image' ? (
-                <div className="ml-auto inline-block border border-dashed border-slate-300 
-          text-left rounded-md px-12 py-4">
-                  <div>{message.metadata?.filename || 'File'}</div>
-                  {message.metadata?.pageCount && (
-                    <div className="text-xs text-gray-500 mt-1">{message.metadata.pageCount}</div>
-                  )}
-                </div>
+                <FilePreviewDialog
+                  threadId={chatId}
+                  fileIndex={message.metadata?.file_index}
+                  filename={message.metadata?.filename || 'File'}
+                  pageCount={message.metadata?.pageCount}
+                />
               ) : message.content.startsWith('data:image') ? (
                 /* Backward compatibility for old format */
                 <div className="ml-auto inline-block border border-dashed border-slate-300 

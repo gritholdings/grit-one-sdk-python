@@ -17,7 +17,8 @@ from datetime import datetime, timedelta
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from grit.core.utils.env_config import get_base_url
-from grit.core.utils.time_utils import get_cooldown_remaining_seconds, format_remaining_time
+from grit.core.utils.time_utils import get_cooldown_remaining_seconds
+from grit.one import format_remaining_time
 from django.contrib.auth.hashers import make_password, check_password as check_password_hash
 from .forms import (
     SignUpForm, EmailAuthenticationForm, CustomPasswordChangeForm, CustomPasswordResetForm,

@@ -9,6 +9,7 @@ class AgentSettings(BaseSettings):
     THREADS_LIST_VIEW: str = 'grit.agent.views.threads_list'
     MODELS_LIST_VIEW: str = 'grit.agent.views.models_list'
     DISABLE_ATTACHMENT_UI_BUTTON: bool = False
+    UPLOAD_PREPROCESS_HANDLER: Optional[str] = None
     DEFAULT_MODEL_PROVIDER: str = 'api'
     AVAILABLE_MODEL_PROVIDERS: Optional[List[str]] = [
         key for key, *_ in MODEL_PROVIDER_GROUPS

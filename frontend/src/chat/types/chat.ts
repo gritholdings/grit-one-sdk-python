@@ -19,6 +19,9 @@ export interface Message {
     filename?: string;
     totalPages?: number;
     pageCount?: string;
+    /** Index in the thread's conversation_history of this file's first page;
+     * used to request a preview/PDF rebuild from /agent/api/files/preview. */
+    file_index?: number;
     [key: string]: any;
   };
 }
@@ -33,6 +36,9 @@ export interface CreateMessage {
     filename?: string;
     totalPages?: number;
     pageCount?: string;
+    /** Index in the thread's conversation_history of this file's first page;
+     * used to request a preview/PDF rebuild from /agent/api/files/preview. */
+    file_index?: number;
     [key: string]: any;
   };
 }

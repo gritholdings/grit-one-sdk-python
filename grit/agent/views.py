@@ -2,7 +2,7 @@ import json
 import uuid
 from pathlib import Path
 from asgiref.sync import sync_to_async
-from django.http import JsonResponse, HttpRequest, StreamingHttpResponse
+from django.http import JsonResponse, HttpRequest, HttpResponse, StreamingHttpResponse
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
@@ -15,6 +15,7 @@ from .models import Agent
 from .store import MemoryStoreService
 from .mcp_server import mcp_registry
 from .settings import agent_settings
+from .utils import base64_image_to_bytes, pages_base64_to_pdf
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 
@@ -54,7 +55,7 @@ def thread_detail(request: HttpRequest) -> Response:
             )
         conversation_history = raw_memory.value.get('conversation_history', [])
         messages = []
-        for message in conversation_history:
+        for index, message in enumerate(conversation_history):
             if isinstance(message, dict):
                 role = message.get('role')
                 content = message.get('content')
@@ -63,7 +64,7 @@ def thread_detail(request: HttpRequest) -> Response:
                     messages.append({
                         'role': role,
                         'content': f"[File uploaded: {metadata['filename']}]",
-                        'metadata': metadata
+                        'metadata': {**metadata, 'file_index': index}
                     })
                 else:
                     messages.append({
@@ -103,6 +104,82 @@ def thread_detail(request: HttpRequest) -> Response:
                 {"success": False, "error": "Failed to delete thread"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+def _collect_file_pages(conversation_history, start_index):
+    if start_index < 0 or start_index >= len(conversation_history):
+        return [], None
+    start_entry = conversation_history[start_index]
+    if not isinstance(start_entry, dict) or start_entry.get('role') != 'user_image':
+        return [], None
+    filename = (start_entry.get('metadata') or {}).get('filename')
+    pages = []
+    for entry in conversation_history[start_index:]:
+        if not isinstance(entry, dict) or entry.get('role') != 'user_image':
+            break
+        if (entry.get('metadata') or {}).get('filename') != filename:
+            break
+        content = entry.get('content')
+        if content:
+            pages.append(content)
+    return pages, filename
+
+
+def _pdf_download_name(filename):
+    safe = (filename or 'document').replace('"', '').replace('\r', '').replace('\n', '').strip()
+    if not safe:
+        safe = 'document'
+    if not safe.lower().endswith('.pdf'):
+        safe = f'{safe}.pdf'
+    return safe
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+
+
+def file_preview(request: HttpRequest):
+    thread_id = request.GET.get('thread_id')
+    raw_index = request.GET.get('file_index')
+    output_format = request.GET.get('output', 'image')
+    if not thread_id or raw_index is None:
+        return Response(
+            {'error': 'thread_id and file_index are required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    try:
+        file_index = int(raw_index)
+    except (TypeError, ValueError):
+        return Response(
+            {'error': 'file_index must be an integer'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    user_id = str(request.user.id)
+    memory_store_service = MemoryStoreService()
+    raw_memory = memory_store_service.get_memory(("memories", user_id), thread_id)
+    if not raw_memory:
+        return Response({'error': 'Thread not found'}, status=status.HTTP_404_NOT_FOUND)
+    conversation_history = raw_memory.value.get('conversation_history', [])
+    pages, filename = _collect_file_pages(conversation_history, file_index)
+    if not pages:
+        return Response({'error': 'File not found'}, status=status.HTTP_404_NOT_FOUND)
+    if output_format == 'pdf':
+        try:
+            pdf_bytes = pages_base64_to_pdf(pages)
+        except Exception as e:
+            return Response(
+                {'error': f'Failed to build PDF: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{_pdf_download_name(filename)}"'
+        return response
+    try:
+        image_bytes = base64_image_to_bytes(pages[0])
+    except Exception:
+        return Response(
+            {'error': 'Failed to decode page image'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+    return HttpResponse(image_bytes, content_type='image/png')
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 async def threads_runs(request: HttpRequest):
