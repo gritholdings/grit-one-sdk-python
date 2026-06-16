@@ -1,13 +1,19 @@
+import os
 import re
 from django.shortcuts import redirect
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.urls import resolve, Resolver404
 from grit.core.metadata import metadata
 from grit.core.utils.permissions import check_group_permission, check_profile_visibility
 from grit.core.utils.case_conversion import camel_to_snake
 from app import settings
+
+
+def health(request):
+    commit = os.environ.get("GIT_COMMIT") or ""
+    return JsonResponse({"status": "ok", "build": commit})
 
 
 def custom_csrf_failure_view(request, reason=""):

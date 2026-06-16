@@ -9,6 +9,7 @@ from grit.core.shortcuts import auth_redirect
 from grit.core.workflows import views as workflow_views
 autodiscover()
 urlpatterns = [
+    path('health', core_views.health, name='health'),
     path('api/workflows/', include('grit.core.workflows.urls')),
     path('workflows/', workflow_views.workflow_list_page, name='workflow_list_page'),
     path('workflows/<str:workflow_id>/', workflow_views.workflow_detail_page, name='workflow_detail_page'),

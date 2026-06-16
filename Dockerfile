@@ -7,5 +7,7 @@ COPY . /app/
 EXPOSE 8000
 ENV DJANGO_ENV=PROD
 ENV CORE_SETTINGS_MODULE=app.settings
+ARG GIT_COMMIT=unknown
+ENV GIT_COMMIT=${GIT_COMMIT}
 RUN chmod +x /app/scripts/start.sh
 CMD ["/app/scripts/start.sh"]

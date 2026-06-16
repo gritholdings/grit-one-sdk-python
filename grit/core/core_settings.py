@@ -14,6 +14,8 @@ class CoreSettings(BaseSettings):
     AWS_REGION: str = 'us-east-1'
     IMAGE_NAME: str = ''
     ECR_REPOSITORY_NAME: str = ''
+    AWS_ECS_CLUSTER: str = ''
+    AWS_ECS_SERVICE: str = ''
     AZURE_ACR_REGISTRY_NAME: str = ''
     AZURE_ACR_REPOSITORY_NAME: str = ''
     ADDITIONAL_INSTALLED_APPS: List[str] = []

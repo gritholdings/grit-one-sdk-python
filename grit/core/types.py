@@ -14,6 +14,8 @@ class CoreSettingsTypedDict(TypedDict):
     AWS_REGION: NotRequired[str]
     IMAGE_NAME: NotRequired[str]
     ECR_REPOSITORY_NAME: NotRequired[str]
+    AWS_ECS_CLUSTER: NotRequired[str]
+    AWS_ECS_SERVICE: NotRequired[str]
     AZURE_ACR_REGISTRY_NAME: NotRequired[str]
     AZURE_ACR_REPOSITORY_NAME: NotRequired[str]
     ADDITIONAL_INSTALLED_APPS: NotRequired[List[str]]

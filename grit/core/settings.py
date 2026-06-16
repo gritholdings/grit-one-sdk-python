@@ -10,7 +10,7 @@ DJANGO_ENV = get_django_env()
 set_environ_credential('OPENAI_API_KEY')
 set_environ_credential('ANTHROPIC_API_KEY')
 SECRET_KEY = load_credential('SECRET_KEY')
-ALLOWED_HOSTS = [".awsapprunner.com", "." + DOMAIN_NAME, "127.0.0.1"]
+ALLOWED_HOSTS = ['*']
 INSTALLED_APPS = [
     'daphne',
     'django.contrib.admin',
