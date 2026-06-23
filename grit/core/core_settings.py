@@ -16,6 +16,7 @@ class CoreSettings(BaseSettings):
     ECR_REPOSITORY_NAME: str = ''
     AWS_ECS_CLUSTER: str = ''
     AWS_ECS_SERVICE: str = ''
+    AWS_SECRETS_MANAGER_SECRET_ID: str = ''
     AZURE_ACR_REGISTRY_NAME: str = ''
     AZURE_ACR_REPOSITORY_NAME: str = ''
     ADDITIONAL_INSTALLED_APPS: List[str] = []

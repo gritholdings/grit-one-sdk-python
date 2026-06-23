@@ -11,7 +11,12 @@ echo "Using Python: $PYTHON"
 
 cd frontend
 
-npx @tailwindcss/cli -i ./input.css -o ../home/static/home/global.css
+# Build the Tailwind stylesheet the server-rendered Django templates link.
+# Defined once as the `build:css` npm script so this manual path and the prod/CI
+# path (scripts/deploy.py -> `npm run build`) can't drift: both must emit
+# home/static/home/global.css BEFORE collectstatic, or prod /health 503s with
+# "Missing staticfiles manifest entry for 'home/global.css'".
+npm run build:css
 
 # Check if we're in development mode
 if [ "$DEVELOPMENT_MODE" = "true" ]; then

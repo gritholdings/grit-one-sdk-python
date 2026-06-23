@@ -178,6 +178,8 @@ def serialize_form_for_react(form_class, user=None, instance=None, model_name=No
                 field_config["disabled"] = True
         if field.help_text:
             field_config["help_text"] = str(field.help_text)
+        if hasattr(field, 'label_from_instance'):
+            field.label_from_instance = lambda obj: getattr(obj, 'name', str(obj))
         if hasattr(field, 'choices') and field.choices:
             flat_choices = []
             for value, label in field.choices:

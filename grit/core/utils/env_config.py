@@ -5,6 +5,7 @@ from grit.core.core_settings import core_settings
 DOMAIN_NAME: str = core_settings.DOMAIN_NAME
 PLATFORM_NAME: str = core_settings.PLATFORM_NAME
 _credentials_cache: dict | None = None
+_secrets_manager_cache: dict | None = None
 
 
 def get_django_env() -> str:
@@ -29,13 +30,39 @@ def _load_credentials_file() -> dict:
             _credentials_cache = {}
     else:
         _credentials_cache = {}
-    return _credentials_cache
+    return _credentials_cache or {}
+
+
+def _fetch_secrets_manager() -> dict:
+    if get_django_env() != 'PROD':
+        return {}
+    secret_id = core_settings.AWS_SECRETS_MANAGER_SECRET_ID
+    if not secret_id:
+        return {}
+    try:
+        import boto3
+        client = boto3.client('secretsmanager', region_name=core_settings.AWS_REGION)
+        response = client.get_secret_value(SecretId=secret_id)
+        parsed = json.loads(response.get('SecretString') or '{}')
+        return parsed if isinstance(parsed, dict) else {}
+    except Exception:
+        return {}
+
+
+def _load_secrets_manager() -> dict:
+    global _secrets_manager_cache
+    if _secrets_manager_cache is None:
+        _secrets_manager_cache = _fetch_secrets_manager()
+    return _secrets_manager_cache
 
 
 def load_credential(key_name: str, default: str = '') -> str:
     credentials = _load_credentials_file()
     if key_name in credentials and credentials[key_name]:
         return credentials[key_name]
+    secrets = _load_secrets_manager()
+    if secrets.get(key_name):
+        return secrets[key_name]
     return os.getenv(key_name, default)
 
 

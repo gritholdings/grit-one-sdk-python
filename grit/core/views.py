@@ -1,17 +1,34 @@
 import os
 import re
+import logging
 from django.shortcuts import redirect
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.http import Http404, JsonResponse
+from django.templatetags.static import static
 from django.urls import resolve, Resolver404
 from grit.core.metadata import metadata
+from grit.core.templatetags.vite_tags import vite_assets
 from grit.core.utils.permissions import check_group_permission, check_profile_visibility
 from grit.core.utils.case_conversion import camel_to_snake
 from app import settings
+logger = logging.getLogger(__name__)
+
+
+def _check_static_assets():
+    try:
+        static('home/global.css')
+        vite_assets()
+        return None
+    except (ValueError, OSError) as exc:
+        logger.error("Health check static asset resolution failed: %s", exc)
+        return str(exc)
 
 
 def health(request):
+    error = _check_static_assets()
+    if error:
+        return JsonResponse({"status": "error", "detail": error}, status=503)
     commit = os.environ.get("GIT_COMMIT") or ""
     return JsonResponse({"status": "ok", "build": commit})
 

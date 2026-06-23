@@ -16,6 +16,7 @@ class CoreSettingsTypedDict(TypedDict):
     ECR_REPOSITORY_NAME: NotRequired[str]
     AWS_ECS_CLUSTER: NotRequired[str]
     AWS_ECS_SERVICE: NotRequired[str]
+    AWS_SECRETS_MANAGER_SECRET_ID: NotRequired[str]
     AZURE_ACR_REGISTRY_NAME: NotRequired[str]
     AZURE_ACR_REPOSITORY_NAME: NotRequired[str]
     ADDITIONAL_INSTALLED_APPS: NotRequired[List[str]]

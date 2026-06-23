@@ -103,4 +103,5 @@ home/static/home/dist/
 staticfiles/
 app/docs/docs_build/
 app/docs/build_public/
-e2e_tests/e2e_credentials.json
+internal/e2e_tests/e2e_credentials.json
+.act.secrets
