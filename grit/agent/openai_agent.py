@@ -14,6 +14,7 @@ from .models import Agent
 from .extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX, prompt_with_handoff_instructions
 from .store import MemoryStoreService
 from .utils import get_page_count, pdf_page_to_base64
+from .knowledge_fs import materialize_knowledge_bases, build_knowledge_base_tools
 from .constants import OPENAI_MODEL_CONFIG, DEFAULT_OPENAI_MODEL, REASONING_CAPABLE_MODEL_PREFIXES
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -36,7 +37,6 @@ class BaseOpenAIAgent:
         self._config = config
         self._initialized = False
         self.memory_store_service = None
-        self.kb_vectorstore_service = None
         self.config = config if config is not None else self.get_agent_config()
         if self.config is None:
             raise ValueError("Agent configuration is not initialized")
@@ -50,9 +50,6 @@ class BaseOpenAIAgent:
         if self.config is None:
             raise ValueError("Config cannot be None")
         self.memory_store_service = MemoryStoreService()
-        if self.config is not None and self.config.enable_knowledge_base:
-            from .store import KnowledgeBaseVectorStoreService
-            self.kb_vectorstore_service = KnowledgeBaseVectorStoreService()
         self._initialized = True
     @classmethod
     async def create(cls, config: Optional[AgentConfig] = None, **kwargs) -> 'BaseOpenAIAgent':
@@ -73,6 +70,9 @@ class BaseOpenAIAgent:
         tools = []
         if self.config.enable_web_search:
             tools.append(WebSearchTool())
+        if self.config.enable_knowledge_base:
+            directories = materialize_knowledge_bases(self.config.knowledge_bases)
+            tools.extend(build_knowledge_base_tools(directories))
         return tools
     def _build_handoff_agents(self):
         sub_agents = Agent.objects.get_sub_agents(self.config.id)
@@ -114,28 +114,6 @@ class BaseOpenAIAgent:
     def build_messages(self, user_id: str, thread_id: str, new_message: str):
         if user_id is None or thread_id is None or new_message is None:
             raise ValueError("user_id, thread_id and new_message cannot be None")
-        knowledge_base_list = []
-        if self.config.enable_knowledge_base:
-            knowledge_base_str = ''
-            knowledge_bases = self.config.knowledge_bases
-            if len(knowledge_bases) > 0:
-                knowledge_base_str = '\n\n<retrieved_knowledge>\n'
-            for knowledge_base in knowledge_bases:
-                retrieval_results = self.kb_vectorstore_service.search_documents(
-                    knowledge_base_id=str(knowledge_base['id']),
-                    query=new_message
-                )
-                if retrieval_results:
-                    for i, result in enumerate(retrieval_results):
-                        knowledge_base_str += f"<document id='{i+1}'>\n"
-                        knowledge_base_str += f"{result['text']}\n"
-                        knowledge_base_str += "</document>\n\n"
-            if len(knowledge_bases) > 0:
-                knowledge_base_str += '</retrieved_knowledge>\n\n'
-                knowledge_base_list.append({
-                    "role": "assistant",
-                    "content": knowledge_base_str
-                })
         namespace_for_memory = ("memories", user_id)
         memories = self.memory_store_service.get_memory(namespace_for_memory, thread_id)
         memories_list = []
@@ -200,7 +178,7 @@ class BaseOpenAIAgent:
             "role": "user",
             "content": new_message
         }
-        messages:list = knowledge_base_list + memories_list + [formatted_new_message]
+        messages:list = memories_list + [formatted_new_message]
         return messages
     def on_agent_start(self):
         pass
@@ -254,6 +232,9 @@ class BaseOpenAIAgent:
                 yield "You have run out of units. Please purchase more units to continue using the service."
                 return
             record_usage = await sync_to_async(get_record_usage_function)()
+        await sync_to_async(self.memory_store_service.set_current_agent_id)(
+            user_id, thread_id, self.config.id
+        )
         if data_type == "text":
             namespace_for_memory = ("memories", user_id)
             await sync_to_async(self.memory_store_service.upsert_memory)(

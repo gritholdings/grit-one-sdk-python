@@ -57,6 +57,8 @@ def parse_csv_data(csv_file, column_config: Union[dict, CSVColumnConfig]):
         file_content = csv_file.read().decode(encoding)
         csv_file.seek(0)
         csv_reader = csv.DictReader(io.StringIO(file_content))
+        if csv_reader.fieldnames is None:
+            raise ValidationError("CSV file is empty or has no header row.")
         if not required_columns.issubset(set(csv_reader.fieldnames)):
             missing = required_columns - set(csv_reader.fieldnames)
             found_columns = csv_reader.fieldnames if csv_reader.fieldnames else []

@@ -226,7 +226,8 @@ async def threads_runs(request: HttpRequest):
         agent_config = await sync_to_async(agent_detail.get_config)()
         agent_class = await sync_to_async(Agent.objects.get_agent_class)(
             agent_class_str=agent_config.agent_class,
-            model_name=agent_config.model_name
+            model_name=agent_config.model_name,
+            enable_knowledge_base=agent_config.enable_knowledge_base,
         )
         if not agent_class:
             return Response(
@@ -343,8 +344,9 @@ def chat_view(request, thread_id=None):
 
 def knowledge_base_webhook(request):
     kb_client = KnowledgeBaseClient()
-    response = kb_client.sync_data_sources_to_vector_store()
-    return JsonResponse(response)
+    response = kb_client.sync_data_sources_to_knowledge_files()
+    http_status = 200 if response.get("status") == "success" else 502
+    return JsonResponse(response, status=http_status)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 

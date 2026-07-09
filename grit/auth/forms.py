@@ -1,3 +1,4 @@
+import re
 from django import forms
 from django.contrib.auth import authenticate
 from django.contrib.auth.forms import (
@@ -95,8 +96,10 @@ class CustomPasswordResetForm(PasswordResetForm):
 
 
 class MFAVerifyForm(forms.Form):
+    _OTP_RE = re.compile(r'^\d{6}$')
+    _BACKUP_RE = re.compile(r'^[0-9a-f]{8}$')
     code = forms.CharField(
-        max_length=8,
+        max_length=20,
         widget=forms.TextInput(attrs={
             'class': 'form-control w-full mt-1 px-3 py-2 border rounded-lg',
             'placeholder': 'Enter 6-digit code',
@@ -105,6 +108,15 @@ class MFAVerifyForm(forms.Form):
             'inputmode': 'numeric',
         })
     )
+    def clean_code(self):
+        code = self.cleaned_data.get('code', '')
+        code = re.sub(r'\s+', '', code).lower()
+        if not (self._OTP_RE.match(code) or self._BACKUP_RE.match(code)):
+            raise forms.ValidationError(
+                'Enter a valid code: a 6-digit verification code or an '
+                '8-character backup code.'
+            )
+        return code
 
 
 class MFADisableForm(forms.Form):

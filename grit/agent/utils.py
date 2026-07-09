@@ -1,11 +1,13 @@
 import base64
 import io
+import logging
 import os
 import re
 import fitz
 from PIL import Image
 from django.utils.module_loading import import_string
 from .settings import agent_settings
+logger = logging.getLogger(__name__)
 
 
 def save_uploaded_file(files, file_field_name='file', target_dir='.tmp'):
@@ -75,14 +77,15 @@ def extract_placeholders_from_template(template: str) -> list:
 
 def get_computed_system_prompt(prompt_template: str, metadata_fields: dict) -> str:
     try:
-        formatted_fields = {
+        fields_by_lower_key = {
             key.lower(): value
             for key, value in metadata_fields.items()
         }
-        computed_prompt = prompt_template
-        for field_key_lower, field_value in formatted_fields.items():
-            pattern = re.compile(r'\{' + re.escape(field_key_lower) + r'\}', re.IGNORECASE)
-            computed_prompt = pattern.sub(str(field_value), computed_prompt)
-        return computed_prompt
+        def _substitute(match: re.Match) -> str:
+            name = match.group(1).lower()
+            if name not in fields_by_lower_key:
+                return match.group(0)
+            return str(fields_by_lower_key[name])
+        return re.sub(r'\{([^}]+)\}', _substitute, prompt_template)
     except Exception as e:
-        raise Exception(f"Error computing system prompt: {str(e)}")
+        raise Exception(f"Error computing system prompt: {str(e)}") from e

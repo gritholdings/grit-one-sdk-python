@@ -83,13 +83,16 @@ class AgentManager(models.Manager):
             return agent
         except self.model.DoesNotExist:
             return None
-    def get_agent_class(self, agent_class_str: str, model_name: Optional[str] = None, model_provider: Optional[str] = None):
+    def get_agent_class(self, agent_class_str: str, model_name: Optional[str] = None, model_provider: Optional[str] = None, enable_knowledge_base: bool = False):
         if not agent_class_str:
             is_claude = model_provider == 'bedrock' or (
                 model_name and 'claude' in model_name
             )
             if is_claude:
-                agent_class_str = "grit.agent.claude_agent.BaseClaudeUserModeAgent"
+                if enable_knowledge_base:
+                    agent_class_str = "grit.agent.claude_agent.BaseClaudeAgent"
+                else:
+                    agent_class_str = "grit.agent.claude_agent.BaseClaudeUserModeAgent"
             else:
                 agent_class_str = "grit.agent.openai_agent.BaseOpenAIUserModeAgent"
         if isinstance(agent_class_str, str):
@@ -180,10 +183,13 @@ class Agent(BaseModel):
         return self.metadata.get(key, default) if self.metadata else default
     def get_config(self) -> AgentConfig:
         from grit.agent.settings import agent_settings
-        model_provider = (
-            self._get_metadata_value('model_provider')
-            or agent_settings.DEFAULT_MODEL_PROVIDER
+        from grit.agent.constants import parse_model, build_model
+        model_value = self._get_metadata_value('model') or build_model(
+            self._get_metadata_value('model_name', ''),
+            self._get_metadata_value('model_provider'),
         )
+        model_provider, model_name = parse_model(model_value)
+        model_provider = model_provider or agent_settings.DEFAULT_MODEL_PROVIDER
         return AgentConfig(
             id=str(self.id),
             label=self.name,
@@ -191,7 +197,7 @@ class Agent(BaseModel):
             agent_class=self._get_metadata_value('agent_class', ''),
             prompt_template=self.system_prompt,
             overview_html=self._get_metadata_value('overview_html', ''),
-            model_name=self._get_metadata_value('model_name', ''),
+            model_name=model_name or '',
             model_provider=model_provider or None,
             enable_web_search=self._get_metadata_value('enable_web_search', False),
             enable_knowledge_base=self._get_metadata_value('enable_knowledge_base', False),
@@ -284,20 +290,18 @@ class ConversationMemory(BaseModel):
         return f"Memory: {self.user_id} - {self.thread_id}"
 
 
-class KnowledgeBaseChunk(BaseModel):
+class KnowledgeBaseFile(BaseModel):
     knowledge_base = models.ForeignKey(
         KnowledgeBase,
         on_delete=models.CASCADE,
-        related_name='chunks'
+        related_name='files'
     )
-    file_path = models.CharField(max_length=500)
-    chunk_index = models.PositiveIntegerField()
-    text = models.TextField()
-    embedding = models.JSONField(default=list)
+    path = models.CharField(max_length=500)
+    content = models.TextField()
     class Meta:
-        unique_together = ['knowledge_base', 'file_path', 'chunk_index']
+        unique_together = ['knowledge_base', 'path']
         indexes = [
-            models.Index(fields=['knowledge_base', 'file_path'], name='agent_kbchunk_kb_filepath_idx'),
+            models.Index(fields=['knowledge_base', 'path'], name='agent_kbfile_kb_path_idx'),
         ]
     def __str__(self):
-        return f"Chunk: {self.knowledge_base_id} - {self.file_path}[{self.chunk_index}]"
+        return f"File: {self.knowledge_base_id} - {self.path}"

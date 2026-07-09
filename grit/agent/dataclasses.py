@@ -16,7 +16,7 @@ class AgentConfig:
     overview_html: Optional[str] = None
     enable_web_search: bool = True
     enable_knowledge_base: bool = False
-    knowledge_bases: Optional[List[str]] = field(default_factory=list)
+    knowledge_bases: Optional[List[dict]] = field(default_factory=list)
     record_usage_for_payment: bool = True
     suggested_messages: Optional[List[str]] = field(default_factory=list)
     reasoning_effort: Optional[str] = None

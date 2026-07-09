@@ -13,14 +13,30 @@ from .dataclasses import AgentConfig
 from .models import Agent
 from .store import MemoryStoreService
 from .utils import get_page_count, pdf_page_to_base64
+from .knowledge_fs import materialize_knowledge_bases, KNOWLEDGE_BASE_SYSTEM_PROMPT_SUFFIX
 from .constants import CLAUDE_MODEL_CONFIG, DEFAULT_CLAUDE_MODEL
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 _BEDROCK_AWS_REGION = "us-east-1"
+_KB_AGENT_MAX_TURNS = 8
+_KB_AGENT_TOOLS = ["Read", "Grep", "Glob"]
 
 
 def _resolve_provider(provider: Optional[str]) -> str:
     return provider or 'api'
+
+
+def _assert_provider_supports_tools(config) -> None:
+    if _resolve_provider(getattr(config, 'model_provider', None)) == 'bedrock'
+            and getattr(config, 'enable_web_search', False):
+        raise ValueError(
+            "Web search is not supported on model_provider='bedrock': the "
+            "server-side 'web_search_20250305' tool only exists on the direct "
+            "Anthropic API, so Bedrock rejects it at request time. Fix this by "
+            "disabling web search for this agent (enable_web_search=False), or "
+            "by switching the agent to the Anthropic-API provider "
+            "(model_provider='api')."
+        )
 
 
 def _build_bedrock_async_anthropic() -> 'anthropic.AsyncAnthropicBedrock':
@@ -101,7 +117,6 @@ class BaseClaudeAgent:
         self._config = config
         self._initialized = False
         self.memory_store_service = None
-        self.kb_vectorstore_service = None
         self.config = config if config is not None else self.get_agent_config()
         if self.config is None:
             raise ValueError("Agent configuration is not initialized")
@@ -115,9 +130,6 @@ class BaseClaudeAgent:
         if self.config is None:
             raise ValueError("Config cannot be None")
         self.memory_store_service = MemoryStoreService()
-        if self.config is not None and self.config.enable_knowledge_base:
-            from .store import KnowledgeBaseVectorStoreService
-            self.kb_vectorstore_service = KnowledgeBaseVectorStoreService()
         self._initialized = True
     @classmethod
     async def create(cls, config: Optional[AgentConfig] = None, **kwargs) -> 'BaseClaudeAgent':
@@ -142,26 +154,28 @@ class BaseClaudeAgent:
             max_turns=1,
             include_partial_messages=True,
         )
+        if self.config.enable_knowledge_base:
+            directories = materialize_knowledge_bases(self.config.knowledge_bases)
+            if directories:
+                options.cwd = directories[0]
+                if len(directories) > 1:
+                    options.add_dirs = directories[1:]
+                options.allowed_tools = _KB_AGENT_TOOLS
+                options.permission_mode = 'bypassPermissions'
+                options.max_turns = _KB_AGENT_MAX_TURNS
+                options.system_prompt = instructions + KNOWLEDGE_BASE_SYSTEM_PROMPT_SUFFIX
+            else:
+                logger.warning(
+                    "Knowledge base enabled for agent %s but nothing materialised "
+                    "(%d knowledge base(s) attached); the agent will answer without "
+                    "knowledge files. Has the knowledge-base-webhook sync run?",
+                    self.config.id,
+                    len(self.config.knowledge_bases or []),
+                )
         return options
     def build_messages(self, user_id: str, thread_id: str, new_message: str) -> list:
         if user_id is None or thread_id is None or new_message is None:
             raise ValueError("user_id, thread_id and new_message cannot be None")
-        knowledge_base_context = ""
-        if self.config.enable_knowledge_base:
-            knowledge_bases = self.config.knowledge_bases
-            if len(knowledge_bases) > 0:
-                knowledge_base_context = '\n\n<retrieved_knowledge>\n'
-                for knowledge_base in knowledge_bases:
-                    retrieval_results = self.kb_vectorstore_service.search_documents(
-                        knowledge_base_id=str(knowledge_base['id']),
-                        query=new_message
-                    )
-                    if retrieval_results:
-                        for i, result in enumerate(retrieval_results):
-                            knowledge_base_context += f"<document id='{i+1}'>\n"
-                            knowledge_base_context += f"{result['text']}\n"
-                            knowledge_base_context += "</document>\n\n"
-                knowledge_base_context += '</retrieved_knowledge>\n\n'
         namespace_for_memory = ("memories", user_id)
         memories = self.memory_store_service.get_memory(namespace_for_memory, thread_id)
         messages_list = []
@@ -240,10 +254,9 @@ class BaseClaudeAgent:
                                 }
                             ]
                         })
-        final_message = knowledge_base_context + new_message if knowledge_base_context else new_message
         messages_list.append({
             "role": "user",
-            "content": final_message
+            "content": new_message
         })
         return messages_list
     def _format_conversation_for_prompt(self, messages: list) -> str:
@@ -311,6 +324,9 @@ class BaseClaudeAgent:
                 yield "You have run out of units. Please purchase more units to continue using the service."
                 return
             record_usage = await sync_to_async(get_record_usage_function)()
+        await sync_to_async(self.memory_store_service.set_current_agent_id)(
+            user_id, thread_id, self.config.id
+        )
         if data_type == "text":
             namespace_for_memory = ("memories", user_id)
             await sync_to_async(self.memory_store_service.upsert_memory)(
@@ -423,14 +439,22 @@ class BaseClaudeUserModeAgent(BaseClaudeAgent):
     def __init__(self, config: Optional[AgentConfig] = None, handoff_context: Optional[dict] = None, **kwargs):
         super().__init__(config, handoff_context, **kwargs)
         self.request = kwargs.get('request', None)
+        _assert_provider_supports_tools(self.config)
     def _get_mcp_tools(self) -> list:
         from .mcp_server import mcp_registry
+        tools = []
+        if getattr(self.config, "enable_web_search", False):
+            tools.append({
+                "type": "web_search_20250305",
+                "name": "web_search",
+                "max_uses": 5,
+            })
         models_with_scoped = mcp_registry.get_models_with_user_mode()
         if not models_with_scoped:
-            return []
+            return tools
         model_names = [model.__name__ for model in models_with_scoped]
         model_list_str = ", ".join(model_names)
-        return [{
+        tools.append({
             "name": "mcp_query",
             "description": f"""Query Django database models through MCP (Model Context Protocol).
 Available models: {model_list_str}
@@ -464,7 +488,8 @@ The params argument is optional and varies by operation:
                 },
                 "required": ["model_name", "operation"]
             }
-        }]
+        })
+        return tools
     async def _execute_mcp_query(self, model_name: str, operation: str, params: Optional[dict] = None) -> str:
         import json
         from .mcp_server import mcp_registry
@@ -530,6 +555,9 @@ The params argument is optional and varies by operation:
                 yield "You have run out of units. Please purchase more units to continue using the service."
                 return
             record_usage = await sync_to_async(get_record_usage_function)()
+        await sync_to_async(self.memory_store_service.set_current_agent_id)(
+            user_id, thread_id, self.config.id
+        )
         namespace_for_memory = ("memories", user_id)
         await sync_to_async(self.memory_store_service.upsert_memory)(
             namespace_for_memory, thread_id, 'conversation_history',
@@ -584,33 +612,42 @@ The params argument is optional and varies by operation:
                         total_input_tokens += response.usage.input_tokens
                         total_output_tokens += response.usage.output_tokens
                     if response.stop_reason == "tool_use":
+                        import json
+                        tool_results = []
                         for block in response.content:
-                            if block.type == "tool_use":
-                                tool_name = block.name
-                                tool_input = block.input
-                                tool_use_id = block.id
-                                if tool_name == "mcp_query":
-                                    model_name = tool_input.get("model_name", "")
-                                    operation = tool_input.get("operation", "")
-                                    params = tool_input.get("params")
-                                    tool_result = await self._execute_mcp_query(
-                                        model_name=model_name,
-                                        operation=operation,
-                                        params=params
-                                    )
-                                    messages.append({
-                                        "role": "assistant",
-                                        "content": response.content
-                                    })
-                                    messages.append({
-                                        "role": "user",
-                                        "content": [{
-                                            "type": "tool_result",
-                                            "tool_use_id": tool_use_id,
-                                            "content": tool_result
-                                        }]
-                                    })
-                                    break
+                            if block.type != "tool_use":
+                                continue
+                            tool_name = block.name
+                            tool_input = block.input
+                            tool_use_id = block.id
+                            if tool_name == "mcp_query":
+                                model_name = tool_input.get("model_name", "")
+                                operation = tool_input.get("operation", "")
+                                params = tool_input.get("params")
+                                tool_result = await self._execute_mcp_query(
+                                    model_name=model_name,
+                                    operation=operation,
+                                    params=params
+                                )
+                            else:
+                                tool_result = json.dumps({
+                                    "error": f"Tool '{tool_name}' is not supported."
+                                })
+                            tool_results.append({
+                                "type": "tool_result",
+                                "tool_use_id": tool_use_id,
+                                "content": tool_result
+                            })
+                        if not tool_results:
+                            break
+                        messages.append({
+                            "role": "assistant",
+                            "content": response.content
+                        })
+                        messages.append({
+                            "role": "user",
+                            "content": tool_results
+                        })
                     else:
                         break
         except Exception as e:

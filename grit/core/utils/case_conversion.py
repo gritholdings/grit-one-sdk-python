@@ -1,21 +1,10 @@
 import logging
 import copy
-import re
 from typing import Any, Dict, List, Union
 from django.urls import reverse, NoReverseMatch
 from grit.core.types import AppMetadataSettingsTypedDict
+from grit.one import snake_to_camel, camel_to_snake
 logger = logging.getLogger(__name__)
-
-
-def camel_to_snake(camel_str: str) -> str:
-    snake_str = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', camel_str)
-    snake_str = re.sub('([a-z0-9])([A-Z])', r'\1_\2', snake_str)
-    return snake_str.lower()
-
-
-def snake_to_camel(snake_str: str) -> str:
-    components = snake_str.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
 
 
 def convert_keys_to_camel_case(data: Union[Dict, List, Any]) -> Union[Dict, List, Any]:

@@ -87,6 +87,10 @@ BEDROCK_MODEL_CONFIG = {
         "price_per_1m_tokens_input": 5,
         "price_per_1m_tokens_output": 25,
     },
+    "us.anthropic.claude-opus-4-6-v1": {
+        "price_per_1m_tokens_input": 5,
+        "price_per_1m_tokens_output": 25,
+    },
     "us.anthropic.claude-sonnet-4-6": {
         "price_per_1m_tokens_input": 3,
         "price_per_1m_tokens_output": 15,
@@ -122,10 +126,38 @@ def get_grouped_model_choices(enabled_providers: Optional[Iterable[str]] = None,
     for key, label, config in MODEL_PROVIDER_GROUPS:
         if enabled is not None and key not in enabled:
             continue
-        options = [(model_name, model_name) for model_name in config]
+        options = [(f"{key}/{model_id}", f"{key}/{model_id}") for model_id in config]
         if options:
             choices.append((label, options))
-            known.update(config.keys())
+            known.update(value for value, _ in options)
     if include_value and include_value not in known:
         choices.append(('Current', [(include_value, include_value)]))
     return choices
+_PROVIDER_PREFIX_TO_RUNTIME = {
+    'openai': 'api',
+    'anthropic': 'api',
+    'bedrock': 'bedrock',
+}
+
+
+def parse_model(model: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
+    if not model:
+        return None, None
+    if '/' not in model:
+        return None, model
+    prefix, model_id = model.split('/', 1)
+    return _PROVIDER_PREFIX_TO_RUNTIME.get(prefix), model_id
+
+
+def build_model(model_name: Optional[str], model_provider: Optional[str] = None) -> str:
+    if not model_name:
+        return ''
+    if '/' in model_name:
+        return model_name
+    if model_provider == 'bedrock':
+        prefix = 'bedrock'
+    elif 'claude' in model_name:
+        prefix = 'anthropic'
+    else:
+        prefix = 'openai'
+    return f"{prefix}/{model_name}"
