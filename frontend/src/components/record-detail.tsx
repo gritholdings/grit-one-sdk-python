@@ -34,6 +34,10 @@ import { Pencil, Save, X, Edit, Plus } from "lucide-react"
 import { InlineEditDialog } from "@/components/inline-edit-dialog"
 import { getActionComponent } from "@/components/action-component-registry"
 import { camelToSnakeCase } from "@/lib/utils"
+import { RecordDetailContext } from "@/components/record-detail-context"
+import type { RecordDetailContextValue } from "@/components/record-detail-context"
+import TaskTimeline from "@/components/task-timeline"
+import type { FieldChoices, TimelineTask } from "@/lib/task-timeline"
 
 interface FieldConfig {
   widget: "TextInput" | "Textarea" | "Select" | "DateInput" | "FileInput"
@@ -49,6 +53,12 @@ interface InlineItem {
 
 interface InlineConfig {
   model_name: string
+  /**
+   * Second name this table answers to. Set only for auto-discovered ManyToMany
+   * relations, where it holds the parent's field name ("students") — friendlier
+   * than the generated join model's name ("course_students").
+   */
+  alias?: string | null
   verbose_name: string
   verbose_name_plural: string
   fields: string[]
@@ -58,6 +68,18 @@ interface InlineConfig {
   relationship_type?: 'many_to_many' | 'one_to_many' | 'generic_fk' | null
   hidden_fields?: Record<string, string>
   create_url?: string
+  /**
+   * `{id}`-templated record URLs for a row of this table. App-prefixed, so a widget
+   * that writes to a row (e.g. TaskTimeline's completion checkbox) does not POST
+   * through the legacy redirect, which would downgrade it to a GET.
+   */
+  url_templates?: { view?: string; update?: string; delete?: string }
+  /**
+   * Choice groups for the related model's fields, present only when its metadata
+   * declares `field_choices`. Keys are the raw stored values and carry their
+   * semantic flags (e.g. task_status's `is_closed`).
+   */
+  choices?: FieldChoices
 }
 
 interface ActionConfig {
@@ -72,7 +94,7 @@ interface ActionConfig {
   method?: string
 }
 
-interface RecordDetailProps {
+export interface RecordDetailProps {
   data?: Record<string, unknown>
   fieldsets?: Array<[string, { fields: string[] }]>
   form?: Record<string, FieldConfig>
@@ -80,6 +102,13 @@ interface RecordDetailProps {
   detailActions?: Array<ActionConfig[]>
   updateUrl: string
   appConfigurations?: string | Record<string, any>
+  /**
+   * Custom detail layout. When provided (by a `detail_component` such as
+   * AccountDetail), these slot components are rendered in place of the default
+   * fieldsets + auto inline tables. The record data, field/inline renderers and
+   * edit state are supplied to them via RecordDetailContext.
+   */
+  children?: React.ReactNode
 }
 
 // Helper function to get CSRF token
@@ -99,7 +128,8 @@ export default function RecordDetail({
   inlines = [],
   detailActions = [],
   updateUrl,
-  appConfigurations
+  appConfigurations,
+  children
 }: RecordDetailProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState<Record<string, unknown>>(record)
@@ -115,7 +145,15 @@ export default function RecordDetail({
     createUrl: string
     hiddenFields: Record<string, string>
   }>({ open: false, modelName: '', createUrl: '', hiddenFields: {} })
-  
+
+  // Fields the layout rendered as editable on this pass, collected by renderField.
+  // Reset every render so a field that leaves the layout also leaves the save
+  // payload. Custom detail_components need this: the backend sends a form config
+  // for every editable model field, but only the fields the component marked
+  // `editable` may be written.
+  const editableFields = useRef<Set<string>>(new Set())
+  editableFields.current = new Set()
+
   // Derive delete URL and model name from update URL
   const deleteUrl = updateUrl ? updateUrl.replace('/update', '/delete') : undefined
   const modelName = updateUrl ? updateUrl.split('/')[2] : undefined
@@ -180,7 +218,15 @@ export default function RecordDetail({
       // Prepare form data
       const formDataToSend = new FormData()
 
-      Object.keys(form).forEach(field => {
+      // A custom detail_component (children) receives a form config for every
+      // editable model field, so submit only what it marked `editable`. The
+      // default fieldsets layout keeps posting its whole form, which the backend
+      // already narrowed to the fieldset's fields.
+      const fieldsToSubmit = children
+        ? Object.keys(form).filter(field => editableFields.current.has(field))
+        : Object.keys(form)
+
+      fieldsToSubmit.forEach(field => {
         const value = formData[field]
 
         if (value !== undefined && value !== null) {
@@ -358,10 +404,22 @@ export default function RecordDetail({
     return <div ref={containerRef} data-field-name={fieldName}></div>
   }
 
-  const renderField = (field: string) => {
+  const renderField = (field: string, options?: { editable?: boolean }) => {
     const fieldConfig = form[field]
     const value = formData[field]
-    
+
+    // Custom detail_components opt each field in with `editable` on <DetailField>;
+    // the default fieldsets layout has no such prop, so it keeps the legacy rule
+    // (any field the backend sent a form config for is editable).
+    const editable = options?.editable ?? true
+    const canEdit = Boolean(fieldConfig) && editable
+    if (canEdit) {
+      // Bounds the save payload: only fields actually rendered as editable are
+      // submitted. Cleared on every render (see editableFields), so a field that
+      // disappears from the layout stops being submitted.
+      editableFields.current.add(field)
+    }
+
     // Handle objects (like foreign keys) by extracting their display value
     let displayValue = ''
     let selectValue = '' // For Select widget, we need the ID
@@ -389,7 +447,7 @@ export default function RecordDetail({
     const isHtmlWithReactComponent = typeof displayValue === 'string' && 
       displayValue.includes('data-react-component=')
 
-    if (!isEditing || !fieldConfig) {
+    if (!isEditing || !canEdit) {
       // Read-only mode
 
       // Special handling for HTML with React components
@@ -486,7 +544,7 @@ export default function RecordDetail({
           </dt>
           <dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0 flex justify-between items-center">
             {displayContent}
-            {fieldConfig && (
+            {canEdit && (
               <Button
                 onClick={() => setIsEditing(true)}
                 size="sm"
@@ -574,10 +632,289 @@ export default function RecordDetail({
     )
   }
 
+  // Render a single related-model inline table as a card. Shared by the default
+  // layout (which renders every inline) and by DetailRelatedTable, which renders
+  // a chosen one via RecordDetailContext.
+  const renderInlineTable = (inline: InlineConfig, inlineIndex: number = 0): React.ReactNode => (
+    <div key={inlineIndex} className="bg-white shadow sm:rounded-lg mb-6">
+      <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
+        <h3 className="text-lg font-medium leading-6 text-gray-900">
+          {inline.verbose_name_plural}
+        </h3>
+        {/* Conditionally render button based on relationship type */}
+        {inline.relationship_type === 'many_to_many' ? (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setEditingInline(inline)}
+            disabled={isEditing}
+          >
+            <Edit className="h-4 w-4 mr-1" />
+            Edit
+          </Button>
+        ) : inline.relationship_type === 'one_to_many' ? (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              // Derive the parent field name from the model name
+              // For example: Course -> course, CourseWork -> course_work
+              const parentFieldName = modelName ? camelToSnakeCase(modelName) : ''
+              const createUrl = inline.create_url || `/m/${inline.model_name}/create`
+
+              setCreateDialogState({
+                open: true,
+                modelName: inline.model_name,
+                createUrl,
+                hiddenFields: { [parentFieldName]: record.id as string }
+              })
+            }}
+            disabled={isEditing}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            New
+          </Button>
+        ) : inline.relationship_type === 'generic_fk' ? (
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const createUrl = inline.create_url || `/m/${inline.model_name}/create`
+                setCreateDialogState({
+                  open: true,
+                  modelName: inline.model_name,
+                  createUrl,
+                  hiddenFields: inline.hidden_fields || {}
+                })
+              }}
+              disabled={isEditing}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              New
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setEditingInline(inline)}
+              disabled={isEditing}
+            >
+              <Edit className="h-4 w-4 mr-1" />
+              Edit
+            </Button>
+          </div>
+        ) : (
+          // Fallback to Edit button if relationship_type is not set (backward compatibility)
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setEditingInline(inline)}
+            disabled={isEditing}
+          >
+            <Edit className="h-4 w-4 mr-1" />
+            Edit
+          </Button>
+        )}
+      </div>
+      <div className="border-t border-gray-200">
+        {inline.items.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  {inline.fields.map((field) => (
+                    <th
+                      key={field}
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      {field === 'object_link'
+                        ? inline.verbose_name
+                        : field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {inline.items.map((item) => (
+                  <tr key={item.id}>
+                    {inline.fields.map((field, fieldIndex) => {
+                      const value = item[field]
+                      let displayValue = ''
+
+                      if (value === null || value === undefined) {
+                        displayValue = '-'
+                      } else if (typeof value === 'object' && 'name' in value) {
+                        displayValue = String(value.name)
+                      } else if (typeof value === 'object' && 'id' in value) {
+                        displayValue = String(value.id)
+                      } else {
+                        displayValue = String(value)
+                      }
+
+                      // Format datetime values
+                      if (displayValue && displayValue !== '-' && displayValue.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
+                        const date = new Date(displayValue)
+                        displayValue = new Intl.DateTimeFormat('en-US', {
+                          month: '2-digit',
+                          day: '2-digit',
+                          year: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                          hour12: true
+                        }).format(date)
+                      }
+
+                      // Make the first field (usually title/name) or 'object_link' field clickable
+                      const isClickableField = fieldIndex === 0 || field === 'object_link'
+                      const detailUrl = `/r/${inline.model_name}/${item.id}/view`
+
+                      return (
+                        <td key={field} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {isClickableField && displayValue !== '-' ? (
+                            <a
+                              href={detailUrl}
+                              className="font-bold hover:underline"
+                            >
+                              {displayValue}
+                            </a>
+                          ) : (
+                            displayValue
+                          )}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="px-4 py-5 sm:px-6 text-sm text-gray-500">
+            No {inline.verbose_name_plural.toLowerCase()} found.
+          </div>
+        )}
+      </div>
+    </div>
+  )
+
+  // Look up a related table by its (lowercase) model name, e.g. "contact", or by
+  // the alias an auto-discovered ManyToMany carries, e.g. "students". Used by
+  // DetailRelatedTable to place a chosen table anywhere in a custom layout.
+  //
+  // `fields` and `title` override the server's defaults. Overriding columns is
+  // safe to do here because the server already sent every field the user is
+  // permitted to read, so this selects among vetted data rather than asking for
+  // more of it.
+  const renderInline = (
+    inlineModelName: string,
+    options?: { fields?: string[]; title?: string }
+  ): React.ReactNode => {
+    const name = inlineModelName.toLowerCase()
+    const inline = inlinesData.find(
+      i => i.model_name?.toLowerCase() === name || i.alias?.toLowerCase() === name
+    )
+    if (!inline) return null
+
+    const resolved: InlineConfig = {
+      ...inline,
+      ...(options?.fields ? { fields: options.fields } : {}),
+      ...(options?.title ? { verbose_name_plural: options.title } : {}),
+    }
+    return renderInlineTable(resolved)
+  }
+
+  const findInline = (inlineModelName: string): InlineConfig | undefined => {
+    const name = inlineModelName.toLowerCase()
+    return inlinesData.find(
+      i => i.model_name?.toLowerCase() === name || i.alias?.toLowerCase() === name
+    )
+  }
+
+  // TaskTimeline writes to a task directly rather than through this record's form,
+  // so the saved change is merged back into the inline state here. Without it a
+  // completed task would keep rendering as open until the next page load.
+  const patchInlineItem = (
+    inlineModelName: string,
+    itemId: string,
+    changes: Record<string, unknown>
+  ) => {
+    setInlinesData(prev =>
+      prev.map(inline =>
+        inline.model_name === inlineModelName
+          ? {
+              ...inline,
+              items: inline.items.map(item =>
+                item.id === itemId ? { ...item, ...changes } : item
+              ),
+            }
+          : inline
+      )
+    )
+  }
+
+  const removeInlineItem = (inlineModelName: string, itemId: string) => {
+    setInlinesData(prev =>
+      prev.map(inline =>
+        inline.model_name === inlineModelName
+          ? { ...inline, items: inline.items.filter(item => item.id !== itemId) }
+          : inline
+      )
+    )
+  }
+
+  // Render a related table as an activity timeline instead of a grid. Same payload
+  // renderInline reads — only the presentation differs — so it resolves the table by
+  // the same name and needs nothing extra declared in metadata.py.
+  const renderTaskTimeline = (
+    inlineModelName: string,
+    options?: { title?: string }
+  ): React.ReactNode => {
+    const inline = findInline(inlineModelName)
+    if (!inline) return null
+
+    return (
+      <TaskTimeline
+        title={options?.title || inline.verbose_name_plural}
+        tasks={inline.items as TimelineTask[]}
+        choices={inline.choices}
+        urlTemplates={inline.url_templates}
+        canDelete={inline.can_delete}
+        disabled={isEditing}
+        onCreate={
+          inline.create_url
+            ? () =>
+                setCreateDialogState({
+                  open: true,
+                  modelName: inline.model_name,
+                  createUrl: inline.create_url as string,
+                  hiddenFields: inline.hidden_fields || {},
+                })
+            : undefined
+        }
+        onTaskChange={(taskId, changes) =>
+          patchInlineItem(inline.model_name, taskId, changes)
+        }
+        onTaskDelete={taskId => removeInlineItem(inline.model_name, taskId)}
+      />
+    )
+  }
+
+  // Published to custom detail_components (e.g. AccountDetail) via context so their
+  // slot components reuse this record's data, field/inline renderers and edit state.
+  const contextValue: RecordDetailContextValue = {
+    record: formData,
+    isEditing,
+    renderField,
+    renderInline,
+    renderTaskTimeline,
+  }
+
   const fieldsToDisplay = getFieldsToDisplay()
   const hasFormConfig = Object.keys(form).length > 0
 
   return (
+    <RecordDetailContext.Provider value={contextValue}>
     <SidebarProvider>
       <AppSidebar appConfigurations={appConfigurations} />
       <SidebarInset>
@@ -614,6 +951,8 @@ export default function RecordDetail({
               </Alert>
             )}
 
+            {children ? children : (
+            <>
             {/* Render all fieldsets */}
             {fieldsets.length > 0 ? (
               fieldsets.map(([title, config], index) => (
@@ -648,169 +987,10 @@ export default function RecordDetail({
             {/* Render inline models */}
             {inlinesData && inlinesData.length > 0 && (
               <div className="mt-8">
-                {inlinesData.map((inline, inlineIndex) => (
-                  <div key={inlineIndex} className="bg-white shadow sm:rounded-lg mb-6">
-                    <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
-                      <h3 className="text-lg font-medium leading-6 text-gray-900">
-                        {inline.verbose_name_plural}
-                      </h3>
-                      {/* Conditionally render button based on relationship type */}
-                      {inline.relationship_type === 'many_to_many' ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setEditingInline(inline)}
-                          disabled={isEditing}
-                        >
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
-                        </Button>
-                      ) : inline.relationship_type === 'one_to_many' ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            // Derive the parent field name from the model name
-                            // For example: Course -> course, CourseWork -> course_work
-                            const parentFieldName = modelName ? camelToSnakeCase(modelName) : ''
-                            const createUrl = inline.create_url || `/m/${inline.model_name}/create`
-
-                            setCreateDialogState({
-                              open: true,
-                              modelName: inline.model_name,
-                              createUrl,
-                              hiddenFields: { [parentFieldName]: record.id as string }
-                            })
-                          }}
-                          disabled={isEditing}
-                        >
-                          <Plus className="h-4 w-4 mr-1" />
-                          New
-                        </Button>
-                      ) : inline.relationship_type === 'generic_fk' ? (
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              const createUrl = inline.create_url || `/m/${inline.model_name}/create`
-                              setCreateDialogState({
-                                open: true,
-                                modelName: inline.model_name,
-                                createUrl,
-                                hiddenFields: inline.hidden_fields || {}
-                              })
-                            }}
-                            disabled={isEditing}
-                          >
-                            <Plus className="h-4 w-4 mr-1" />
-                            New
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setEditingInline(inline)}
-                            disabled={isEditing}
-                          >
-                            <Edit className="h-4 w-4 mr-1" />
-                            Edit
-                          </Button>
-                        </div>
-                      ) : (
-                        // Fallback to Edit button if relationship_type is not set (backward compatibility)
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setEditingInline(inline)}
-                          disabled={isEditing}
-                        >
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
-                        </Button>
-                      )}
-                    </div>
-                    <div className="border-t border-gray-200">
-                      {inline.items.length > 0 ? (
-                        <div className="overflow-x-auto">
-                          <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                {inline.fields.map((field) => (
-                                  <th
-                                    key={field}
-                                    scope="col"
-                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                  >
-                                    {field === 'object_link' 
-                                      ? inline.verbose_name 
-                                      : field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                  </th>
-                                ))}
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                              {inline.items.map((item) => (
-                                <tr key={item.id}>
-                                  {inline.fields.map((field, fieldIndex) => {
-                                    const value = item[field]
-                                    let displayValue = ''
-
-                                    if (value === null || value === undefined) {
-                                      displayValue = '-'
-                                    } else if (typeof value === 'object' && 'name' in value) {
-                                      displayValue = String(value.name)
-                                    } else if (typeof value === 'object' && 'id' in value) {
-                                      displayValue = String(value.id)
-                                    } else {
-                                      displayValue = String(value)
-                                    }
-
-                                    // Format datetime values
-                                    if (displayValue && displayValue !== '-' && displayValue.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
-                                      const date = new Date(displayValue)
-                                      displayValue = new Intl.DateTimeFormat('en-US', {
-                                        month: '2-digit',
-                                        day: '2-digit',
-                                        year: 'numeric',
-                                        hour: 'numeric',
-                                        minute: '2-digit',
-                                        hour12: true
-                                      }).format(date)
-                                    }
-
-                                    // Make the first field (usually title/name) or 'object_link' field clickable
-                                    const isClickableField = fieldIndex === 0 || field === 'object_link'
-                                    const detailUrl = `/r/${inline.model_name}/${item.id}/view`
-                                    
-                                    return (
-                                      <td key={field} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {isClickableField && displayValue !== '-' ? (
-                                          <a 
-                                            href={detailUrl}
-                                            className="font-bold hover:underline"
-                                          >
-                                            {displayValue}
-                                          </a>
-                                        ) : (
-                                          displayValue
-                                        )}
-                                      </td>
-                                    )
-                                  })}
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      ) : (
-                        <div className="px-4 py-5 sm:px-6 text-sm text-gray-500">
-                          No {inline.verbose_name_plural.toLowerCase()} found.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                {inlinesData.map((inline, inlineIndex) => renderInlineTable(inline, inlineIndex))}
               </div>
+            )}
+            </>
             )}
           </div>
         </div>
@@ -866,5 +1046,6 @@ export default function RecordDetail({
         }}
       />
     </SidebarProvider>
+    </RecordDetailContext.Provider>
   )
 }

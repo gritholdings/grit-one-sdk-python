@@ -1,8 +1,9 @@
 import json
+from typing import Any
 from django import forms
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
-from django.db.models import ForeignKey, OneToOneField, Q
+from django.db.models import Field, ForeignKey, OneToOneField, Q
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, Http404
 from django.contrib.auth.decorators import login_required
@@ -62,6 +63,190 @@ def _get_inline_field_name(parent_model, inline_model):
         if isinstance(field, GenericForeignKey):
             return f"{inline_model._meta.model_name}_set"
     return None
+
+
+def _resolve_relationship(parent_model, related_model):
+    empty = {
+        'relationship_type': None,
+        'fk_field': None,
+        'parent_field': None,
+        'm2m_field': None,
+        'gfk_field': None,
+    }
+    for m2m_field in parent_model._meta.many_to_many:
+        if m2m_field.remote_field.through == related_model:
+            parent_field = None
+            for field in related_model._meta.fields:
+                if field.related_model == parent_model:
+                    parent_field = field.name
+                    break
+            return {
+                **empty,
+                'relationship_type': 'many_to_many',
+                'parent_field': parent_field,
+                'm2m_field': m2m_field.name,
+            }
+    for field in related_model._meta.fields:
+        if field.related_model == parent_model:
+            return {
+                **empty,
+                'relationship_type': 'one_to_many',
+                'fk_field': field.name,
+            }
+    for field in related_model._meta.private_fields:
+        if isinstance(field, GenericForeignKey):
+            return {
+                **empty,
+                'relationship_type': 'generic_fk',
+                'gfk_field': field,
+            }
+    return empty
+
+
+def _fetch_related_objects(parent_model, obj, related_model, relationship):
+    relationship_type = relationship['relationship_type']
+    if relationship_type == 'one_to_many' and relationship['fk_field']:
+        filter_kwargs = {relationship['fk_field']: obj}
+    elif relationship_type == 'many_to_many' and relationship['parent_field']:
+        filter_kwargs = {relationship['parent_field']: obj}
+    elif relationship_type == 'generic_fk' and relationship['gfk_field']:
+        gfk_field = relationship['gfk_field']
+        filter_kwargs = {
+            gfk_field.ct_field: ContentType.objects.get_for_model(parent_model),
+            gfk_field.fk_field: obj.pk,
+        }
+    else:
+        return []
+    if hasattr(related_model, 'objects'):
+        return related_model.objects.filter(**filter_kwargs)
+    if hasattr(related_model, 'owned'):
+        return related_model.owned.filter(**filter_kwargs)
+    return []
+
+
+def _build_related_create_meta(parent_model, obj, related_model, relationship):
+    from grit.core.metadata import metadata as meta_registry
+    relationship_type = relationship['relationship_type']
+    if relationship_type not in ('one_to_many', 'generic_fk'):
+        return None, None
+    related_model_snake = camel_to_snake(related_model.__name__)
+    related_app = meta_registry._get_app_for_model(related_model)
+    create_url = f'/app/{related_app}/m/{related_model_snake}/create'
+    hidden_fields = None
+    if relationship_type == 'generic_fk':
+        gfk_field = relationship['gfk_field']
+        ct = ContentType.objects.get_for_model(parent_model)
+        hidden_fields = {
+            gfk_field.ct_field: str(ct.pk),
+            gfk_field.fk_field: str(obj.pk),
+        }
+    return create_url, hidden_fields
+
+
+def _build_related_url_templates(related_model):
+    from grit.core.metadata import metadata as meta_registry
+    related_model_snake = camel_to_snake(related_model.__name__)
+    related_app = meta_registry._get_app_for_model(related_model)
+    base = f'/app/{related_app}/r/{related_model_snake}'
+    return {
+        'view': f'{base}/{{id}}/view',
+        'update': f'{base}/{{id}}/update',
+        'delete': f'{base}/{{id}}/delete',
+    }
+
+
+def _build_related_field_choices(related_model):
+    from grit.core.metadata import metadata as meta_registry
+    related_metadata = meta_registry.get(related_model)
+    field_choices = getattr(related_metadata, 'field_choices', None)
+    if not field_choices:
+        return None
+    all_choices = settings.APP_METADATA_SETTINGS.get('CHOICES', {})
+    return {
+        field_name: all_choices[group]
+        for field_name, group in field_choices.items()
+        if group in all_choices
+    }
+
+
+def _discover_related_models(parent_model):
+    from grit.core.metadata import metadata as meta_registry
+    registered = meta_registry.get_registered_models()
+    discovered = []
+    seen = set()
+    def add(related_model, alias=None):
+        if related_model in seen:
+            return
+        seen.add(related_model)
+        discovered.append((related_model, alias))
+    for m2m_field in parent_model._meta.many_to_many:
+        add(m2m_field.remote_field.through, alias=m2m_field.name)
+    for rel in parent_model._meta.related_objects:
+        if rel.one_to_one:
+            continue
+        if rel.many_to_many:
+            add(rel.through)
+        else:
+            add(rel.related_model)
+    for candidate in registered:
+        if candidate is parent_model:
+            continue
+        if any(isinstance(f, GenericForeignKey) for f in candidate._meta.private_fields):
+            add(candidate)
+    return discovered
+
+
+def _resolve_related_model_by_name(parent_model, metadata_class, related_name):
+    target = (related_name or '').lower()
+    inlines = getattr(metadata_class, 'inlines', None)
+    if inlines:
+        for inline in inlines:
+            if inline.model.__name__.lower() == target:
+                return inline.model
+        return None
+    if getattr(metadata_class, 'detail_component', None):
+        for related_model, alias in _discover_related_models(parent_model):
+            if related_model.__name__.lower() == target:
+                return related_model
+            if alias and alias.lower() == target:
+                return related_model
+    return None
+
+
+def _default_related_fields(related_model):
+    from grit.core.metadata import metadata as meta_registry
+    related_metadata = meta_registry.get(related_model)
+    if related_metadata is not None:
+        list_display = getattr(related_metadata, 'list_display', None)
+        if list_display:
+            return list(list_display)
+        fieldsets = getattr(related_metadata, 'fieldsets', None)
+        if fieldsets:
+            fields = []
+            for _fieldset_name, fieldset_config in fieldsets:
+                fields.extend(fieldset_config.get('fields', []))
+            if fields:
+                return fields
+    excluded_fields = {'id', 'created_at', 'updated_at', 'owner', 'metadata'}
+    return [f.name for f in related_model._meta.fields if f.name not in excluded_fields]
+
+
+def _serialize_related_object(related_obj, related_model, field_perms, has_field_config, view_all_fields):
+    item_data: dict[str, Any] = {'id': str(related_obj.id) if hasattr(related_obj, 'id') else None}
+    fields = list(related_model._meta.fields)
+    fields += [f for f in related_model._meta.private_fields if isinstance(f, GenericForeignKey)]
+    for field in fields:
+        field_name = field.name
+        if not _is_field_readable(field_name, field_perms, has_field_config, view_all_fields):
+            continue
+        value = getattr(related_obj, field_name, None)
+        if value is None:
+            item_data[field_name] = None
+        elif hasattr(value, 'id'):
+            item_data[field_name] = {'id': str(value.id), 'name': str(value)}
+        else:
+            item_data[field_name] = value
+    return item_data
 
 
 def _get_user_queryset(model, user):
@@ -527,7 +712,7 @@ class MetadataViewGenerator:
                         else:
                             obj_data[field_name] = ''
             fieldsets = []
-            if hasattr(metadata_class, 'fieldsets'):
+            if getattr(metadata_class, 'fieldsets', None):
                 for fieldset_name, fieldset_config in metadata_class.fieldsets:
                     field_names = fieldset_config.get('fields', [])
                     field_names = [
@@ -547,6 +732,23 @@ class MetadataViewGenerator:
                     instance=obj,
                     model_name=model_name_lower
                 )
+            elif getattr(metadata_class, 'detail_component', None):
+                from django.forms import modelform_factory
+                excluded_fields = {'id', 'created_at', 'updated_at', 'owner', 'metadata'}
+                valid_fields = [
+                    f.name for f in model._meta.get_fields()
+                    if isinstance(f, Field)
+                    and getattr(f, 'editable', False)
+                    and f.name not in excluded_fields
+                ]
+                if valid_fields:
+                    DynamicForm = modelform_factory(model, fields=valid_fields)
+                    form_data = serialize_form_for_react(
+                        DynamicForm,
+                        user=request.user,
+                        instance=obj,
+                        model_name=model_name_lower
+                    )
             elif hasattr(metadata_class, 'fieldsets') and metadata_class.fieldsets:
                 from django.forms import modelform_factory
                 fieldset_fields = []
@@ -622,64 +824,9 @@ class MetadataViewGenerator:
                     elif hasattr(inline_class, 'readonly_fields'):
                         inline_fields = inline_class.readonly_fields
                     inline_items = []
-                    relationship_type = None
-                    is_through_model = False
-                    parent_field = None
-                    for m2m_field in model._meta.many_to_many:
-                        if m2m_field.remote_field.through == inline_model:
-                            relationship_type = "many_to_many"
-                            is_through_model = True
-                            for field in inline_model._meta.fields:
-                                if field.related_model == model:
-                                    parent_field = field.name
-                                    break
-                            break
-                    if not relationship_type:
-                        fk_field = None
-                        for field in inline_model._meta.fields:
-                            if field.related_model == model:
-                                fk_field = field.name
-                                relationship_type = "one_to_many"
-                                break
-                    else:
-                        fk_field = None
-                    gfk_field = None
-                    if not relationship_type:
-                        for field in inline_model._meta.private_fields:
-                            if isinstance(field, GenericForeignKey):
-                                gfk_field = field
-                                relationship_type = "generic_fk"
-                                break
-                    if fk_field:
-                        filter_kwargs = {fk_field: obj}
-                        if hasattr(inline_model, 'objects'):
-                            related_objects = inline_model.objects.filter(**filter_kwargs)
-                        elif hasattr(inline_model, 'owned'):
-                            related_objects = inline_model.owned.filter(**filter_kwargs)
-                        else:
-                            related_objects = []
-                    elif is_through_model and parent_field:
-                        filter_kwargs = {parent_field: obj}
-                        if hasattr(inline_model, 'objects'):
-                            related_objects = inline_model.objects.filter(**filter_kwargs)
-                        elif hasattr(inline_model, 'owned'):
-                            related_objects = inline_model.owned.filter(**filter_kwargs)
-                        else:
-                            related_objects = []
-                    elif gfk_field:
-                        ct = ContentType.objects.get_for_model(model)
-                        filter_kwargs = {
-                            gfk_field.ct_field: ct,
-                            gfk_field.fk_field: obj.pk,
-                        }
-                        if hasattr(inline_model, 'objects'):
-                            related_objects = inline_model.objects.filter(**filter_kwargs)
-                        elif hasattr(inline_model, 'owned'):
-                            related_objects = inline_model.owned.filter(**filter_kwargs)
-                        else:
-                            related_objects = []
-                    else:
-                        related_objects = []
+                    relationship = _resolve_relationship(model, inline_model)
+                    relationship_type = relationship['relationship_type']
+                    related_objects = _fetch_related_objects(model, obj, inline_model, relationship)
                     for related_obj in related_objects:
                         item_data = {
                             'id': str(related_obj.id) if hasattr(related_obj, 'id') else None,
@@ -712,17 +859,67 @@ class MetadataViewGenerator:
                         'items': inline_items,
                         'relationship_type': relationship_type
                     }
-                    if relationship_type == 'generic_fk' and gfk_field:
-                        ct = ContentType.objects.get_for_model(model)
-                        inline_config['hidden_fields'] = {
-                            gfk_field.ct_field: str(ct.pk),
-                            gfk_field.fk_field: str(obj.pk),
-                        }
-                    if relationship_type in ('generic_fk', 'one_to_many'):
-                        from grit.core.metadata import metadata as meta_registry
-                        inline_model_snake = camel_to_snake(inline_model.__name__)
-                        inline_app = meta_registry._get_app_for_model(inline_model)
-                        inline_config['create_url'] = f'/app/{inline_app}/m/{inline_model_snake}/create'
+                    create_url, hidden_fields = _build_related_create_meta(
+                        model, obj, inline_model, relationship
+                    )
+                    if hidden_fields:
+                        inline_config['hidden_fields'] = hidden_fields
+                    if create_url:
+                        inline_config['create_url'] = create_url
+                    inlines_data.append(inline_config)
+            elif getattr(metadata_class, 'detail_component', None):
+                for related_model, alias in _discover_related_models(model):
+                    relationship = _resolve_relationship(model, related_model)
+                    if relationship['relationship_type'] is None:
+                        continue
+                    related_field_name = _get_inline_field_name(model, related_model)
+                    if related_field_name is not None:
+                        if not _is_field_readable(related_field_name, field_perms, has_field_config, view_all_fields):
+                            continue
+                    related_model_lower = camel_to_snake(related_model.__name__)
+                    (
+                        related_field_perms,
+                        related_has_field_config,
+                        related_view_all_fields,
+                    ) = get_user_field_permissions(
+                        request.user, related_model_lower, settings.APP_METADATA_SETTINGS
+                    )
+                    related_items = [
+                        _serialize_related_object(
+                            related_obj,
+                            related_model,
+                            related_field_perms,
+                            related_has_field_config,
+                            related_view_all_fields,
+                        )
+                        for related_obj in _fetch_related_objects(model, obj, related_model, relationship)
+                    ]
+                    label_model = related_model
+                    if relationship['relationship_type'] == 'many_to_many':
+                        m2m_field = model._meta.get_field(relationship['m2m_field'])
+                        label_model = m2m_field.related_model
+                    inline_config = {
+                        'model_name': related_model.__name__.lower(),
+                        'alias': alias,
+                        'verbose_name': str(label_model._meta.verbose_name).title(),
+                        'verbose_name_plural': str(label_model._meta.verbose_name_plural).title(),
+                        'fields': _default_related_fields(related_model),
+                        'readonly_fields': [],
+                        'can_delete': True,
+                        'items': related_items,
+                        'relationship_type': relationship['relationship_type'],
+                        'url_templates': _build_related_url_templates(related_model),
+                    }
+                    field_choices = _build_related_field_choices(related_model)
+                    if field_choices:
+                        inline_config['choices'] = field_choices
+                    create_url, hidden_fields = _build_related_create_meta(
+                        model, obj, related_model, relationship
+                    )
+                    if hidden_fields:
+                        inline_config['hidden_fields'] = hidden_fields
+                    if create_url:
+                        inline_config['create_url'] = create_url
                     inlines_data.append(inline_config)
             context = {
                 'object': obj,
@@ -738,6 +935,7 @@ class MetadataViewGenerator:
                 'inlines_json': json.dumps(inlines_data, cls=DjangoJSONEncoder),
                 'model_name': model_name,
                 'model_name_lower': model_name_lower,
+                'detail_component': getattr(metadata_class, 'detail_component', None),
                 'title': f'{model_name} Detail',
                 'app_metadata_settings_json': json.dumps(convert_keys_to_camel_case(resolve_urls_in_app_metadata(filtered_settings))),
                 f'{model_name_lower}': obj,
@@ -1079,34 +1277,12 @@ class MetadataViewGenerator:
                 remove_ids = data.get('remove', [])
             except (json.JSONDecodeError, KeyError) as e:
                 return JsonResponse({'error': f'Invalid request data: {str(e)}'}, status=400)
-            inline_class = None
-            if hasattr(metadata_class, 'inlines') and metadata_class.inlines:
-                for inline in metadata_class.inlines:
-                    if inline.model.__name__.lower() == inline_model_name.lower():
-                        inline_class = inline
-                        break
-            if not inline_class:
+            inline_model = _resolve_related_model_by_name(model, metadata_class, inline_model_name)
+            if inline_model is None:
                 return JsonResponse({'error': f'Inline model {inline_model_name} not found'}, status=404)
-            inline_model = inline_class.model
-            is_through_model = False
-            parent_field = None
-            related_field = None
-            m2m_field = None
-            for field in model._meta.many_to_many:
-                if field.remote_field.through == inline_model:
-                    m2m_field = field.name
-                    is_through_model = True
-                    for through_field in inline_model._meta.fields:
-                        if through_field.related_model == model:
-                            parent_field = through_field.name
-                        elif through_field.related_model and through_field.related_model != model:
-                            related_field = through_field.name
-                    break
-            if not is_through_model:
-                for field in inline_model._meta.fields:
-                    if field.related_model == model:
-                        parent_field = field.name
-                        break
+            relationship = _resolve_relationship(model, inline_model)
+            m2m_field = relationship['m2m_field']
+            parent_field = relationship['parent_field'] or relationship['fk_field']
             if not parent_field and not m2m_field:
                 return JsonResponse({'error': 'Could not determine relationship type'}, status=400)
             try:

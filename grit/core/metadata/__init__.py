@@ -3,6 +3,8 @@ class ModelMetadata:
     list_actions = None
     list_bulk_actions = None
     detail_actions = None
+    detail_component = None
+    field_choices = None
     fieldsets = None
     form = None
     inlines = None

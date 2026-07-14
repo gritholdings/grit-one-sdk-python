@@ -9,7 +9,7 @@
 {% endblock %}
 {% block content %}
 <div class="px-4 pt-14 pb-10 sm:px-6 lg:px-8 lg:pb-14 mx-auto">
-    <div data-react-component="RecordDetail" 
+    <div data-react-component="{{ detail_component|default:"RecordDetail" }}"
          data-prop-data-source="object-data"
          data-prop-fieldsets="{{ fieldsets_json }}"
          data-prop-form="{{ form_data_json }}"

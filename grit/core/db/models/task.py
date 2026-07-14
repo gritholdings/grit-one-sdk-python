@@ -39,6 +39,7 @@ class Task(BaseModel):
         choices=get_resolution_choices(),
         blank=True
     )
+    is_high_priority = models.BooleanField(default=False)
     due_datetime = models.DateTimeField(blank=True, null=True)
     def __str__(self):
         return self.title

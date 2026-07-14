@@ -7,8 +7,9 @@ import App from './App.tsx'
 async function loadComponent(componentName: string) {
   // For Vite, we need to use glob imports with eager loading for production builds
   const components = {
-    // Import all components from app_frontend recursively
-    ...import.meta.glob('../app_frontend/src/components/**/*.tsx', { eager: true }),
+    // Import all components from app_frontend recursively (including top-level
+    // files like account-detail.tsx used as custom `detail_component`s)
+    ...import.meta.glob('../app_frontend/src/**/*.tsx', { eager: true }),
     // Import all components from frontend recursively
     ...import.meta.glob('./components/**/*.tsx', { eager: true }),
     // Import chat components
